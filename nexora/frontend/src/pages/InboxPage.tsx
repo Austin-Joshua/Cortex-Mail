@@ -60,10 +60,10 @@ export const InboxPage: React.FC = () => {
 
     const query = searchQuery.toLowerCase();
     const matchesSearch =
-      email.from?.toLowerCase().includes(query) ||
-      email.subject?.toLowerCase().includes(query) ||
-      email.body?.toLowerCase().includes(query) ||
-      email.senderEmail?.toLowerCase().includes(query);
+      (email.senderName?.toLowerCase().includes(query)) ||
+      (email.subject?.toLowerCase().includes(query)) ||
+      (email.bodySnippet?.toLowerCase().includes(query)) ||
+      (email.senderEmail?.toLowerCase().includes(query));
 
     return matchesUnread && matchesSearch;
   });
