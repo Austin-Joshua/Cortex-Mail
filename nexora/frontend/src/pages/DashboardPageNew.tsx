@@ -154,7 +154,7 @@ export const DashboardPageNew: React.FC = () => {
           }}>
             {[
               { icon: Zap, label: 'View Priority Inbox', path: '/priority', color: '#ff6b35' },
-              { icon: Brain, label: 'Ask Nexora Brain', path: '/brain', color: '#3b4fea' },
+              { icon: Brain, label: 'Ask Velocity Brain', path: '/brain', color: '#3b4fea' },
               { icon: Send, label: 'Compose Email', action: 'compose', color: '#00d4aa' },
               { icon: TrendingUp, label: 'View Analytics', path: '/analytics', color: '#10b981' },
             ].map((action, idx) => {

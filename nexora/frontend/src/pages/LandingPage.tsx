@@ -67,7 +67,7 @@ export const LandingPage: React.FC = () => {
             N
           </div>
           <span style={{ fontWeight: 700, color: 'var(--text-1)', fontSize: 18, fontFamily: 'Google Sans, Roboto, sans-serif' }}>
-            Nexora
+            Velocity
           </span>
         </div>
         <div>
@@ -118,7 +118,7 @@ export const LandingPage: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase' }}>
-            AI EMAIL INTELLIGENCE PLATFORM
+            COMMUNICATION ACCELERATION PLATFORM
           </span>
 
           <h1
@@ -131,11 +131,11 @@ export const LandingPage: React.FC = () => {
               fontFamily: 'Google Sans, Roboto, sans-serif',
             }}
           >
-            Gmail, redesigned for <span style={{ color: 'var(--accent)' }}>focus and action.</span>
+            Accelerate your <span style={{ color: 'var(--accent)' }}>communication.</span>
           </h1>
 
           <p style={{ fontSize: 15, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-            Nexora analyzes your Gmail inbox, organizes messages into role-aware categories, and surfaces deadlines and pending action items.
+            Velocity transforms your email management by accelerating communication, boosting productivity, and amplifying your professional impact.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

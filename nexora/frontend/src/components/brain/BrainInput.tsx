@@ -52,7 +52,7 @@ export const BrainInput: React.FC<BrainInputProps> = ({ onSend, isLoading }) => 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Nexora Brain about your emails..."
+          placeholder="Ask Velocity Brain about your emails..."
           rows={1}
           disabled={isLoading}
           style={{

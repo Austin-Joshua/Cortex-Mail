@@ -129,7 +129,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
         </div>
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', margin: 0, fontFamily: 'Google Sans, Roboto, sans-serif' }}>
-            {selectedConversationId ? 'Archive View' : 'Nexora Brain'}
+            {selectedConversationId ? 'Archive View' : 'Velocity Brain'}
           </p>
           <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '2px 0 0' }}>
             {selectedConversationId ? 'Viewing past conversation thread' : 'Natural language Q&A over your entire inbox'}
@@ -213,7 +213,7 @@ const WelcomeState: React.FC<{ suggestions: string[]; onSend: (q: string) => voi
         Ask your inbox anything
       </h3>
       <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, maxWidth: 360, lineHeight: 1.5 }}>
-        Nexora Brain reads all your emails and answers in plain English.
+        Velocity Brain reads all your emails and answers in plain English.
       </p>
     </div>
 

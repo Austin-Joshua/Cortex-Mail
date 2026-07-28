@@ -104,7 +104,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
             N
           </div>
           <span style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-1)', letterSpacing: '-0.02em', fontFamily: 'Google Sans, Roboto, sans-serif' }}>
-            Nexora
+            Velocity
           </span>
         </div>
       </div>
@@ -128,7 +128,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
           <input
             id="topbar-search"
             type="text"
-            placeholder="Search mail in Nexora..."
+            placeholder="Search mail in Velocity..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setSearchFocused(true)}

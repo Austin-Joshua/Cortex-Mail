@@ -27,7 +27,7 @@ export const PriorityInboxPage: React.FC = () => {
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Priority Inbox</h2>
         <p style={{ color: 'var(--text-2)', maxWidth: 400 }}>
-          Your most important emails, intelligently prioritized by Nexora AI based on your patterns and preferences.
+          Your most important emails, intelligently prioritized by Velocity AI based on your patterns and preferences.
         </p>
       </div>
     </AppShell>

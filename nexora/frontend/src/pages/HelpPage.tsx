@@ -7,7 +7,7 @@ const HELP_CATEGORIES = [
     title: 'Getting Started',
     icon: HelpCircle,
     items: [
-      { q: 'How do I connect my Gmail account?', a: 'Click "Connect Gmail Account" on the dashboard. Authorize Nexora to access your emails with read-only permissions.' },
+      { q: 'How do I connect my Gmail account?', a: 'Click "Connect Gmail Account" on the dashboard. Authorize Velocity to access your emails with read-only permissions.' },
       { q: 'Is my data secure?', a: 'Yes! We use AES-256 encryption and only access your emails for classification and analysis. Your data is never shared.' },
       { q: 'What email providers are supported?', a: 'Currently Gmail. We plan to support Outlook and Yahoo Mail soon.' },
     ],
@@ -17,7 +17,7 @@ const HELP_CATEGORIES = [
     icon: Zap,
     items: [
       { q: 'What is Priority Inbox?', a: 'AI learns your patterns and shows the most important emails first based on your past interactions.' },
-      { q: 'How does scheduled delivery work?', a: 'Compose an email, click "Schedule", choose time/date. Nexora sends it at the perfect moment.' },
+      { q: 'How does scheduled delivery work?', a: 'Compose an email, click "Schedule", choose time/date. Velocity sends it at the perfect moment.' },
       { q: 'Can I use email templates?', a: 'Yes! Create templates for common responses and reuse them with merge fields.' },
     ],
   },
@@ -25,7 +25,7 @@ const HELP_CATEGORIES = [
     title: 'Brain Q&A',
     icon: Brain,
     items: [
-      { q: 'What can I ask Nexora Brain?', a: 'Ask questions like "What meetings do I have with John?" or "Summarize my marketing emails".' },
+      { q: 'What can I ask Velocity Brain?', a: 'Ask questions like "What meetings do I have with John?" or "Summarize my marketing emails".' },
       { q: 'How accurate is the AI?', a: 'We use Claude AI for 99%+ accuracy. Results are based on your actual emails.' },
     ],
   },

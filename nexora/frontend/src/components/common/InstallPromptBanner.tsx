@@ -54,7 +54,7 @@ export const InstallPromptBanner: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <Download size={20} style={{ color: 'var(--ember)' }} />
         <div>
-          <p style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Install Nexora App</p>
+          <p style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Install Velocity App</p>
           <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '2px 0 0' }}>Add to your home screen</p>
         </div>
       </div>

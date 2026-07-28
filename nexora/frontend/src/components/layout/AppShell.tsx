@@ -129,7 +129,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       <BottomSheet
         isOpen={bottomSheet.isOpen}
         onClose={closeBottomSheet}
-        title={bottomSheet.type === 'QUICK_ACTIONS' ? 'Quick Actions' : 'Nexora Options'}
+        title={bottomSheet.type === 'QUICK_ACTIONS' ? 'Quick Actions' : 'Velocity Options'}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button
@@ -144,7 +144,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             className="btn-outline"
             style={{ width: '100%', justifyContent: 'flex-start', height: 48, fontSize: 14 }}
           >
-            <Sparkles size={18} style={{ color: 'var(--violet)' }} /> Ask Nexora Brain
+            <Sparkles size={18} style={{ color: 'var(--violet)' }} /> Ask Velocity Brain
           </button>
           <button
             onClick={() => { closeBottomSheet(); navigate('/inbox?filter=deadlines'); }}

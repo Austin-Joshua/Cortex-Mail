@@ -86,7 +86,7 @@ export const OnboardingPage: React.FC = () => {
             Welcome, {firstName}
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0 }}>
-            Choose your role to shape how Nexora prioritizes your emails
+            Choose your role to shape how Velocity prioritizes your emails
           </p>
         </div>
 

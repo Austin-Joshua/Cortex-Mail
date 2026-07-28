@@ -15,12 +15,12 @@ export const WeeklyRecapCard: React.FC<RecapProps> = ({
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'My Nexora Weekly Email Recap',
-        text: `Managed ${totalVolume} emails this week with Nexora AI intelligence! Top category: ${topCategory}.`,
+        title: 'My Velocity Weekly Email Recap',
+        text: `Managed ${totalVolume} emails this week with Velocity AI intelligence! Top category: ${topCategory}.`,
         url: window.location.href,
       }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(`Managed ${totalVolume} emails this week with Nexora AI!`);
+      navigator.clipboard.writeText(`Managed ${totalVolume} emails this week with Velocity AI!`);
       alert('Recap summary copied to clipboard!');
     }
   };

@@ -80,7 +80,7 @@ export const DashboardPage: React.FC = () => {
           >
             <RefreshCw size={18} style={{ color: 'var(--ember)' }} className="animate-spin" />
             <span style={{ fontSize: 14, color: 'var(--text-1)', fontWeight: 600 }}>
-              Syncing Gmail inbox with Nexora AI intelligence...
+              Syncing Gmail inbox with Velocity AI intelligence...
             </span>
           </div>
         )}
