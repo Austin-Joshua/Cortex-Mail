@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { LandingPage }       from './pages/LandingPage';
 import { OnboardingPage }    from './pages/OnboardingPage';
-import { DashboardPage }     from './pages/DashboardPage';
+import { DashboardPageNew }  from './pages/DashboardPageNew';
 import { InboxPage }         from './pages/InboxPage';
 import { BrainPage }         from './pages/BrainPage';
 import { NotificationsPage } from './pages/NotificationsPage';
@@ -13,6 +13,14 @@ import { EmailDetailPage }   from './pages/EmailDetailPage';
 import { AnalyticsPage }     from './pages/AnalyticsPage';
 import { ErrorBoundary }     from './components/common/ErrorBoundary';
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
+import { PriorityInboxPage } from './pages/PriorityInboxPage';
+import { DraftsPage }        from './pages/DraftsPage';
+import { ScheduledEmailsPage } from './pages/ScheduledEmailsPage';
+import { LoadingSpinner }    from './components/common/LoadingSpinner';
+
+const ArchivePage = lazy(() => import('./pages/ArchivePage').then(m => ({ default: m.ArchivePage })));
+const SharedPage = lazy(() => import('./pages/SharedPage').then(m => ({ default: m.SharedPage })));
+const HelpPage = lazy(() => import('./pages/HelpPage').then(m => ({ default: m.HelpPage })));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -23,18 +31,39 @@ function App() {
   return (
     <ErrorBoundary>
       <Routes>
+        {/* Public Routes */}
         <Route path="/"                element={<LandingPage />} />
         <Route path="/auth/callback"   element={<AuthCallbackPage />} />
+        <Route path="/privacy"         element={<PrivacyPolicyPage />} />
+
+        {/* Protected Routes */}
         <Route path="/onboarding"      element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-        <Route path="/dashboard"       element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+
+        {/* Main Navigation */}
+        <Route path="/dashboard"       element={<ProtectedRoute><DashboardPageNew /></ProtectedRoute>} />
         <Route path="/inbox"           element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
-        <Route path="/emails/:id"      element={<ProtectedRoute><EmailDetailPage /></ProtectedRoute>} />
+        <Route path="/priority"        element={<ProtectedRoute><PriorityInboxPage /></ProtectedRoute>} />
+        <Route path="/scheduled"       element={<ProtectedRoute><ScheduledEmailsPage /></ProtectedRoute>} />
+
+        {/* Features */}
         <Route path="/brain"           element={<ProtectedRoute><BrainPage /></ProtectedRoute>} />
-        <Route path="/notifications"   element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-        <Route path="/settings"        element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/drafts"          element={<ProtectedRoute><DraftsPage /></ProtectedRoute>} />
+        <Route path="/archive"         element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><ArchivePage /></Suspense></ProtectedRoute>} />
+        <Route path="/shared"          element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><SharedPage /></Suspense></ProtectedRoute>} />
+
+        {/* Insights */}
         <Route path="/analytics"       element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
-        <Route path="/privacy"          element={<PrivacyPolicyPage />} />
-        <Route path="*"                element={<Navigate to="/" replace />} />
+        <Route path="/notifications"   element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+
+        {/* System */}
+        <Route path="/settings"        element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/help"            element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><HelpPage /></Suspense></ProtectedRoute>} />
+
+        {/* Detail Routes */}
+        <Route path="/emails/:id"      element={<ProtectedRoute><EmailDetailPage /></ProtectedRoute>} />
+
+        {/* Catch All */}
+        <Route path="*"                element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </ErrorBoundary>
   );

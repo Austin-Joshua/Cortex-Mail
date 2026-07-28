@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, Sparkles, BarChart2, Bell } from 'lucide-react';
+import { LayoutDashboard, Inbox, Sparkles, BarChart2, Bell, Zap, Settings } from 'lucide-react';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useEmails } from '../../hooks/useEmails';
 import { PulseRing } from '../common/PulseRing';
@@ -15,8 +15,8 @@ export const MobileBottomNav: React.FC = () => {
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/inbox', label: 'Inbox', icon: Inbox, badge: unreadEmailCount },
     { to: '/brain', label: 'Brain', icon: Sparkles, isCenter: true },
-    { to: '/analytics', label: 'Analytics', icon: BarChart2 },
-    { to: '/notifications', label: 'Alerts', icon: Bell, badge: unreadNotifCount },
+    { to: '/priority', label: 'Priority', icon: Zap },
+    { to: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -26,15 +26,17 @@ export const MobileBottomNav: React.FC = () => {
         bottom: 0,
         left: 0,
         right: 0,
-        height: 64,
+        height: 68,
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 4px)',
-        background: 'var(--paper-2)',
-        borderTop: '1px solid var(--line)',
+        background: 'var(--surface)',
+        borderTop: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-around',
         zIndex: 50,
         userSelect: 'none',
+        animation: 'slideUp 0.3s ease-out',
+        backdropFilter: 'blur(10px)',
       }}
     >
       {navItems.map(({ to, label, icon: Icon, badge, isCenter }) => {
@@ -96,9 +98,20 @@ export const MobileBottomNav: React.FC = () => {
               gap: 3,
               flex: 1,
               textDecoration: 'none',
-              color: isActive ? 'var(--ember)' : 'var(--text-2)',
+              color: isActive ? 'var(--primary)' : 'var(--text-2)',
               position: 'relative',
-              padding: '6px 0',
+              padding: '8px 0',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.color = 'var(--primary)';
+              (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={e => {
+              if (!isActive) {
+                (e.currentTarget as HTMLElement).style.color = 'var(--text-2)';
+              }
+              (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
             }}
           >
             <div style={{ position: 'relative' }}>
