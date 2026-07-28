@@ -4,21 +4,38 @@
 
 @layer base {
   :root {
-    /* Custom Modern Indigo/Teal Gmail-Style Design System */
-    --bg:            #f8fafc;   /* clean modern light slate background */
-    --surface:       #ffffff;   /* pure white card/section background */
-    --surface-2:     #f1f5f9;   /* selected / hover row background */
-    --border:        #e2e8f0;   /* elegant line borders */
-    --border-strong: #cbd5e1;
-    --text-1:        #0f172a;   /* deep slate for titles and headers */
-    --text-2:        #475569;   /* slate for body text */
-    --text-3:        #94a3b8;   /* slate muted */
-    --accent:        #4f46e5;   /* cobalt indigo primary brand accent */
-    --accent-soft:   #eef2ff;   /* soft indigo pill backdrop */
-    --unread-dot:    #4f46e5;
+    /* MAANG-Grade Premium Design System */
+    --bg:            #fafbfc;   /* ultra-clean light background */
+    --surface:       #ffffff;   /* pristine white surfaces */
+    --surface-2:     #f3f5f8;   /* subtle hover/selected state */
+    --surface-3:     #e8ecf1;   /* stronger surface variant */
+    --border:        #d4dae3;   /* refined border color */
+    --border-strong: #bcc4ce;
+    --text-1:        #0a0e27;   /* deep charcoal for contrast */
+    --text-2:        #424d67;   /* balanced body text */
+    --text-3:        #7a8399;   /* muted secondary text */
+    --text-4:        #a8b2c1;   /* lighter tertiary text */
+
+    /* Premium Color System */
+    --primary:       #3b4fea;   /* deep indigo (trust, intelligence) */
+    --primary-light: #5162ff;
+    --primary-pale:  #eef2ff;
+    --secondary:     #00d4aa;   /* vibrant teal (productivity) */
+    --secondary-pale:#e0f9f6;
+    --accent:        #ff6b35;   /* warm orange (action, urgency) */
+    --accent-pale:   #fff3e8;
+
+    /* Semantic Colors */
+    --success:       #10b981;   /* emerald */
+    --warning:       #f59e0b;   /* amber */
+    --danger:        #ef4444;   /* red */
+    --info:          #0ea5e9;   /* sky blue */
+
+    /* Legacy Aliases */
+    --unread-dot:    #3b4fea;
     --star:          #f59e0b;
-    --danger:        #ef4444;
-    --success:       #10b981;
+    --ember:         #3b4fea;
+    --ember-soft:    #eef2ff;
 
     /* AI Category System */
     --cat-assignment:   #6366f1;
