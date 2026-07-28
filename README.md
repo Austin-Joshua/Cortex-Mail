@@ -1,6 +1,6 @@
-# 🚀 Nexora — AI-Powered Email Intelligence Platform
+# 🚀 Velocity — Communication Acceleration Platform
 
-> Transform your chaotic email inbox into actionable intelligence with AI-powered classification, deadline extraction, and natural language Q&A.
+> Accelerate your communication. Reclaim your time. Amplify your impact. Transform how you manage email with AI-powered productivity acceleration.
 
 ![Status](https://img.shields.io/badge/status-production--ready-brightgreen)
 ![Backend](https://img.shields.io/badge/Backend-Spring%20Boot%203-6DB33F?logo=spring)
@@ -41,11 +41,11 @@
 - **Resilient AI** — Claude → Gemini → Local keyword fallback (works with zero API keys)
 - **Thread Summarization** — Claude-powered summaries for email conversations
 
-### 🧠 Nexora Brain
+### 🧠 Velocity Brain
 - **Natural Language Q&A** — Ask questions about your inbox, get AI-powered answers
 - **Conversation History** — All conversations saved and searchable
 - **Referenced Emails** — AI responses link back to relevant emails
-- **Role-aware Suggestions** — Personalized starter queries based on your role
+- **Acceleration Insights** — Smart suggestions to improve communication velocity
 
 ### 📊 Smart Notifications & Analytics
 - **Smart Alerts** — Deadlines, action items, important emails
