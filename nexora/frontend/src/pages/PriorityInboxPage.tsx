@@ -18,12 +18,12 @@ export const PriorityInboxPage: React.FC = () => {
           width: 80,
           height: 80,
           borderRadius: 16,
-          background: '#ff6b3515',
+          background: 'rgba(255, 107, 53, 0.1)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <Zap size={40} style={{ color: '#ff6b35' }} />
+          <Zap size={40} style={{ color: 'var(--accent)' }} />
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Priority Inbox</h2>
         <p style={{ color: 'var(--text-2)', maxWidth: 400 }}>

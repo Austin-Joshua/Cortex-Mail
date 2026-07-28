@@ -69,7 +69,7 @@ export const DashboardPageNew: React.FC = () => {
                 key={idx}
                 onClick={stat.action}
                 style={{
-                  background: 'white',
+                  background: 'var(--surface)',
                   border: '1px solid var(--border)',
                   borderRadius: 16,
                   padding: 20,
@@ -170,7 +170,7 @@ export const DashboardPageNew: React.FC = () => {
                     padding: '12px 16px',
                     border: '1px solid var(--border)',
                     borderRadius: 12,
-                    background: 'white',
+                    background: 'var(--surface)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     fontSize: 14,
@@ -182,7 +182,7 @@ export const DashboardPageNew: React.FC = () => {
                     (e.currentTarget as HTMLElement).style.borderColor = action.color;
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'white';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--surface)';
                     (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
                   }}
                 >
@@ -206,7 +206,7 @@ export const DashboardPageNew: React.FC = () => {
               Upcoming Deadlines
             </h2>
             <div style={{
-              background: 'white',
+              background: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: 16,
               overflow: 'hidden',
@@ -252,7 +252,7 @@ export const DashboardPageNew: React.FC = () => {
 
         {/* AI Insights */}
         <div style={{
-          background: 'linear-gradient(135deg, #3b4fea15 0%, #00d4aa15 100%)',
+          background: 'linear-gradient(135deg, rgba(59, 79, 234, 0.08) 0%, rgba(0, 212, 170, 0.08) 100%)',
           border: '1px solid var(--border)',
           borderRadius: 16,
           padding: 24,

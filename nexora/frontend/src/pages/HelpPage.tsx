@@ -69,7 +69,7 @@ export const HelpPage: React.FC = () => {
           alignItems: 'center',
           gap: 12,
           padding: '12px 16px',
-          background: 'white',
+          background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 12,
           animation: 'slideDown 0.3s ease-out',
@@ -137,7 +137,7 @@ export const HelpPage: React.FC = () => {
                           style={{
                             width: '100%',
                             padding: '16px',
-                            background: isExpanded ? 'var(--surface-2)' : 'white',
+                            background: isExpanded ? 'var(--surface-2)' : 'var(--surface)',
                             border: 'none',
                             cursor: 'pointer',
                             display: 'flex',
@@ -193,8 +193,8 @@ export const HelpPage: React.FC = () => {
 
         {/* Contact Support */}
         <div style={{
-          background: 'var(--primary-pale)',
-          border: '1px solid var(--primary)',
+          background: 'rgba(59, 79, 234, 0.05)',
+          border: '1px solid rgba(59, 79, 234, 0.2)',
           borderRadius: 16,
           padding: 24,
           textAlign: 'center',
@@ -215,6 +215,7 @@ export const HelpPage: React.FC = () => {
             cursor: 'pointer',
             fontWeight: 600,
             transition: 'all 0.2s ease',
+            boxShadow: '0 2px 6px rgba(59, 79, 234, 0.2)',
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
