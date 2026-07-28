@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
-import { HelpCircle, Search, ChevronDown, Mail, Brain, Zap, Clock, FileText, Share2 } from 'lucide-react';
+import { HelpCircle, Search, ChevronDown, Mail, Brain, Zap } from 'lucide-react';
 
 const HELP_CATEGORIES = [
   {

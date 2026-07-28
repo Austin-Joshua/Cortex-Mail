@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Inbox, Sparkles, BarChart2, Bell, Settings, RefreshCw,
-  Zap, Clock, Archive, FileText, Share2, HelpCircle, Send, AlertCircle
+  Zap, Clock, Archive, FileText, Share2, HelpCircle
 } from 'lucide-react';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useEmails } from '../../hooks/useEmails';

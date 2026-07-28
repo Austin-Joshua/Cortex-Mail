@@ -1,13 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, Sparkles, BarChart2, Bell, Zap, Settings } from 'lucide-react';
+import { LayoutDashboard, Inbox, Sparkles, Zap, Settings } from 'lucide-react';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useEmails } from '../../hooks/useEmails';
 import { PulseRing } from '../common/PulseRing';
 
 export const MobileBottomNav: React.FC = () => {
   const location = useLocation();
-  const { unreadCount: unreadNotifCount } = useNotificationStore();
   const { emails } = useEmails();
   const unreadEmailCount = emails.filter((e) => !e.isRead).length;
 

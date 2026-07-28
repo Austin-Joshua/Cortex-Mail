@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../api/dashboardApi';
 import { AppShell } from '../components/layout/AppShell';
 import { useAuthStore } from '../store/authStore';
 import { useEmails } from '../hooks/useEmails';
-import { Mail, AlertCircle, CheckCircle2, Clock, TrendingUp, Zap, Brain, Send } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, TrendingUp, Zap, Brain, Send } from 'lucide-react';
 
 export const DashboardPageNew: React.FC = () => {
   const { user } = useAuthStore();
-  const { sync, isSyncing } = useEmails();
+  const { isSyncing } = useEmails();
   const navigate = useNavigate();
 
   const { data } = useQuery({
@@ -23,13 +23,6 @@ export const DashboardPageNew: React.FC = () => {
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   const stats = [
-    {
-      icon: Mail,
-      label: 'Total Emails',
-      value: data?.totalEmails ?? 0,
-      color: '#3b4fea',
-      trend: '+12%',
-    },
     {
       icon: AlertCircle,
       label: 'Unread',
@@ -47,9 +40,15 @@ export const DashboardPageNew: React.FC = () => {
     },
     {
       icon: CheckCircle2,
-      label: 'Completed',
-      value: data?.completedActions ?? 0,
+      label: 'Actions',
+      value: data?.pendingActions?.length ?? 0,
       color: '#10b981',
+    },
+    {
+      icon: TrendingUp,
+      label: 'This Week',
+      value: data?.weeklyEmailCount ?? 0,
+      color: '#3b4fea',
     },
   ];
 

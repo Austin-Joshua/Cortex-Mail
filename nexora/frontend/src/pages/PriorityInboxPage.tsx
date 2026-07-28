@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppShell } from '../components/layout/AppShell';
-import { Zap, Mail } from 'lucide-react';
+import { Zap } from 'lucide-react';
 
 export const PriorityInboxPage: React.FC = () => {
   return (
