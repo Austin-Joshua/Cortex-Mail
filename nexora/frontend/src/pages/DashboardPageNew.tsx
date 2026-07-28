@@ -9,7 +9,7 @@ import { AlertCircle, CheckCircle2, Clock, TrendingUp, Zap, Brain, Send } from '
 
 export const DashboardPageNew: React.FC = () => {
   const { user } = useAuthStore();
-  const { isSyncing } = useEmails();
+  const { emails } = useEmails();
   const navigate = useNavigate();
 
   const { data } = useQuery({
@@ -47,7 +47,7 @@ export const DashboardPageNew: React.FC = () => {
     {
       icon: TrendingUp,
       label: 'This Week',
-      value: data?.weeklyEmailCount ?? 0,
+      value: emails.length,
       color: '#3b4fea',
     },
   ];

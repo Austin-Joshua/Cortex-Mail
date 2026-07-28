@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Inbox, Sparkles, Zap, Settings } from 'lucide-react';
-import { useNotificationStore } from '../../store/notificationStore';
 import { useEmails } from '../../hooks/useEmails';
 import { PulseRing } from '../common/PulseRing';
 
