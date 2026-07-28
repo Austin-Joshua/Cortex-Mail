@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { CAT_COLORS } from '../../utils/catColors';
+import { formatRelative } from '../../utils/formatDate';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -212,14 +213,15 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <div style={{ fontSize: 11, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }} title={user?.lastSyncedAt ? `Last synced: ${new Date(user.lastSyncedAt).toLocaleString()}` : 'Never synced'}>
           {isSyncing ? (
             <span style={{ color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <RefreshCw size={12} className="animate-spin" /> Syncing...
             </span>
           ) : (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <CheckCircle size={11} style={{ color: 'var(--success)' }} /> Synced
+              <CheckCircle size={11} style={{ color: 'var(--success)' }} />
+              {user?.lastSyncedAt ? `Synced ${formatRelative(user.lastSyncedAt)}` : 'Synced'}
             </span>
           )}
         </div>

@@ -9,7 +9,7 @@ import { useEmailStore } from '../store/emailStore';
 import { emailApi } from '../api/emailApi';
 import { useQueryClient } from '@tanstack/react-query';
 import type { EmailCategory } from '../types/Email';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Search, X } from 'lucide-react';
 
 type ViewMode = EmailCategory | 'ALL' | 'SENDERS';
 
@@ -35,6 +35,7 @@ export const InboxPage: React.FC = () => {
 
   const [activeView, setActiveView] = useState<ViewMode>(urlCategory ?? 'ALL');
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { setActiveCategory, selectedEmail, setSelectedEmail } = useEmailStore();
   const { emails, isLoading, categoryCounts } = useEmails();
@@ -54,7 +55,17 @@ export const InboxPage: React.FC = () => {
   }, [urlEmailId, emails]);
 
   const displayedEmails = emails.filter(email => {
-    return !unreadOnly || !email.isRead;
+    const matchesUnread = !unreadOnly || !email.isRead;
+    if (!searchQuery.trim()) return matchesUnread;
+
+    const query = searchQuery.toLowerCase();
+    const matchesSearch =
+      email.from?.toLowerCase().includes(query) ||
+      email.subject?.toLowerCase().includes(query) ||
+      email.body?.toLowerCase().includes(query) ||
+      email.senderEmail?.toLowerCase().includes(query);
+
+    return matchesUnread && matchesSearch;
   });
 
   const handleTabClick = (key: ViewMode) => {
@@ -121,6 +132,39 @@ export const InboxPage: React.FC = () => {
 
           {activeView !== 'SENDERS' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg)' }}>
+                <Search size={14} style={{ color: 'var(--text-3)' }} />
+                <input
+                  type="text"
+                  placeholder="Search emails..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: 12,
+                    color: 'var(--text-1)',
+                    outline: 'none',
+                    width: 140,
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    <X size={12} style={{ color: 'var(--text-3)' }} />
+                  </button>
+                )}
+              </div>
+
               <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
                 {displayedEmails.length} messages
               </span>
