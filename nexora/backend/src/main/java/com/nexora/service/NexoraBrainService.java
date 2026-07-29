@@ -40,7 +40,7 @@ public class NexoraBrainService {
         // Step 2: Build context
         String emailContext = buildEmailContext(recentEmails);
 
-        // Step 3: Call LLM dynamically (Claude or Gemini)
+        // Step 3: Ask Gemini, falling back to the local parser if unconfigured
         String systemPrompt = """
 You are Nexora Brain, a personal communication assistant. You have access to the user's recent emails (summarized below). Answer the user's question based ONLY on the information in these emails. Be specific — mention sender names, dates, and subject lines when relevant. If the answer is not found in the emails, say so clearly.
 
@@ -159,7 +159,7 @@ User's email history:
             return "I see multiple upcoming deadlines: Google interview availability (1 day), Software Engineering Assignment 3 (2 days), and Nexora Hackathon registration (5 days).";
         } else {
             return "Hello! I am Nexora Brain (running in local fallback mode). I analyzed your " + emails.size() + 
-                   " recent emails. I found updates regarding: Software Engineering Assignment 3, Google SWE interview, Nexora Hackathon 2026, and a project check-in meeting with Sarah Jenkins. Please configure a Gemini or Claude API key in your .env file to enable unrestricted AI Q&A.";
+                   " recent emails. I found updates regarding: Software Engineering Assignment 3, Google SWE interview, Nexora Hackathon 2026, and a project check-in meeting with Sarah Jenkins. Set GEMINI_API_KEY in your .env file to enable unrestricted AI Q&A.";
         }
     }
 }

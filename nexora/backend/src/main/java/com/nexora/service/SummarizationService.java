@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Summarizes email threads with 2+ messages using Claude.
+ * Summarizes email threads with 2+ messages using Gemini.
  * Stores the summary in the latest email aiSummary field.
  */
 @Service

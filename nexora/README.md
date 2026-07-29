@@ -42,7 +42,7 @@
 - Java 17+
 - Node.js 18+
 - Google Cloud project with Gmail API & Calendar API enabled (OAuth published)
-- Anthropic API key (optional — required for AI classification only)
+- Google Gemini API key (optional — without it AI falls back to keyword matching)
 
 ### 1. Backend
 ```bash

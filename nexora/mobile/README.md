@@ -72,7 +72,7 @@ Covered by tests in `test/velocity_test.dart`.
 
 ## Security
 
-- No API keys in this client. Gemini and Claude keys stay server-side; the
+- No API keys in this client. The Gemini key stays server-side; the
   only credential here is the user's own JWT.
 - `API_BASE_URL` is a build-time define, so no environment file ships in the
   repo.

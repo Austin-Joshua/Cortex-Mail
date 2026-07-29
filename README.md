@@ -6,7 +6,7 @@
 ![Backend](https://img.shields.io/badge/Backend-Spring%20Boot%203-6DB33F?logo=spring)
 ![Frontend](https://img.shields.io/badge/Frontend-React%2018%2BVite-61DAFB?logo=react)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20H2-003B57)
-![AI](https://img.shields.io/badge/AI-Claude%2BGemini-F15A24)
+![AI](https://img.shields.io/badge/AI-Google%20Gemini-F15A24)
 
 ---
 
@@ -56,8 +56,8 @@ nexora/
 - **Email Classification** — Auto-tags: Assignment, Hackathon, Placement, Meeting, Announcement, etc.
 - **Deadline Detection** — Extracts due dates from email content (ISO 8601 format)
 - **Action Items** — Parses actionable tasks with descriptions and deadlines
-- **Resilient AI** — Claude → Gemini → Local keyword fallback (works with zero API keys)
-- **Thread Summarization** — Claude-powered summaries for email conversations
+- **Resilient AI** — Gemini → local keyword fallback (still runs with no API key)
+- **Thread Summarization** — Gemini-powered summaries for email conversations
 
 ### 🧠 Velocity Brain
 - **Natural Language Q&A** — Ask questions about your inbox, get AI-powered answers
@@ -113,8 +113,7 @@ Spring Boot 3.x + Java 17
 ├─ Spring Data JPA (database)
 ├─ Spring WebSocket (real-time)
 ├─ Google APIs (Gmail, Calendar)
-├─ Anthropic Claude API (AI classification)
-├─ Google Gemini API (AI fallback)
+├─ Google Gemini API (AI classification & Q&A)
 ├─ Resilience4j (rate limiting)
 ├─ Lombok (code generation)
 └─ Maven (build tool)
@@ -209,8 +208,7 @@ JWT_SECRET=your-32-char-minimum-secret-key
 ENCRYPTION_KEY=your16charkey
 
 # Optional (for AI classification)
-CLAUDE_API_KEY=your_claude_key
-GEMINI_API_KEY=your_gemini_key (auto-fallback if Claude not set)
+GEMINI_API_KEY=your_gemini_key
 
 # CORS
 CORS_ALLOWED_ORIGINS=http://localhost:5173
@@ -357,19 +355,21 @@ nexora/
 5. Copy **Client ID** and **Client Secret** to `.env`
 6. Publish OAuth consent screen (or add test users for testing)
 
-### AI Keys (Optional)
+### AI Key (Optional)
 
-**Claude (Recommended):**
-```bash
-CLAUDE_API_KEY=sk-ant-... # From https://console.anthropic.com
-```
+Gemini is the only AI provider. It powers classification, summaries,
+action-item extraction and Velocity Brain Q&A.
 
-**Gemini (Fallback):**
 ```bash
 GEMINI_API_KEY=... # From https://aistudio.google.com
 ```
 
-If neither key is set, Nexora uses local keyword-based classification (still works, just less intelligent).
+Optionally pin a model with `GEMINI_MODEL`. Leave it unset to track the
+rolling `gemini-flash-latest` alias — a pinned dated model starts returning
+404 once that version is retired, and the app then falls back silently.
+
+If the key is unset, Velocity uses local keyword-based classification (still
+works, just less intelligent).
 
 ### Database Configuration
 
@@ -729,7 +729,7 @@ npm run build
 4. See backend logs: `./mvnw spring-boot:run`
 
 ### AI classification always uses local fallback
-1. Set `CLAUDE_API_KEY` or `GEMINI_API_KEY`
+1. Set `GEMINI_API_KEY`
 2. Verify API key is valid
 3. Check rate limits (20 req/hour default)
 4. See backend logs for API errors
@@ -814,7 +814,7 @@ MIT License - see LICENSE file for details.
 ## 🙏 Acknowledgments
 
 - **Google APIs** for Gmail & Calendar integration
-- **Anthropic Claude** & **Google Gemini** for AI
+- **Google Gemini** for AI
 - **Spring Boot** & **React** communities
 - All contributors and users
 

@@ -26,7 +26,7 @@ Render is ideal for hosting the Spring Boot backend.
    - `JWT_SECRET`: *A secure random string (minimum 32 characters)*
    - `ENCRYPTION_KEY`: *A secure 16-character string*
    - `CORS_ALLOWED_ORIGINS`: `https://YOUR-VERCEL-FRONTEND-URL.vercel.app`
-   - `CLAUDE_API_KEY`: *Your Anthropic Claude API Key*
+   - `GEMINI_API_KEY`: *Your Google Gemini API key (https://aistudio.google.com)*
 
 ---
 

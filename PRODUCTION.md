@@ -44,7 +44,7 @@ This guide covers deploying Nexora to production on Vercel (frontend) and Render
 - [ ] All `.env.example` variables configured
 - [ ] GOOGLE_CLIENT_ID & SECRET from published app
 - [ ] JWT_SECRET and ENCRYPTION_KEY set securely
-- [ ] CLAUDE_API_KEY or GEMINI_API_KEY configured
+- [ ] GEMINI_API_KEY configured
 - [ ] API URLs have no trailing slashes
 - [ ] CORS origins include production domains
 
@@ -123,7 +123,7 @@ GOOGLE_REDIRECT_URI=https://your-render-backend.onrender.com/api/auth/google/cal
 JWT_SECRET=your-32-char-secret-key
 ENCRYPTION_KEY=your16charkey
 CORS_ALLOWED_ORIGINS=https://your-vercel-frontend.vercel.app
-CLAUDE_API_KEY=your-claude-key (optional)
+GEMINI_API_KEY=your-gemini-key
 GEMINI_API_KEY=your-gemini-key (optional)
 DB_URL=mysql://user:pass@host:3306/nexora_db
 DB_USERNAME=root
@@ -422,7 +422,7 @@ git push origin master
 | Render | Standard | $10/month |
 | Railway MySQL | Starter | $7/month |
 | Google Cloud | Pay-as-you-go | ~$5-20/month |
-| Anthropic Claude | Pay-per-use | ~$1-10/month |
+| Google Gemini | Pay-per-use | ~$0-5/month |
 | **Total** | | **~$50-70/month** |
 
 To reduce costs:
