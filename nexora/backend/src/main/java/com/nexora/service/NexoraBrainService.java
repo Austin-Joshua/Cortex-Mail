@@ -52,6 +52,7 @@ User's email history:
         if (answer == null) {
             answer = generateLocalBrainAnswer(recentEmails, userQuery);
         }
+        answer = unwrapJsonAnswer(answer);
 
         // Step 4: Find referenced emails (simple keyword match)
         List<Email> referenced = findReferencedEmails(recentEmails, userQuery, answer);
@@ -81,6 +82,35 @@ User's email history:
     public List<BrainConversation> getHistory(Long userId) {
         return conversationRepository.findByUserIdOrderByCreatedAtDesc(userId,
                 org.springframework.data.domain.PageRequest.of(0, 20));
+    }
+
+    /**
+     * Belt-and-braces: the answer is prose meant for direct display. If a model
+     * still hands back {"answer": "..."} — or fences it in ```json — unwrap it
+     * rather than rendering the envelope to the user. Anything that is not
+     * recognisably a wrapper is returned untouched.
+     */
+    private String unwrapJsonAnswer(String answer) {
+        if (answer == null) return null;
+        String trimmed = answer.trim();
+
+        if (trimmed.startsWith("```")) {
+            trimmed = trimmed.replaceFirst("^```[a-zA-Z]*\\s*", "").replaceFirst("\\s*```$", "").trim();
+        }
+        if (!trimmed.startsWith("{")) return trimmed;
+
+        try {
+            com.fasterxml.jackson.databind.JsonNode node =
+                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(trimmed);
+            for (String key : List.of("answer", "response", "text", "result")) {
+                if (node.hasNonNull(key) && node.get(key).isTextual()) {
+                    return node.get(key).asText().trim();
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Brain answer is not a JSON wrapper, returning as-is");
+        }
+        return trimmed;
     }
 
     private String buildEmailContext(List<Email> emails) {

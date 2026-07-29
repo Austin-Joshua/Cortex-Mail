@@ -76,13 +76,78 @@ public class AuthController {
         response.sendRedirect(redirectUrl);
     }
 
+    @Value("${google.client-id}")
+    private String googleClientId;
+
+    /** Scopes requested at consent. Read-only on mail; calendar write is for deadlines. */
+    private static final String GOOGLE_SCOPES = String.join(" ",
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/calendar.events",
+            "openid", "email", "profile");
+
     /**
-     * Initiate Google OAuth — redirect to Google's consent screen.
+     * Starts Google OAuth by redirecting to the consent screen.
+     *
+     * The URL is built here rather than in the browser on purpose. When the
+     * frontend assembled it, the client id had to be duplicated into
+     * VITE_GOOGLE_CLIENT_ID; if that was unset the button sent users to
+     * Google with `client_id=` empty and they got a raw "Error 400:
+     * invalid_request" page with nothing pointing back at the real cause.
+     * One source of truth, and a legible error when it is missing.
      */
     @GetMapping("/google")
-    public ResponseEntity<Void> initiateGoogleAuth() {
-        // This endpoint is documented but the actual redirect URL is constructed by the frontend
-        return ResponseEntity.ok().build();
+    public void initiateGoogleAuth(
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+
+        if (googleClientId == null || googleClientId.isBlank() || googleClientId.contains("your_")) {
+            response.sendError(jakarta.servlet.http.HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Google sign-in is not configured on the server: GOOGLE_CLIENT_ID is unset.");
+            return;
+        }
+
+        String redirectUri = publicBaseUrl(request) + "/api/auth/google/callback";
+
+        String authUrl = org.springframework.web.util.UriComponentsBuilder
+                .fromHttpUrl("https://accounts.google.com/o/oauth2/v2/auth")
+                .queryParam("client_id", googleClientId)
+                .queryParam("redirect_uri", redirectUri)
+                .queryParam("response_type", "code")
+                .queryParam("scope", GOOGLE_SCOPES)
+                .queryParam("access_type", "offline")
+                .queryParam("prompt", "consent")
+                .encode()
+                .build()
+                .toUriString();
+
+        response.sendRedirect(authUrl);
+    }
+
+    /**
+     * Public origin of this server, honouring reverse-proxy headers. Render and
+     * similar hosts terminate TLS upstream, so request.getScheme() reports http
+     * and a redirect_uri built from it would not match the one registered with
+     * Google.
+     */
+    private String publicBaseUrl(jakarta.servlet.http.HttpServletRequest request) {
+        String scheme = request.getHeader("X-Forwarded-Proto");
+        if (scheme != null && !scheme.isBlank()) {
+            scheme = scheme.split(",")[0].trim();
+        } else {
+            scheme = request.getScheme();
+        }
+
+        String host = request.getHeader("X-Forwarded-Host");
+        if (host != null && !host.isBlank()) {
+            host = host.split(",")[0].trim();
+        } else {
+            host = request.getHeader("Host");
+        }
+        if (host == null || host.isBlank()) {
+            int port = request.getServerPort();
+            host = request.getServerName() + (port == 80 || port == 443 ? "" : ":" + port);
+        }
+        return scheme + "://" + host;
     }
 
     /**

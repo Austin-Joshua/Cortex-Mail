@@ -50,7 +50,7 @@ public class Email {
     private String bodySnippet;
 
     @JsonIgnore
-    @Column(name = "body_full", columnDefinition = "LONGTEXT")
+    @Column(name = "body_full")
     private String bodyFull;
 
     @Column(name = "received_at")
@@ -79,7 +79,7 @@ public class Email {
     @Column(name = "ai_summary", columnDefinition = "TEXT")
     private String aiSummary;
 
-    @Column(name = "ai_action_items", columnDefinition = "JSON")
+    @Column(name = "ai_action_items")
     private String aiActionItems;
 
     @Column(name = "deadline_detected")

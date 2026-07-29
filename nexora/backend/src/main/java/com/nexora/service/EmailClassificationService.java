@@ -145,22 +145,43 @@ Body:
             body);
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Classification calls: the prompt demands a JSON object, so ask Gemini to
+     * emit JSON and label the payload as an email to classify.
+     */
     public String callGemini(String systemPrompt, String userMessage) {
+        return callGemini(systemPrompt, userMessage, true, "Email Content to classify:");
+    }
+
+    /**
+     * Prose calls (Brain answers, thread summaries). These used to share the
+     * classification path, which forced responseMimeType=application/json —
+     * so Gemini wrapped its prose in {"answer": "..."} and that raw JSON was
+     * handed straight to the UI as the answer text. They also had the user's
+     * question labelled "Email Content to classify", which misdirects the model.
+     */
+    public String callGeminiText(String systemPrompt, String userMessage) {
+        return callGemini(systemPrompt, userMessage, false, "User question:");
+    }
+
+    @SuppressWarnings("unchecked")
+    private String callGemini(String systemPrompt, String userMessage, boolean jsonMode, String userLabel) {
         try {
             RestTemplate restTemplate = new RestTemplate();
             String url = geminiConfig.getGenerateContentUrl();
 
             Map<String, Object> requestBody = new HashMap<>();
             Map<String, Object> part = new HashMap<>();
-            part.put("text", systemPrompt + "\n\nEmail Content to classify:\n" + userMessage);
+            part.put("text", systemPrompt + "\n\n" + userLabel + "\n" + userMessage);
             Map<String, Object> content = new HashMap<>();
             content.put("parts", List.of(part));
             requestBody.put("contents", List.of(content));
 
-            Map<String, Object> generationConfig = new HashMap<>();
-            generationConfig.put("responseMimeType", "application/json");
-            requestBody.put("generationConfig", generationConfig);
+            if (jsonMode) {
+                Map<String, Object> generationConfig = new HashMap<>();
+                generationConfig.put("responseMimeType", "application/json");
+                requestBody.put("generationConfig", generationConfig);
+            }
 
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
@@ -210,7 +231,7 @@ Body:
     public String generateBrainAnswer(String systemPrompt, String userQuery) {
         if (geminiConfig.isConfigured()) {
             log.info("Querying Nexora Brain using Gemini...");
-            return callGemini(systemPrompt, userQuery);
+            return callGeminiText(systemPrompt, userQuery);
         } else {
             log.info("No AI keys configured for Nexora Brain. Running local keyword-based parser...");
             return null;
@@ -220,7 +241,7 @@ Body:
     public String summarizeThread(String systemPrompt, String threadContext) {
         if (geminiConfig.isConfigured()) {
             log.info("Summarizing thread using Gemini...");
-            return callGemini(systemPrompt, threadContext);
+            return callGeminiText(systemPrompt, threadContext);
         } else {
             log.info("No AI keys configured for thread summarization — using local fallback summary...");
             return "This thread contains multiple emails and was analyzed locally. Configure a Gemini API key for premium AI thread summaries.";

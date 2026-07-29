@@ -4,11 +4,10 @@ import com.nexora.dto.ApiResponse;
 import com.nexora.model.EmailDraft;
 import com.nexora.model.User;
 import com.nexora.service.EmailDraftService;
-import com.nexora.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,11 +17,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DraftsController {
     private final EmailDraftService draftService;
-    private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<EmailDraft>>> getDrafts(Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+    public ResponseEntity<ApiResponse<List<EmailDraft>>> getDrafts(@AuthenticationPrincipal User user) {
         List<EmailDraft> drafts = draftService.getUserDrafts(user.getId());
         return ResponseEntity.ok(ApiResponse.success(drafts));
     }
@@ -30,8 +27,7 @@ public class DraftsController {
     @PostMapping
     public ResponseEntity<ApiResponse<EmailDraft>> createDraft(
             @RequestBody EmailDraft draft,
-            Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+            @AuthenticationPrincipal User user) {
         EmailDraft created = draftService.createDraft(user, draft);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(created));
     }
@@ -40,8 +36,7 @@ public class DraftsController {
     public ResponseEntity<ApiResponse<EmailDraft>> updateDraft(
             @PathVariable Long id,
             @RequestBody EmailDraft draft,
-            Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+            @AuthenticationPrincipal User user) {
         EmailDraft updated = draftService.updateDraft(user, id, draft);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
@@ -49,8 +44,7 @@ public class DraftsController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteDraft(
             @PathVariable Long id,
-            Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+            @AuthenticationPrincipal User user) {
         draftService.deleteDraft(user, id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -58,8 +52,7 @@ public class DraftsController {
     @PostMapping("/{id}/send")
     public ResponseEntity<ApiResponse<String>> sendDraft(
             @PathVariable Long id,
-            Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+            @AuthenticationPrincipal User user) {
         String messageId = draftService.sendDraft(user, id);
         return ResponseEntity.ok(ApiResponse.success(messageId));
     }

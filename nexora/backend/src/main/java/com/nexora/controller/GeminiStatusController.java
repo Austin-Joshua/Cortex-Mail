@@ -18,9 +18,13 @@ public class GeminiStatusController {
 
     @GetMapping("/gemini-status")
     public ResponseEntity<Map<String, Object>> getGeminiStatus() {
+        // Report the model actually in use. This was hardcoded to
+        // "gemini-1.5-flash" and kept saying so long after the configured
+        // model changed — a status endpoint that reports a constant tells
+        // you nothing about the thing it claims to be reporting on.
         return ResponseEntity.ok(Map.of(
             "configured", geminiConfig.isConfigured(),
-            "model", "gemini-1.5-flash"
+            "model", geminiConfig.getModel()
         ));
     }
 }

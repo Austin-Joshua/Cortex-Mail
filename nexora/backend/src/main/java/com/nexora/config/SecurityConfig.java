@@ -4,6 +4,7 @@ import com.nexora.repository.UserRepository;
 import com.nexora.security.JwtAuthenticationFilter;
 import com.nexora.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -33,6 +35,15 @@ public class SecurityConfig {
     @Value("${app.cors-allowed-origins}")
     private String corsAllowedOrigins;
 
+    /**
+     * Opens /api/auth/bypass, which mints a full session without Google.
+     * Defaults to false: the endpoint exists in the controller but is
+     * unreachable unless this is deliberately switched on, so it cannot be
+     * left open by accident in a deployed environment.
+     */
+    @Value("${app.dev-bypass-enabled:false}")
+    private boolean devBypassEnabled;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -40,13 +51,18 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/google", "/api/auth/google/callback", "/api/auth/token").permitAll()
-                .requestMatchers("/ws/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(auth -> {
+                auth.requestMatchers("/api/auth/google", "/api/auth/google/callback", "/api/auth/token").permitAll()
+                    .requestMatchers("/ws/**").permitAll()
+                    .requestMatchers("/actuator/health").permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                if (devBypassEnabled) {
+                    log.warn("DEV BYPASS ENABLED — /api/auth/bypass will mint sessions without Google. "
+                            + "Never enable this outside local development.");
+                    auth.requestMatchers("/api/auth/bypass").permitAll();
+                }
+                auth.anyRequest().authenticated();
+            })
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setContentType("application/json");

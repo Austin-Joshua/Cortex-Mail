@@ -8,6 +8,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -42,6 +44,25 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation failed");
         body.put("details", errors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    /**
+     * Without this, the catch-all below swallowed the status: a deliberate
+     * 401 or 404 raised as a ResponseStatusException was reported to the
+     * client as "500 An unexpected error occurred", so callers could not
+     * tell "you are logged out" from "the server broke".
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
+        int status = ex.getStatusCode().value();
+        log.warn("Request failed with {}: {}", status, ex.getReason());
+        return buildError(ex.getReason() != null ? ex.getReason() : "Request failed", status);
+    }
+
+    /** An unmapped URL is a 404, not a server fault. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException ex) {
+        return buildError("Not found", 404);
     }
 
     @ExceptionHandler(Exception.class)

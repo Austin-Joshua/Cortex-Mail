@@ -27,7 +27,7 @@ public class BrainConversation {
     @Column(name = "ai_response", columnDefinition = "TEXT", nullable = false)
     private String aiResponse;
 
-    @Column(name = "referenced_email_ids", columnDefinition = "JSON")
+    @Column(name = "referenced_email_ids")
     private String referencedEmailIds;
 
     @Column(name = "created_at")

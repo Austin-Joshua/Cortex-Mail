@@ -14,11 +14,19 @@ public class EmailDraft {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Owner back-reference. Serializing it repeated the caller's own
+    // record — googleId, timestamps and all — inside every draft or
+    // template in the list. The row already belongs to the requester.
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(columnDefinition = "TEXT")
+    // `to` is a reserved word in SQL — leaving the column name to default from
+    // the field produced `to TEXT` and the CREATE TABLE failed outright, so
+    // email_drafts was never created. The field name is unchanged, so the JSON
+    // the clients send and receive is unaffected.
+    @Column(name = "to_recipients", columnDefinition = "TEXT")
     private String to;
 
     @Column(columnDefinition = "TEXT")
@@ -30,10 +38,12 @@ public class EmailDraft {
     @Column(columnDefinition = "TEXT")
     private String subject;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Lob
+    @Column
     private String body;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Lob
+    @Column
     private String htmlBody;
 
     private Long scheduledSendTime;

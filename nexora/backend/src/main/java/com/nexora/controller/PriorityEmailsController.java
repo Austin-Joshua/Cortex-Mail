@@ -4,10 +4,9 @@ import com.nexora.dto.ApiResponse;
 import com.nexora.model.Email;
 import com.nexora.model.User;
 import com.nexora.service.EmailService;
-import com.nexora.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,13 +16,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PriorityEmailsController {
     private final EmailService emailService;
-    private final UserService userService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Email>>> getPriorityEmails(
             @RequestParam(defaultValue = "20") int limit,
-            Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+            @AuthenticationPrincipal User user) {
         List<Email> priorityEmails = emailService.getPriorityEmails(user.getId(), limit);
         return ResponseEntity.ok(ApiResponse.success(priorityEmails));
     }
@@ -31,8 +28,7 @@ public class PriorityEmailsController {
     @PostMapping("/{emailId}/flag")
     public ResponseEntity<ApiResponse<Email>> flagAsImportant(
             @PathVariable Long emailId,
-            Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+            @AuthenticationPrincipal User user) {
         Email email = emailService.flagAsImportant(user.getId(), emailId);
         return ResponseEntity.ok(ApiResponse.success(email));
     }
@@ -40,15 +36,13 @@ public class PriorityEmailsController {
     @PostMapping("/{emailId}/unflag")
     public ResponseEntity<ApiResponse<Email>> unflagAsImportant(
             @PathVariable Long emailId,
-            Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+            @AuthenticationPrincipal User user) {
         Email email = emailService.unflagAsImportant(user.getId(), emailId);
         return ResponseEntity.ok(ApiResponse.success(email));
     }
 
     @GetMapping("/suggestions")
-    public ResponseEntity<ApiResponse<List<Email>>> getPrioritySuggestions(Authentication auth) {
-        User user = userService.findByEmail(auth.getName());
+    public ResponseEntity<ApiResponse<List<Email>>> getPrioritySuggestions(@AuthenticationPrincipal User user) {
         List<Email> suggestions = emailService.getSuggestedPriorityEmails(user.getId());
         return ResponseEntity.ok(ApiResponse.success(suggestions));
     }
