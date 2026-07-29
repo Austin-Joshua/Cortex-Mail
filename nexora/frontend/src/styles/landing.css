@@ -1,0 +1,334 @@
+/* ==========================================================================
+   VELOCITY — landing surface
+   Built on the same tokens as the app (styles/bento.css). Nothing here
+   redefines a colour; the page follows the viewer's theme.
+   ========================================================================== */
+
+.lp {
+  min-height: 100dvh;
+  background: var(--v-ground);
+  color: var(--v-ink);
+  overflow-x: clip;
+}
+
+/* --- scroll rail: the gauge motif, unrolled along the top edge ---------- */
+
+.lp-rail {
+  position: fixed;
+  inset: 0 auto auto 0;
+  height: 2px;
+  width: 100%;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--p, 0));
+  background: linear-gradient(90deg, var(--v-signal), var(--v-ember));
+  z-index: 60;
+  will-change: transform;
+}
+
+/* --- chrome ------------------------------------------------------------- */
+
+.lp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 68px;
+  padding: 0 clamp(16px, 4vw, 44px);
+  background: color-mix(in srgb, var(--v-ground) 82%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--v-base);
+}
+
+.lp-nav[data-stuck='1'] { border-bottom-color: var(--v-hairline); }
+
+/* --- section scaffold --------------------------------------------------- */
+
+.lp-section {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(72px, 12vh, 148px) clamp(16px, 4vw, 44px);
+}
+
+.lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--v-signal);
+}
+
+.lp-eyebrow::before {
+  content: '';
+  width: 26px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--v-signal), transparent);
+}
+
+.lp-display {
+  font-size: clamp(38px, 7.4vw, 86px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.lp-h2 {
+  font-size: clamp(27px, 4.2vw, 46px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.06;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.lp-lead {
+  font-size: clamp(15px, 1.5vw, 18px);
+  line-height: 1.6;
+  color: var(--v-ink-2);
+  max-width: 58ch;
+  margin: 0;
+}
+
+.lp-gold { color: var(--v-signal); }
+.lp-ember { color: var(--v-ember); }
+
+/* --- hero --------------------------------------------------------------- */
+
+.lp-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 72px);
+  padding-block: clamp(56px, 9vh, 110px) clamp(72px, 12vh, 140px);
+}
+
+/* Gold falls from the upper right, ember pools lower left — the same two
+   washes the dashboard's hero tile uses, at room scale. */
+.lp-atmos {
+  position: absolute;
+  inset: -20% -30% auto;
+  height: 130%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(46% 44% at 78% 16%, var(--v-signal-wash) 0%, transparent 68%),
+    radial-gradient(40% 40% at 14% 78%, var(--v-ember-wash) 0%, transparent 66%);
+}
+
+/* Must exclude the atmosphere layer: it carries position:absolute at the
+   same specificity, so a blanket `.lp-hero > *` would override it and turn
+   the wash into a grid item that eats a column. */
+.lp-hero > *:not(.lp-atmos) { position: relative; z-index: 1; }
+
+.lp-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 26px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--v-fast), box-shadow var(--v-fast), background var(--v-fast);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lp-btn-primary {
+  background: var(--v-signal);
+  color: var(--v-on-signal);
+  box-shadow: var(--v-lift-2);
+}
+.lp-btn-primary:hover { transform: translateY(-2px); box-shadow: var(--v-lift-3); }
+.lp-btn-primary:active { transform: translateY(0); }
+
+.lp-btn-ghost {
+  background: transparent;
+  border-color: var(--v-hairline-2);
+  color: var(--v-ink);
+}
+.lp-btn-ghost:hover { background: var(--v-panel-2); border-color: var(--v-signal); }
+
+/* --- instrument panel --------------------------------------------------- */
+
+.lp-panel {
+  position: relative;
+  background:
+    radial-gradient(120% 100% at 100% 0%, var(--v-signal-wash) 0%, transparent 62%),
+    radial-gradient(95% 85% at 0% 100%, var(--v-ember-wash) 0%, transparent 58%),
+    var(--v-panel);
+  border: 1px solid var(--v-hairline-2);
+  border-radius: 24px;
+  padding: clamp(22px, 3vw, 34px);
+  box-shadow: var(--v-lift-3);
+  overflow: hidden;
+}
+
+.lp-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.lp-card {
+  background: var(--v-panel);
+  border: 1px solid var(--v-hairline);
+  border-radius: 18px;
+  padding: 22px;
+  transition: border-color var(--v-fast), transform var(--v-fast), box-shadow var(--v-fast);
+}
+
+.lp-card:hover {
+  border-color: var(--v-hairline-2);
+  transform: translateY(-3px);
+  box-shadow: var(--v-lift-2);
+}
+
+/* --- ledger: the score formula as a debit sheet -------------------------- */
+
+.lp-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lp-ledger-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 2px;
+  border-bottom: 1px solid var(--v-hairline);
+}
+
+.lp-ledger-row:last-child { border-bottom: none; }
+
+.lp-ledger-bar {
+  flex: 1;
+  height: 5px;
+  min-width: 40px;
+  border-radius: 999px;
+  background: var(--v-ground-2);
+  overflow: hidden;
+}
+
+.lp-ledger-bar > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--bar, var(--v-ember));
+  transition: width 900ms var(--v-ease);
+}
+
+.reveal.in .lp-ledger-bar > i { width: var(--w, 0%); }
+
+/* --- day strip ---------------------------------------------------------- */
+
+.lp-strip {
+  display: flex;
+  gap: 8px;
+  min-width: 520px;
+}
+
+.lp-zone {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--v-hairline);
+  background: var(--v-panel);
+  transform-origin: 50% 100%;
+}
+
+/* --- reveal on scroll ---------------------------------------------------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 700ms var(--v-ease),
+    transform 700ms var(--v-ease);
+  transition-delay: calc(var(--i, 0) * 85ms);
+}
+
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+.reveal-left  { transform: translateX(-26px) translateY(0); }
+.reveal-right { transform: translateX(26px) translateY(0); }
+.reveal-scale { transform: scale(0.955); }
+
+.reveal-left.in,
+.reveal-right.in,
+.reveal-scale.in { transform: none; }
+
+/* --- scroll cue ---------------------------------------------------------- */
+
+@keyframes lp-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50%      { transform: translateY(7px); opacity: 1; }
+}
+
+.lp-cue { animation: lp-bob 2.1s ease-in-out infinite; }
+
+/* --- responsive ---------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .lp-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .lp-hero-art { order: -1; }
+
+  /* the ledger section stacks: copy first, panel under it */
+  .lp-two { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 620px) {
+  .lp-section { padding-block: clamp(56px, 9vh, 96px); }
+
+  /* Only the call-to-action buttons go full width — scoping this to the
+     row keeps the compact nav button from stretching across the header. */
+  .lp-cta-row { flex-direction: column; align-items: stretch; }
+  .lp-cta-row .lp-btn { width: 100%; }
+}
+
+/* --- reduced motion ------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-left,
+  .reveal-right,
+  .reveal-scale {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .lp-cue { animation: none; }
+  .lp-rail { transition: none; }
+  .reveal.in .lp-ledger-bar > i { transition: none; }
+}

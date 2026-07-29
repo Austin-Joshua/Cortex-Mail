@@ -19,10 +19,11 @@
       (function() {
         var saved = localStorage.getItem('theme');
         var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // The stylesheet keys off html.dark, so that is the class to set.
+        // Without this the landing page — which renders no TopBar to apply
+        // it — was stuck in light mode regardless of preference.
         var theme = (saved === 'dark' || saved === 'light') ? saved : (prefersDark ? 'dark' : 'light');
-        if (theme === 'light') {
-          document.documentElement.classList.add('light');
-        }
+        document.documentElement.classList.toggle('dark', theme === 'dark');
       })();
     </script>
   </head>

@@ -1,223 +1,565 @@
-import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle, AlertTriangle, X } from 'lucide-react';
-import { CategoryTag } from '../components/common/CategoryTag';
+import {
+  AlertTriangle, X, ArrowRight, ChevronDown, Lock, EyeOff, KeyRound,
+  Brain, Timer, Flame, CalendarClock,
+} from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { useReveal, useScrollProgress } from '../hooks/useReveal';
+import { Odometer } from '../components/landing/Odometer';
+import { Gauge } from '../components/bento/Gauge';
+import '../styles/landing.css';
 
-const PREVIEW_EMAILS = [
-  { sender: 'Dr. Sarah Chen', subject: 'Assignment 4 deadline extended to Friday 11:59 PM', category: 'ASSIGNMENT' },
-  { sender: 'Devfolio', subject: 'Smart India Hackathon registrations close in 48h', category: 'HACKATHON' },
-  { sender: 'TCS Nextstep', subject: 'Interview shortlist - Round 2 confirmed for you', category: 'PLACEMENT' },
-  { sender: 'HOD Office', subject: 'Mandatory attendance policy change effective Monday', category: 'ANNOUNCEMENT' },
+/* ------------------------------------------------------------------ data */
+
+const LEDGER = [
+  { label: 'Unread backlog',   debit: 27, tone: 'var(--v-ember)',  note: '23 sitting unopened' },
+  { label: 'Open actions',     debit: 12, tone: 'var(--v-signal)', note: '4 asks with no reply' },
+  { label: 'Overdue deadlines', debit: 6, tone: 'var(--v-critical)', note: '1 already past' },
 ];
 
-const TRUST_POINTS = [
-  'Read-only Gmail access',
-  'AES-256 token encryption',
-  'Role-aware AI · Student-first',
+const ZONES = [
+  { name: 'Deep Focus',    hours: '9 — 12', note: 'Notifications muted',  tone: 'var(--v-signal)' },
+  { name: 'Collaboration', hours: '12 — 3', note: 'Notifications live',   tone: 'var(--v-pulse)' },
+  { name: 'Rapid Fire',    hours: '3 — 5',  note: 'Batch the quick ones', tone: 'var(--v-ember)' },
+  { name: 'Reflection',    hours: '5 — 7',  note: 'Notifications muted',  tone: 'var(--v-ink-3)' },
 ];
+
+const CAPABILITIES = [
+  {
+    icon: Flame,
+    tone: 'var(--v-ember)',
+    title: 'It ranks before you read',
+    body: 'Every message lands in one of three bands — act now, today, when clear. The top of the list is always the next thing to do.',
+  },
+  {
+    icon: Timer,
+    tone: 'var(--v-signal)',
+    title: 'It finds the dates you missed',
+    body: 'Deadlines buried in the fourth paragraph get pulled out, counted down, and pushed to your calendar before they turn red.',
+  },
+  {
+    icon: CalendarClock,
+    tone: 'var(--v-pulse)',
+    title: 'It defends your focus',
+    body: 'Flow zones split the day into bands. During Deep Focus nothing interrupts you; the backlog waits until you are ready for it.',
+  },
+  {
+    icon: Brain,
+    tone: 'var(--v-signal)',
+    title: 'It answers in your own words',
+    body: 'Ask what the placement cell sent last week, or which deadlines land before Friday. Answers link straight back to the mail.',
+  },
+];
+
+const TRUST = [
+  { icon: EyeOff,   title: 'Read-only, always',   body: 'Velocity can read your mail. It cannot send, delete or alter anything.' },
+  { icon: KeyRound, title: 'Encrypted at rest',   body: 'Google tokens are sealed with AES-256 and never leave your workspace.' },
+  { icon: Lock,     title: 'Not training data',   body: 'Your messages are yours. They are never used to train any model.' },
+];
+
+/* ------------------------------------------------------------ components */
+
+const Wordmark: React.FC<{ size?: number }> = ({ size = 32 }) => (
+  <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <defs>
+        <linearGradient id="lp-gold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--v-signal-dim)" />
+          <stop offset="100%" stopColor="var(--v-signal)" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M 7.51 24.49 A 12 12 0 1 1 24.49 24.49"
+        fill="none" stroke="url(#lp-gold)" strokeWidth="1.6" strokeLinecap="round" opacity="0.5"
+      />
+      <path
+        d="M 10.4 11.2 L 16 20.6 L 21.6 11.2"
+        fill="none" stroke="url(#lp-gold)" strokeWidth="3"
+        strokeLinecap="round" strokeLinejoin="round"
+      />
+      <circle cx="16" cy="26.2" r="2" fill="var(--v-ember)" />
+    </svg>
+    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3, lineHeight: 1 }}>
+      <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.26em', textIndent: '0.26em' }}>
+        VELOCITY
+      </span>
+      <span
+        aria-hidden="true"
+        style={{
+          width: '100%', height: 1, opacity: 0.65,
+          background: 'linear-gradient(90deg, var(--v-signal) 0%, var(--v-ember) 65%, transparent 100%)',
+        }}
+      />
+    </span>
+  </span>
+);
+
+/** Wraps children in a scroll-revealed block. */
+const Reveal: React.FC<{
+  i?: number;
+  variant?: 'up' | 'left' | 'right' | 'scale';
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}> = ({ i = 0, variant = 'up', className = '', style, children }) => {
+  const ref = useReveal<HTMLDivElement>();
+  const variantClass = variant === 'up' ? '' : `reveal-${variant}`;
+  return (
+    <div
+      ref={ref}
+      className={`reveal ${variantClass} ${className}`.trim()}
+      style={{ ['--i' as string]: i, ...style } as React.CSSProperties}
+    >
+      {children}
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ page */
 
 export const LandingPage: React.FC = () => {
   const { handleGoogleLogin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('auth_error');
-  const [showErrorBanner, setShowErrorBanner] = useState(!!authError);
+  const [showError, setShowError] = useState(!!authError);
+  const [stuck, setStuck] = useState(false);
+  const progress = useScrollProgress();
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const dismissError = () => {
-    setShowErrorBanner(false);
+    setShowError(false);
     searchParams.delete('auth_error');
     setSearchParams(searchParams, { replace: true });
   };
 
+  const scrollOn = () =>
+    window.scrollTo({
+      top: (heroRef.current?.offsetHeight ?? 600) + 40,
+      behavior: 'smooth',
+    });
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--bg)',
-        color: 'var(--text-1)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <nav
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 28px',
-          height: 64,
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-          <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
-            <defs>
-              <linearGradient id="velocity-gold-landing" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="var(--v-signal-dim)" />
-                <stop offset="100%" stopColor="var(--v-signal)" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M 7.51 24.49 A 12 12 0 1 1 24.49 24.49"
-              fill="none"
-              stroke="url(#velocity-gold-landing)"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              opacity="0.5"
-            />
-            <path
-              d="M 10.4 11.2 L 16 20.6 L 21.6 11.2"
-              fill="none"
-              stroke="url(#velocity-gold-landing)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="16" cy="26.2" r="2" fill="var(--v-ember)" />
-          </svg>
-          <span
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: 3,
-              lineHeight: 1,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                letterSpacing: '0.26em',
-                textIndent: '0.26em',
-                color: 'var(--text-1)',
-              }}
-            >
-              VELOCITY
-            </span>
-            <span
-              aria-hidden="true"
-              style={{
-                width: '100%',
-                height: 1,
-                background:
-                  'linear-gradient(90deg, var(--v-signal) 0%, var(--v-ember) 65%, transparent 100%)',
-                opacity: 0.65,
-              }}
-            />
-          </span>
-        </div>
-        <div>
-          <button
-            onClick={handleGoogleLogin}
-            className="btn-accent"
-          >
-            Sign in
-          </button>
-        </div>
+    <div className="lp">
+      <div className="lp-rail" style={{ ['--p' as string]: progress } as React.CSSProperties} />
+
+      <nav className="lp-nav" data-stuck={stuck ? '1' : '0'}>
+        <Wordmark />
+        <button className="lp-btn lp-btn-primary" onClick={handleGoogleLogin} style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}>
+          Sign in
+        </button>
       </nav>
 
-      {showErrorBanner && (
+      {showError && (
         <div
+          role="alert"
           style={{
-            margin: '16px 28px 0',
-            background: 'var(--surface)',
-            border: '1px solid var(--danger)',
-            borderRadius: 8,
-            padding: '12px 16px',
+            margin: '16px auto 0',
+            maxWidth: 1180,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
+            padding: '13px 16px',
+            background: 'var(--v-critical-wash)',
+            border: '1px solid var(--v-critical)',
+            borderRadius: 12,
+            color: 'var(--v-critical)',
+            fontSize: 13.5,
+            fontWeight: 600,
           }}
         >
-          <AlertTriangle size={16} style={{ color: 'var(--danger)' }} />
-          <div style={{ flex: 1, fontSize: 13, color: 'var(--danger)' }}>
-            {authError === 'access_denied' ? 'Sign-In Cancelled' : 'Sign-In Failed. Please try again.'}
-          </div>
-          <button onClick={dismissError} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>
+            {authError === 'access_denied'
+              ? 'Sign-in was cancelled. Nothing was connected.'
+              : 'Sign-in did not complete. Please try again.'}
+          </span>
+          <button
+            onClick={dismissError}
+            aria-label="Dismiss"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex' }}
+          >
             <X size={16} />
           </button>
         </div>
       )}
 
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 48,
-          alignItems: 'center',
-          maxWidth: 1100,
-          margin: '0 auto',
-          padding: '60px 24px',
-          width: '100%',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase' }}>
-            COMMUNICATION ACCELERATION PLATFORM
-          </span>
+      {/* ---------------------------------------------------------- HERO */}
+      <header className="lp-section lp-hero" ref={heroRef}>
+        <div className="lp-atmos" aria-hidden="true" />
 
-          <h1
-            style={{
-              fontSize: 42,
-              fontWeight: 700,
-              color: 'var(--text-1)',
-              lineHeight: 1.15,
-              margin: 0,
-              fontFamily: 'Google Sans, Roboto, sans-serif',
-            }}
-          >
-            Accelerate your <span style={{ color: 'var(--accent)' }}>communication.</span>
-          </h1>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+          <Reveal i={0}>
+            <span className="lp-eyebrow">Communication acceleration</span>
+          </Reveal>
 
-          <p style={{ fontSize: 15, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-            Velocity transforms your email management by accelerating communication, boosting productivity, and amplifying your professional impact.
-          </p>
+          <Reveal i={1}>
+            {/* No hand-placed breaks: text-wrap:balance plus a ch-based
+                measure gives even lines at every width. */}
+            <h1 className="lp-display" style={{ maxWidth: '11ch' }}>
+              Your inbox has a speed.{' '}
+              <span className="lp-gold">You have never seen it.</span>
+            </h1>
+          </Reveal>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <button
-              onClick={handleGoogleLogin}
-              className="btn-accent"
-              style={{ height: 48, padding: '0 24px', fontSize: 15, width: 'fit-content' }}
-            >
-              Connect Gmail Account
-            </button>
+          <Reveal i={2}>
+            <p className="lp-lead">
+              Velocity puts an instrument on your Gmail. It measures the drag your
+              backlog is creating, surfaces the deadlines hiding inside it, and gives
+              you back the hours you were spending deciding what to read.
+            </p>
+          </Reveal>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {TRUST_POINTS.map((point) => (
-                <div key={point} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-2)' }}>
-                  <CheckCircle size={14} style={{ color: 'var(--success)' }} />
-                  <span>{point}</span>
+          <Reveal i={3}>
+            <div className="lp-cta-row">
+              <button className="lp-btn lp-btn-primary" onClick={handleGoogleLogin}>
+                Connect Gmail <ArrowRight size={17} />
+              </button>
+              <button className="lp-btn lp-btn-ghost" onClick={scrollOn}>
+                See how it reads
+              </button>
+            </div>
+          </Reveal>
+
+          <Reveal i={4}>
+            <p style={{ fontSize: 12.5, color: 'var(--v-ink-3)', margin: 0 }}>
+              Read-only access · No card · Disconnect whenever you like
+            </p>
+          </Reveal>
+        </div>
+
+        <Reveal variant="scale" i={2} className="lp-hero-art">
+          <div className="lp-panel" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span className="v-label">Velocity Score</span>
+              <span
+                style={{
+                  fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                  background: 'var(--v-ember-wash)', color: 'var(--v-ember)',
+                }}
+              >
+                Backlog building
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', paddingBlock: 4 }}>
+              <Gauge value={55} tone="var(--v-signal)" label="of 100" size={186} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { k: 'Backlog', v: 23, tone: 'var(--v-ember)' },
+                { k: 'Actions', v: 4, tone: 'var(--v-signal)' },
+                { k: 'Overdue', v: 1, tone: 'var(--v-critical)' },
+              ].map((s) => (
+                <div
+                  key={s.k}
+                  style={{
+                    flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 13,
+                    background: 'var(--v-panel-2)', border: '1px solid var(--v-hairline)',
+                  }}
+                >
+                  <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: s.tone, fontVariantNumeric: 'tabular-nums' }}>
+                    {s.v}
+                  </div>
+                  <div className="v-label" style={{ marginTop: 6 }}>{s.k}</div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        </Reveal>
+      </header>
 
-        <div className="surface-elevated" style={{ padding: 16, overflow: 'hidden' }}>
-          <p className="section-label" style={{ marginBottom: 12 }}>INBOX PREVIEW</p>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {PREVIEW_EMAILS.map((email, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderBottom: '1px solid var(--border)',
-                }}
-              >
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', width: 110 }}>{email.sender}</span>
-                <span style={{ flex: 1, fontSize: 13, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email.subject}</span>
-                <CategoryTag category={email.category} />
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: -40, marginBottom: 24 }}>
+        <button
+          onClick={scrollOn}
+          aria-label="Scroll to content"
+          className="lp-cue"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v-ink-3)', display: 'flex' }}
+        >
+          <ChevronDown size={26} />
+        </button>
+      </div>
+
+      {/* --------------------------------------------------------- COST */}
+      <section className="lp-section" style={{ paddingBlock: 'clamp(48px, 8vh, 96px)' }}>
+        <Reveal>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: 'clamp(20px, 4vw, 56px)',
+              paddingBlock: 'clamp(28px, 4vw, 44px)',
+              borderTop: '1px solid var(--v-hairline)',
+              borderBottom: '1px solid var(--v-hairline)',
+            }}
+          >
+            {[
+              { n: 28, suffix: '%', label: 'of the working week goes to mail', d: 0 },
+              { n: 2.6, suffix: 'h', label: 'lost daily just deciding what matters', d: 1, dec: 1 },
+              { n: 1, suffix: ' in 5', label: 'deadlines are found too late', d: 2 },
+            ].map((s) => (
+              <div key={s.label} style={{ ['--i' as string]: s.d } as React.CSSProperties}>
+                <Odometer
+                  to={s.n}
+                  decimals={s.dec ?? 0}
+                  suffix={s.suffix}
+                  style={{
+                    display: 'block',
+                    fontSize: 'clamp(40px, 6vw, 68px)',
+                    fontWeight: 800,
+                    letterSpacing: '-0.045em',
+                    lineHeight: 1,
+                    color: 'var(--v-signal)',
+                  }}
+                />
+                <p style={{ margin: '12px 0 0', fontSize: 13.5, color: 'var(--v-ink-2)', maxWidth: '26ch' }}>
+                  {s.label}
+                </p>
               </div>
             ))}
           </div>
+        </Reveal>
+      </section>
+
+      {/* -------------------------------------------------------- LEDGER */}
+      <section className="lp-section">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+            gap: 'clamp(28px, 5vw, 64px)',
+            alignItems: 'center',
+          }}
+          className="lp-two"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <Reveal variant="left" i={0}>
+              <span className="lp-eyebrow">The instrument</span>
+            </Reveal>
+            <Reveal variant="left" i={1}>
+              <h2 className="lp-h2">
+                One number,<br />and it is <span className="lp-gold">honest</span>.
+              </h2>
+            </Reveal>
+            <Reveal variant="left" i={2}>
+              <p className="lp-lead">
+                Your score starts at a hundred and is debited by the three things that
+                actually slow you down. Nothing is weighted by a vanity metric, and
+                nothing is invented — clear the backlog and the number climbs on its own.
+              </p>
+            </Reveal>
+          </div>
+
+          <Reveal variant="right" className="lp-panel">
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18 }}>
+              <span className="v-label">Score ledger</span>
+              <span style={{ fontSize: 13, color: 'var(--v-ink-3)', fontVariantNumeric: 'tabular-nums' }}>
+                starts at 100
+              </span>
+            </div>
+
+            <div className="lp-ledger">
+              {LEDGER.map((row) => (
+                <div key={row.label} className="lp-ledger-row">
+                  <div style={{ minWidth: 0, flex: '0 0 42%' }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{row.label}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--v-ink-3)', marginTop: 3 }}>{row.note}</div>
+                  </div>
+                  <div
+                    className="lp-ledger-bar"
+                    style={{ ['--w' as string]: `${row.debit * 2.4}%`, ['--bar' as string]: row.tone } as React.CSSProperties}
+                  >
+                    <i />
+                  </div>
+                  <div
+                    style={{
+                      width: 46, textAlign: 'right', fontSize: 14, fontWeight: 800,
+                      color: row.tone, fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    −{row.debit}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--v-hairline-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}
+            >
+              <span className="v-label">Today</span>
+              <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}>
+                <Odometer to={55} /> <span style={{ fontSize: 15, color: 'var(--v-ink-3)', fontWeight: 600 }}>/ 100</span>
+              </span>
+            </div>
+          </Reveal>
         </div>
-      </div>
+      </section>
+
+      {/* --------------------------------------------------------- ZONES */}
+      <section className="lp-section">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+          <Reveal i={0}>
+            <span className="lp-eyebrow">Flow zones</span>
+          </Reveal>
+          <Reveal i={1}>
+            <h2 className="lp-h2" style={{ maxWidth: '18ch' }}>
+              The day is not one <span className="lp-ember">long</span> inbox.
+            </h2>
+          </Reveal>
+          <Reveal i={2}>
+            <p className="lp-lead">
+              Velocity splits your working hours into bands and holds the noise back
+              during the ones that matter. Deep work stays deep; the quick replies get
+              batched into the window built for them.
+            </p>
+          </Reveal>
+
+          <Reveal i={3} className="v-xscroll" style={{ paddingBottom: 4 }}>
+            <div className="lp-strip">
+              {ZONES.map((z, i) => (
+                <div key={z.name} className="lp-zone" style={{ ['--i' as string]: i } as React.CSSProperties}>
+                  <span
+                    style={{
+                      display: 'block', width: 30, height: 3, borderRadius: 999,
+                      background: z.tone, marginBottom: 14,
+                    }}
+                  />
+                  <div style={{ fontSize: 14.5, fontWeight: 700 }}>{z.name}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--v-ink-2)', marginTop: 5, fontVariantNumeric: 'tabular-nums' }}>
+                    {z.hours}
+                  </div>
+                  <div className="v-label" style={{ marginTop: 12 }}>{z.note}</div>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* -------------------------------------------------- CAPABILITIES */}
+      <section className="lp-section">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+          <Reveal i={0}>
+            <span className="lp-eyebrow">What it does</span>
+          </Reveal>
+          <Reveal i={1}>
+            <h2 className="lp-h2" style={{ maxWidth: '20ch' }}>
+              Four things, done <span className="lp-gold">properly</span>.
+            </h2>
+          </Reveal>
+
+          <div className="lp-grid">
+            {CAPABILITIES.map((c, i) => {
+              const Icon = c.icon;
+              return (
+                <Reveal key={c.title} i={i} variant="scale">
+                  <article className="lp-card" style={{ height: '100%' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 42, height: 42, borderRadius: 13, marginBottom: 16,
+                        color: c.tone,
+                        background: `color-mix(in srgb, ${c.tone} 13%, transparent)`,
+                      }}
+                    >
+                      <Icon size={20} />
+                    </span>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
+                      {c.title}
+                    </h3>
+                    <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--v-ink-2)', margin: '9px 0 0' }}>
+                      {c.body}
+                    </p>
+                  </article>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* --------------------------------------------------------- TRUST */}
+      <section className="lp-section">
+        <Reveal className="lp-panel">
+          <span className="lp-eyebrow">What it will never do</span>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+              gap: 'clamp(20px, 3vw, 40px)',
+              marginTop: 26,
+            }}
+          >
+            {TRUST.map((t) => {
+              const Icon = t.icon;
+              return (
+                <div key={t.title}>
+                  <Icon size={19} style={{ color: 'var(--v-signal)' }} />
+                  <h3 style={{ fontSize: 15, fontWeight: 700, margin: '13px 0 0', letterSpacing: '-0.015em' }}>
+                    {t.title}
+                  </h3>
+                  <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--v-ink-2)', margin: '7px 0 0' }}>
+                    {t.body}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ----------------------------------------------------------- CTA */}
+      <section className="lp-section" style={{ textAlign: 'center', paddingBottom: 'clamp(80px, 12vh, 150px)' }}>
+        <Reveal i={0}>
+          <h2 className="lp-display" style={{ maxWidth: '16ch', margin: '0 auto' }}>
+            Find out what your <span className="lp-gold">score</span> is.
+          </h2>
+        </Reveal>
+        <Reveal i={1}>
+          <p className="lp-lead" style={{ margin: '22px auto 0', textAlign: 'center' }}>
+            Connect Gmail and Velocity reads your last few hundred messages. Most
+            people are surprised by the number.
+          </p>
+        </Reveal>
+        <Reveal i={2}>
+          <div className="lp-cta-row" style={{ justifyContent: 'center', marginTop: 30 }}>
+            <button className="lp-btn lp-btn-primary" onClick={handleGoogleLogin}>
+              Connect Gmail <ArrowRight size={17} />
+            </button>
+          </div>
+        </Reveal>
+      </section>
+
+      <footer
+        style={{
+          borderTop: '1px solid var(--v-hairline)',
+          padding: '30px clamp(16px, 4vw, 44px)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1180, margin: '0 auto',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 16, flexWrap: 'wrap',
+          }}
+        >
+          <Wordmark size={26} />
+          <span style={{ fontSize: 12, color: 'var(--v-ink-3)' }}>
+            Read-only Gmail access · AES-256 at rest
+          </span>
+        </div>
+      </footer>
     </div>
   );
 };
