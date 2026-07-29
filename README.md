@@ -138,11 +138,39 @@ Production:   MySQL 8.0+
 
 ### Run the whole stack with one command
 
+**macOS / Linux / WSL / Git Bash:**
+
 ```bash
 git clone https://github.com/Austin-Joshua/Velocity.git
 cd Velocity
 ./run-dev.sh              # backend :8080 + frontend :5173, Ctrl-C stops both
 ```
+
+**Windows PowerShell** (`run-dev.sh` needs bash, which plain PowerShell and
+CMD do not provide):
+
+```powershell
+git clone https://github.com/Austin-Joshua/Velocity.git
+cd Velocity
+.\run-dev.ps1
+```
+
+**Or start the two services by hand**, in two terminals — no script involved,
+works anywhere:
+
+```powershell
+# terminal 1
+cd nexora\backend
+.\mvnw.cmd spring-boot:run     # use ./mvnw on macOS/Linux
+
+# terminal 2
+cd nexora\frontend
+npm install
+npm run dev
+```
+
+The backend reads `nexora\backend\.env` on startup, so you do not need to
+export anything — just create that file (copy `.env.example`) and fill it in.
 
 The script checks your toolchain, creates `backend/.env` from the example on
 first run, generates throwaway dev secrets if none are set, compiles, waits
