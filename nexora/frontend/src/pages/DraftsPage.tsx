@@ -1,35 +1,21 @@
 import React from 'react';
-import { AppShell } from '../components/layout/AppShell';
+import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
+import { AppShell } from '../components/layout/AppShell';
+import { Placeholder } from '../components/bento/Placeholder';
 
 export const DraftsPage: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
-    <AppShell title="Drafts" subtitle="Your unsent email drafts">
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 400,
-        gap: 16,
-        textAlign: 'center',
-      }}>
-        <div style={{
-          width: 80,
-          height: 80,
-          borderRadius: 16,
-          background: '#3b4fea15',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <FileText size={40} style={{ color: '#3b4fea' }} />
-        </div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Drafts</h2>
-        <p style={{ color: 'var(--text-2)', maxWidth: 400 }}>
-          Save and manage your email drafts with AI suggestions and smart scheduling.
-        </p>
-      </div>
+    <AppShell title="Drafts" subtitle="Unsent mail, saved as you type">
+      <Placeholder
+        icon={<FileText size={26} />}
+        headline="No drafts yet"
+        body="Anything you start writing is saved here automatically, so you can leave a reply half-finished and pick it up on another device."
+        points={['Autosaved', 'Schedule a send', 'Reuse a template']}
+        action={{ label: 'Ask Velocity Brain', onClick: () => navigate('/brain') }}
+      />
     </AppShell>
   );
 };

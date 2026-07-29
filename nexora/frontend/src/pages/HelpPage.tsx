@@ -1,228 +1,230 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { HelpCircle, Search, ChevronDown, Keyboard, Sparkles, Zap, Mail } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
-import { HelpCircle, Search, ChevronDown, Mail, Brain, Zap } from 'lucide-react';
+import { Tile, TileHead } from '../components/bento/Tile';
 
-const HELP_CATEGORIES = [
+const CATEGORIES = [
   {
-    title: 'Getting Started',
+    title: 'Getting started',
     icon: HelpCircle,
+    tone: 'var(--v-signal)',
     items: [
-      { q: 'How do I connect my Gmail account?', a: 'Click "Connect Gmail Account" on the dashboard. Authorize Velocity to access your emails with read-only permissions.' },
-      { q: 'Is my data secure?', a: 'Yes! We use AES-256 encryption and only access your emails for classification and analysis. Your data is never shared.' },
-      { q: 'What email providers are supported?', a: 'Currently Gmail. We plan to support Outlook and Yahoo Mail soon.' },
+      {
+        q: 'How do I connect Gmail?',
+        a: 'Sign in with Google and grant read-only access. Velocity never gets permission to delete or send from your account.',
+      },
+      {
+        q: 'Where is my data stored?',
+        a: 'Your messages are stored in your own Velocity workspace and your Google tokens are encrypted with AES-256 at rest. Nothing is shared with third parties.',
+      },
+      {
+        q: 'Which providers work?',
+        a: 'Gmail today. Outlook and Yahoo are not supported yet.',
+      },
     ],
   },
   {
-    title: 'Features',
+    title: 'Your score',
     icon: Zap,
+    tone: 'var(--v-amber)',
     items: [
-      { q: 'What is Priority Inbox?', a: 'AI learns your patterns and shows the most important emails first based on your past interactions.' },
-      { q: 'How does scheduled delivery work?', a: 'Compose an email, click "Schedule", choose time/date. Velocity sends it at the perfect moment.' },
-      { q: 'Can I use email templates?', a: 'Yes! Create templates for common responses and reuse them with merge fields.' },
+      {
+        q: 'What is the Velocity Score?',
+        a: 'It starts at 100 and is debited by the three things that slow you down: unread backlog, open action items, and overdue deadlines. It moves as you clear them — there is nothing to configure.',
+      },
+      {
+        q: 'What are flow zones?',
+        a: 'Fixed bands across your working day. Deep Focus and Reflection mute notifications; Collaboration and Rapid Fire let them through.',
+      },
+      {
+        q: 'How does Priority rank mail?',
+        a: 'Unread mail is sorted into Act now, Today and When clear based on the priority the classifier assigned, then by how recently it arrived.',
+      },
     ],
   },
   {
-    title: 'Brain Q&A',
-    icon: Brain,
+    title: 'Velocity Brain',
+    icon: Sparkles,
+    tone: 'var(--v-pulse)',
     items: [
-      { q: 'What can I ask Velocity Brain?', a: 'Ask questions like "What meetings do I have with John?" or "Summarize my marketing emails".' },
-      { q: 'How accurate is the AI?', a: 'We use Claude AI for 99%+ accuracy. Results are based on your actual emails.' },
+      {
+        q: 'What can I ask it?',
+        a: 'Questions about your own inbox — "what did the placement cell send last week", "which deadlines land before Friday". Answers link back to the messages they came from.',
+      },
+      {
+        q: 'Does it read my whole mailbox?',
+        a: 'It searches only the messages already synced into your workspace, and only when you ask it something.',
+      },
     ],
   },
   {
-    title: 'Keyboard Shortcuts',
-    icon: Mail,
+    title: 'Keyboard',
+    icon: Keyboard,
+    tone: 'var(--v-ink-3)',
     items: [
-      { q: 'List of all shortcuts?', a: 'Press ? to see keyboard shortcuts. / focuses search, g+i goes to inbox, g+b goes to brain.' },
+      {
+        q: 'Which shortcuts exist?',
+        a: 'Press / to jump to search and Escape to close any open menu.',
+      },
     ],
   },
 ];
 
 export const HelpPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedIndices, setExpandedIndices] = useState<Set<string>>(new Set());
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState<Set<string>>(new Set());
 
-  const toggleExpanded = (key: string) => {
-    const newSet = new Set(expandedIndices);
-    if (newSet.has(key)) {
-      newSet.delete(key);
-    } else {
-      newSet.add(key);
-    }
-    setExpandedIndices(newSet);
-  };
+  const toggle = (key: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
 
-  const filteredCategories = HELP_CATEGORIES.map(cat => ({
-    ...cat,
-    items: cat.items.filter(
-      item => item.q.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              item.a.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-  })).filter(cat => cat.items.length > 0);
+  const results = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    if (!q) return CATEGORIES;
+    return CATEGORIES.map((c) => ({
+      ...c,
+      items: c.items.filter(
+        (i) => i.q.toLowerCase().includes(q) || i.a.toLowerCase().includes(q),
+      ),
+    })).filter((c) => c.items.length > 0);
+  }, [term]);
 
   return (
-    <AppShell title="Help & Support" subtitle="Get answers to your questions">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 800 }}>
-        {/* Search */}
-        <div style={{
-          display: 'flex',
+    <AppShell title="Help" subtitle="How Velocity works">
+      {/* Sits outside the grid so it keeps its natural height rather than
+          stretching to the bento's minimum row. */}
+      <div
+        className="tile v-rise"
+        style={{
+          flexDirection: 'row',
           alignItems: 'center',
-          gap: 12,
-          padding: '12px 16px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 12,
-          animation: 'slideDown 0.3s ease-out',
-        }}>
-          <Search size={20} style={{ color: 'var(--text-3)' }} />
-          <input
-            type="text"
-            placeholder="Search help..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              flex: 1,
-              border: 'none',
-              outline: 'none',
-              fontSize: 14,
-              background: 'transparent',
-            }}
-          />
-        </div>
+          gap: 10,
+          padding: '0 16px',
+          height: 48,
+          marginBottom: 'var(--v-gap)',
+        }}
+      >
+        <Search size={17} style={{ color: 'var(--v-ink-3)', flexShrink: 0 }} />
+        <input
+          type="text"
+          placeholder="Search help…"
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            border: 'none',
+            outline: 'none',
+            background: 'transparent',
+            fontSize: 15,
+            color: 'var(--v-ink)',
+            fontFamily: 'inherit',
+          }}
+        />
+      </div>
 
-        {/* Categories */}
-        {filteredCategories.length > 0 ? (
-          filteredCategories.map((category, catIdx) => {
-            const Icon = category.icon;
+      <div className="bento">
+        {results.length > 0 ? (
+          results.map((cat, i) => {
+            const Icon = cat.icon;
             return (
-              <div key={catIdx} style={{ animation: `fadeIn 0.3s ease-out 0.${catIdx * 100}ms forwards` }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  marginBottom: 12,
-                }}>
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    background: 'var(--primary-pale)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <Icon size={20} style={{ color: 'var(--primary)' }} />
-                  </div>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                    {category.title}
-                  </h3>
-                </div>
+              <Tile key={cat.title} span={6} index={i + 1}>
+                <TileHead label={cat.title} icon={<Icon size={17} />} tone={cat.tone} />
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {category.items.map((item, idx) => {
-                    const key = `${catIdx}-${idx}`;
-                    const isExpanded = expandedIndices.has(key);
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {cat.items.map((item, idx) => {
+                    const key = `${cat.title}-${idx}`;
+                    const isOpen = open.has(key);
                     return (
                       <div
                         key={key}
                         style={{
-                          border: '1px solid var(--border)',
-                          borderRadius: 12,
+                          border: '1px solid var(--v-hairline)',
+                          borderRadius: 'var(--v-r-chip)',
                           overflow: 'hidden',
-                          transition: 'all 0.2s ease',
+                          background: isOpen ? 'var(--v-panel-2)' : 'transparent',
+                          transition: 'background var(--v-fast)',
                         }}
                       >
                         <button
-                          onClick={() => toggleExpanded(key)}
+                          onClick={() => toggle(key)}
+                          aria-expanded={isOpen}
                           style={{
                             width: '100%',
-                            padding: '16px',
-                            background: isExpanded ? 'var(--surface-2)' : 'var(--surface)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            padding: '13px 14px',
+                            background: 'transparent',
                             border: 'none',
                             cursor: 'pointer',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            gap: 12,
-                            transition: 'all 0.2s ease',
+                            textAlign: 'left',
+                            fontFamily: 'inherit',
+                            fontSize: 13.5,
+                            fontWeight: 700,
+                            color: 'var(--v-ink)',
                           }}
                         >
-                          <span style={{
-                            textAlign: 'left',
-                            fontWeight: 600,
-                            color: 'var(--text-1)',
-                          }}>
-                            {item.q}
-                          </span>
+                          {item.q}
                           <ChevronDown
-                            size={20}
+                            size={17}
                             style={{
-                              color: 'var(--text-3)',
-                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                              transition: 'transform 0.2s ease',
                               flexShrink: 0,
+                              color: 'var(--v-ink-3)',
+                              transform: isOpen ? 'rotate(180deg)' : 'none',
+                              transition: 'transform var(--v-fast)',
                             }}
                           />
                         </button>
-                        {isExpanded && (
-                          <div style={{
-                            padding: '0 16px 16px',
-                            color: 'var(--text-2)',
-                            lineHeight: 1.6,
-                            animation: 'slideDown 0.2s ease-out',
-                          }}>
+                        {isOpen && (
+                          <p className="v-body" style={{ padding: '0 14px 14px' }}>
                             {item.a}
-                          </div>
+                          </p>
                         )}
                       </div>
                     );
                   })}
                 </div>
-              </div>
+              </Tile>
             );
           })
         ) : (
-          <div style={{
-            textAlign: 'center',
-            padding: '40px 20px',
-            color: 'var(--text-3)',
-          }}>
-            No results found. Try a different search term.
-          </div>
+          <Tile span={12} index={1}>
+            <p className="v-body" style={{ textAlign: 'center', padding: '28px 0' }}>
+              Nothing matches “{term}”.
+            </p>
+          </Tile>
         )}
 
-        {/* Contact Support */}
-        <div style={{
-          background: 'rgba(59, 79, 234, 0.05)',
-          border: '1px solid rgba(59, 79, 234, 0.2)',
-          borderRadius: 16,
-          padding: 24,
-          textAlign: 'center',
-          animation: 'fadeIn 0.3s ease-out 0.4s backwards',
-        }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--primary)', marginBottom: 8 }}>
-            Still need help?
-          </h3>
-          <p style={{ margin: 0, color: 'var(--text-2)', marginBottom: 16 }}>
-            Contact our support team at support@nexora.ai
-          </p>
-          <button style={{
-            padding: '10px 20px',
-            background: 'var(--primary)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontWeight: 600,
-            transition: 'all 0.2s ease',
-            boxShadow: '0 2px 6px rgba(59, 79, 234, 0.2)',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
+        <Tile span={12} feature index={9}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              flexWrap: 'wrap',
+            }}
           >
-            Send Email
-          </button>
-        </div>
+            <span className="glyph glyph-lg"><Mail size={20} /></span>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <p className="v-title">Still stuck?</p>
+              <p className="v-meta" style={{ marginTop: 3 }}>
+                Send us the details and we will pick it up.
+              </p>
+            </div>
+            <a
+              href="mailto:support@velocity.app"
+              className="vbtn vbtn-signal"
+              style={{ textDecoration: 'none' }}
+            >
+              Email support
+            </a>
+          </div>
+        </Tile>
       </div>
     </AppShell>
   );
