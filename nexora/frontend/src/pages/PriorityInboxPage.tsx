@@ -8,8 +8,8 @@ import { useEmails } from '../hooks/useEmails';
 import { CAT_COLORS } from '../utils/catColors';
 
 const BANDS = [
-  { key: 'HIGH',   label: 'Act now',    tone: 'var(--v-critical)' },
-  { key: 'MEDIUM', label: 'Today',      tone: 'var(--v-amber)' },
+  { key: 'HIGH',   label: 'Act now',    tone: 'var(--v-ember)' },
+  { key: 'MEDIUM', label: 'Today',      tone: 'var(--v-signal)' },
   { key: 'LOW',    label: 'When clear', tone: 'var(--v-ink-3)' },
 ] as const;
 

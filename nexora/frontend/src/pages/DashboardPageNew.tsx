@@ -19,7 +19,7 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const FLOW_ZONES = [
   { name: 'Deep Focus',    from: 9,  to: 12, tone: 'var(--v-signal)',   quiet: true },
   { name: 'Collaboration', from: 12, to: 15, tone: 'var(--v-pulse)',    quiet: false },
-  { name: 'Rapid Fire',    from: 15, to: 17, tone: 'var(--v-amber)',    quiet: false },
+  { name: 'Rapid Fire',    from: 15, to: 17, tone: 'var(--v-ember)',    quiet: false },
   { name: 'Reflection',    from: 17, to: 19, tone: 'var(--v-ink-3)',    quiet: true },
 ];
 
@@ -67,7 +67,7 @@ export const DashboardPageNew: React.FC = () => {
   }, [unread, actions.length, overdue]);
 
   const scoreTone =
-    score >= 75 ? 'var(--v-pulse)' : score >= 45 ? 'var(--v-signal)' : 'var(--v-amber)';
+    score >= 75 ? 'var(--v-pulse)' : score >= 45 ? 'var(--v-signal)' : 'var(--v-ember)';
   const scoreVerdict =
     score >= 75 ? 'Running clear' : score >= 45 ? 'Some drag' : 'Backlog building';
 
@@ -146,7 +146,7 @@ export const DashboardPageNew: React.FC = () => {
             <div style={{ display: 'flex', gap: 8, width: '100%' }}>
               {[
                 { k: 'Backlog', v: unread, tone: 'var(--v-signal)' },
-                { k: 'Actions', v: actions.length, tone: 'var(--v-amber)' },
+                { k: 'Actions', v: actions.length, tone: 'var(--v-ember)' },
                 { k: 'Overdue', v: overdue, tone: overdue ? 'var(--v-critical)' : 'var(--v-ink-4)' },
               ].map((s) => (
                 <div
@@ -178,8 +178,8 @@ export const DashboardPageNew: React.FC = () => {
           <p className="v-meta">{emails.length ? `of ${emails.length} synced` : 'nothing synced yet'}</p>
         </Tile>
 
-        <Tile span={4} rule="var(--v-amber)" index={2} onClick={() => navigate('/priority')}>
-          <TileHead label="Deadlines" icon={<Timer size={17} />} tone="var(--v-amber)"
+        <Tile span={4} rule="var(--v-ember)" index={2} onClick={() => navigate('/priority')}>
+          <TileHead label="Deadlines" icon={<Timer size={17} />} tone="var(--v-ember)"
             right={overdue > 0 ? <span className="delta delta-down">{overdue} overdue</span> : undefined} />
           <div className="v-readout v-readout-lg">{deadlines.length}</div>
           <p className="v-meta">
@@ -241,7 +241,7 @@ export const DashboardPageNew: React.FC = () => {
                         e.priority === 'HIGH'
                           ? 'var(--v-critical)'
                           : e.priority === 'MEDIUM'
-                          ? 'var(--v-amber)'
+                          ? 'var(--v-ember)'
                           : 'var(--v-ink-4)',
                     } as React.CSSProperties}
                   />

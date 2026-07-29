@@ -108,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
                 width: 7,
                 height: 7,
                 borderRadius: 999,
-                background: badge === 'hot' ? 'var(--v-amber)' : 'var(--v-signal)',
+                background: badge === 'hot' ? 'var(--v-ember)' : 'var(--v-signal)',
               }}
             />
           )}

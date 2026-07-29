@@ -26,7 +26,7 @@ const CATEGORIES = [
   {
     title: 'Your score',
     icon: Zap,
-    tone: 'var(--v-amber)',
+    tone: 'var(--v-ember)',
     items: [
       {
         q: 'What is the Velocity Score?',

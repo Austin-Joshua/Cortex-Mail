@@ -1,19 +1,24 @@
-// Category color + label system — used by CategoryTag and throughout the app
+// Category color + label system — used by CategoryTag and throughout the app.
+//
+// A warm-forward categorical set: brass through rust, with a jade, a teal and
+// one dusty blue kept in for separation. Deliberately holds no indigo or
+// violet, which read as foreign against the gold/ember ground. Each hue is
+// mid-tone so it carries on both the light paper and the dark oxblood.
 
 export const CAT_COLORS: Record<string, { label: string; color: string }> = {
-  ASSIGNMENT:    { label: 'Assignment',    color: '#6366f1' },
-  HACKATHON:     { label: 'Hackathon',     color: '#f97316' },
-  PLACEMENT:     { label: 'Placement',     color: '#10b981' },
-  MEETING:       { label: 'Meeting',       color: '#a855f7' },
-  ATTENDANCE:    { label: 'Attendance',     color: '#ef4444' },
-  ANNOUNCEMENT:  { label: 'Announcement',  color: '#eab308' },
-  PROMOTIONAL:   { label: 'Promo',         color: '#64748b' },
-  INTERNSHIP:    { label: 'Internship',    color: '#14b8a6' },
-  RESEARCH:      { label: 'Research',      color: '#06b6d4' },
-  FINANCE:       { label: 'Finance',       color: '#22c55e' },
-  PERSONAL:      { label: 'Personal',      color: '#ec4899' },
-  SPAM:          { label: 'Spam',          color: '#ef4444' },
-  UNCATEGORIZED: { label: 'Other',         color: '#64748b' },
+  ASSIGNMENT:    { label: 'Assignment',    color: '#C8912B' },  // brass
+  HACKATHON:     { label: 'Hackathon',     color: '#E0703A' },  // burnt orange
+  PLACEMENT:     { label: 'Placement',     color: '#3E9E74' },  // jade
+  MEETING:       { label: 'Meeting',       color: '#B5506B' },  // wine rose
+  ATTENDANCE:    { label: 'Attendance',    color: '#D0453F' },  // red clay
+  ANNOUNCEMENT:  { label: 'Announcement',  color: '#D9A441' },  // gold
+  PROMOTIONAL:   { label: 'Promo',         color: '#94837A' },  // warm grey
+  INTERNSHIP:    { label: 'Internship',    color: '#3E9B9B' },  // teal
+  RESEARCH:      { label: 'Research',      color: '#6C86AE' },  // dusty blue
+  FINANCE:       { label: 'Finance',       color: '#6E9E45' },  // olive
+  PERSONAL:      { label: 'Personal',      color: '#D4788E' },  // dusty rose
+  SPAM:          { label: 'Spam',          color: '#9E3B36' },  // rust
+  UNCATEGORIZED: { label: 'Other',         color: '#94837A' },  // warm grey
 };
 
 // Legacy label map kept for backward-compat with existing pages

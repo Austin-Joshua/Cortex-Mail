@@ -139,21 +139,44 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
 
         <button
           onClick={() => navigate('/dashboard')}
+          aria-label="Velocity — go to dashboard"
           style={{
-            display: 'flex', alignItems: 'center', gap: 9,
+            display: 'flex', alignItems: 'center', gap: 10,
             background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
           }}
         >
           <Mark />
           <span
             style={{
-              fontSize: 17,
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              color: 'var(--v-ink)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 3,
+              lineHeight: 1,
             }}
           >
-            Velocity
+            {/* Uppercase at wide tracking reads as a mark rather than a word. */}
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: '0.26em',
+                textIndent: '0.26em',
+                color: 'var(--v-ink)',
+              }}
+            >
+              VELOCITY
+            </span>
+            <span
+              aria-hidden="true"
+              style={{
+                width: '100%',
+                height: 1,
+                background:
+                  'linear-gradient(90deg, var(--v-signal) 0%, var(--v-ember) 65%, transparent 100%)',
+                opacity: 0.65,
+              }}
+            />
           </span>
         </button>
       </div>
@@ -322,7 +345,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
                 style={{
                   position: 'absolute', top: 5, right: 5,
                   width: 7, height: 7, borderRadius: 999,
-                  background: 'var(--v-amber)',
+                  background: 'var(--v-ember)',
                 }}
               />
             )}
@@ -384,12 +407,41 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
   );
 };
 
-/** Three stacked bars of increasing length — motion, read left to right. */
+/**
+ * The monogram is the dashboard's own instrument, shrunk: the same 270°
+ * gauge arc, a gold V for the needle's rest position, and an ember bead
+ * closing the gap at the bottom.
+ */
 const Mark: React.FC = () => (
-  <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-    <rect width="26" height="26" rx="7" fill="var(--v-signal)" />
-    <rect x="6"  y="8"  width="14" height="2.6" rx="1.3" fill="#fff" opacity="0.55" />
-    <rect x="6"  y="12" width="10" height="2.6" rx="1.3" fill="#fff" opacity="0.8" />
-    <rect x="6"  y="16" width="6"  height="2.6" rx="1.3" fill="#fff" />
+  <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <defs>
+      <linearGradient id="velocity-gold" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="var(--v-signal-dim)" />
+        <stop offset="100%" stopColor="var(--v-signal)" />
+      </linearGradient>
+    </defs>
+
+    {/* gauge ring, open at the bottom */}
+    <path
+      d="M 7.51 24.49 A 12 12 0 1 1 24.49 24.49"
+      fill="none"
+      stroke="url(#velocity-gold)"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      opacity="0.5"
+    />
+
+    {/* V — the needle at rest */}
+    <path
+      d="M 10.4 11.2 L 16 20.6 L 21.6 11.2"
+      fill="none"
+      stroke="url(#velocity-gold)"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+
+    {/* ember bead closing the arc */}
+    <circle cx="16" cy="26.2" r="2" fill="var(--v-ember)" />
   </svg>
 );

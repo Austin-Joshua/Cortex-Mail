@@ -50,24 +50,62 @@ export const LandingPage: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+            <defs>
+              <linearGradient id="velocity-gold-landing" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="var(--v-signal-dim)" />
+                <stop offset="100%" stopColor="var(--v-signal)" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M 7.51 24.49 A 12 12 0 1 1 24.49 24.49"
+              fill="none"
+              stroke="url(#velocity-gold-landing)"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              opacity="0.5"
+            />
+            <path
+              d="M 10.4 11.2 L 16 20.6 L 21.6 11.2"
+              fill="none"
+              stroke="url(#velocity-gold-landing)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="16" cy="26.2" r="2" fill="var(--v-ember)" />
+          </svg>
+          <span
             style={{
-              width: 32,
-              height: 32,
-              background: 'var(--accent)',
-              borderRadius: 8,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 800,
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 3,
+              lineHeight: 1,
             }}
           >
-            N
-          </div>
-          <span style={{ fontWeight: 700, color: 'var(--text-1)', fontSize: 18, fontFamily: 'Google Sans, Roboto, sans-serif' }}>
-            Velocity
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                letterSpacing: '0.26em',
+                textIndent: '0.26em',
+                color: 'var(--text-1)',
+              }}
+            >
+              VELOCITY
+            </span>
+            <span
+              aria-hidden="true"
+              style={{
+                width: '100%',
+                height: 1,
+                background:
+                  'linear-gradient(90deg, var(--v-signal) 0%, var(--v-ember) 65%, transparent 100%)',
+                opacity: 0.65,
+              }}
+            />
           </span>
         </div>
         <div>

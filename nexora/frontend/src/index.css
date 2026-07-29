@@ -33,28 +33,28 @@
     --accent-soft:   var(--v-signal-wash);
 
     --success:       var(--v-pulse);
-    --warning:       var(--v-amber);
+    --warning:       var(--v-signal);
     --danger:        var(--v-critical);
     --info:          var(--v-signal);
-    --warn:          var(--v-amber);
+    --warn:          var(--v-signal);
 
     --unread-dot:    var(--v-signal);
-    --star:          var(--v-amber);
+    --star:          var(--v-signal);
     --ember:         var(--v-signal);
     --ember-soft:    var(--v-signal-wash);
-    --violet:        var(--v-signal);
-    --violet-soft:   var(--v-signal-wash);
+    --violet:        var(--v-ember);
+    --violet-soft:   var(--v-ember-wash);
 
     /* Category hues — kept distinct from the accent so they read as data,
        not as brand. */
-    --cat-assignment:   #6366f1;
-    --cat-hackathon:    #f97316;
-    --cat-placement:    #10b981;
-    --cat-meeting:      #a855f7;
-    --cat-attendance:   #ef4444;
-    --cat-announcement: #eab308;
-    --cat-research:     #06b6d4;
-    --cat-personal:     #64748b;
+    --cat-assignment:   #C8912B;
+    --cat-hackathon:    #E0703A;
+    --cat-placement:    #3E9E74;
+    --cat-meeting:      #B5506B;
+    --cat-attendance:   #D0453F;
+    --cat-announcement: #D9A441;
+    --cat-research:     #6C86AE;
+    --cat-personal:     #94837A;
 
     --paper:      var(--v-ground);
     --paper-2:    var(--v-panel);
@@ -185,7 +185,7 @@
   height: 38px;
   padding: 0 16px;
   border-radius: var(--v-r-chip);
-  background: var(--v-amber);
+  background: var(--v-ember);
   color: #150D00;
   font-weight: 700;
   font-size: 13px;

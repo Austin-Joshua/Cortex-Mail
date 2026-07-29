@@ -125,8 +125,8 @@ export const AppShell: React.FC<AppShellProps> = ({
             height: 50,
             borderRadius: 16,
             border: 'none',
-            background: 'var(--v-amber)',
-            color: '#150D00',
+            background: 'var(--v-signal)',
+            color: 'var(--v-on-signal)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -164,7 +164,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             className="vbtn vbtn-quiet"
             style={{ width: '100%', justifyContent: 'flex-start', height: 48 }}
           >
-            <Clock size={17} style={{ color: 'var(--v-amber)' }} /> View deadlines
+            <Clock size={17} style={{ color: 'var(--v-ember)' }} /> View deadlines
           </button>
         </div>
       </BottomSheet>
