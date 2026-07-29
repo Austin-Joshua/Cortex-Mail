@@ -10,6 +10,18 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableAsync
 public class NexoraApplication {
 
+    /**
+     * Loads .env for local development, as a FALLBACK only.
+     *
+     * This used to call System.setProperty unconditionally. JVM system
+     * properties outrank environment variables in Spring's resolution order,
+     * so the file silently beat every real environment variable — the inverse
+     * of how dotenv is meant to work. Exporting DEV_BYPASS_ENABLED=true had no
+     * effect while .env said false, and on a deployed instance a stray .env
+     * would quietly override the platform's injected configuration, including
+     * secrets. Skipping keys that are already set restores the normal
+     * precedence: real environment beats the file.
+     */
     static {
         try {
             java.nio.file.Path path = java.nio.file.Paths.get(".env");
@@ -27,6 +39,11 @@ public class NexoraApplication {
                         if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
                             val = val.substring(1, val.length() - 1);
                         }
+                        if (key.isEmpty()) return;
+                        // A real environment variable, or a -D passed on the
+                        // command line, always wins over the file.
+                        if (System.getenv(key) != null) return;
+                        if (System.getProperty(key) != null) return;
                         System.setProperty(key, val);
                     }
                 });

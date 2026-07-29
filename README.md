@@ -133,9 +133,49 @@ Production:   MySQL 8.0+
 ### Prerequisites
 - **Java 17+** (JDK)
 - **Node.js 18+** (npm)
-- **MySQL 8.0+** (for production)
+- **MySQL 8.0+** (optional — defaults to in-memory H2)
 - **Google Cloud Project** with Gmail & Calendar APIs enabled
-- **Anthropic API Key** (optional, Gemini fallback available)
+- **Gemini API key** (optional — without it the AI falls back to keyword matching)
+
+### Run the whole stack with one command
+
+```bash
+git clone https://github.com/Austin-Joshua/Velocity.git
+cd Velocity
+./run-dev.sh              # backend :8080 + frontend :5173, Ctrl-C stops both
+```
+
+The script checks your toolchain, creates `backend/.env` from the example on
+first run, generates throwaway dev secrets if none are set, compiles, waits
+for each service to report healthy, and streams logs to `.dev-logs/`.
+
+**To click through the UI before you have Google OAuth credentials:**
+
+```bash
+./run-dev.sh --bypass
+```
+
+then open <http://localhost:8080/api/auth/bypass> — it signs you in against a
+seeded demo account and drops you on the dashboard.
+
+> The demo account's 5 emails carry **pre-written** summaries, not AI output —
+> real Gmail sync is deliberately skipped for it. To watch Gemini actually
+> classify mail, summarise it and extract action items, sign in with a real
+> Google account (see below). `--bypass` is local-only and hands out sessions
+> to anyone who can reach the port; never enable it on a deployed instance.
+
+To enable real "Sign in with Google", set `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` in `nexora/backend/.env`, and add this exact authorised
+redirect URI to your OAuth client in the Google Cloud console:
+
+```
+http://localhost:8080/api/auth/google/callback
+```
+
+The client id is configured **only** in the backend — the frontend does not
+need it, and there is no `VITE_GOOGLE_CLIENT_ID`.
+
+### Manual setup
 
 ### 1. Clone & Setup
 

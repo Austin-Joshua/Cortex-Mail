@@ -73,3 +73,6 @@ nexora/mobile/android/local.properties
 nexora/mobile/android/.gradle/
 nexora/mobile/ios/Pods/
 nexora/mobile/ios/.symlinks/
+
+# Local run logs from run-dev.sh
+.dev-logs/
