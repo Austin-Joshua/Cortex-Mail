@@ -2,81 +2,77 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Inbox, Sparkles, Zap, Settings } from 'lucide-react';
 import { useEmails } from '../../hooks/useEmails';
-import { PulseRing } from '../common/PulseRing';
+
+const ITEMS = [
+  { to: '/dashboard', label: 'Home',     icon: LayoutDashboard },
+  { to: '/inbox',     label: 'Inbox',    icon: Inbox, badged: true },
+  { to: '/brain',     label: 'Brain',    icon: Sparkles, center: true },
+  { to: '/priority',  label: 'Priority', icon: Zap },
+  { to: '/settings',  label: 'Settings', icon: Settings },
+];
 
 export const MobileBottomNav: React.FC = () => {
   const location = useLocation();
   const { emails } = useEmails();
-  const unreadEmailCount = emails.filter((e) => !e.isRead).length;
-
-  const navItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/inbox', label: 'Inbox', icon: Inbox, badge: unreadEmailCount },
-    { to: '/brain', label: 'Brain', icon: Sparkles, isCenter: true },
-    { to: '/priority', label: 'Priority', icon: Zap },
-    { to: '/settings', label: 'Settings', icon: Settings },
-  ];
+  const unread = emails.filter((e) => !e.isRead).length;
 
   return (
     <nav
       style={{
         position: 'fixed',
+        insetInline: 0,
         bottom: 0,
-        left: 0,
-        right: 0,
-        height: 68,
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 4px)',
-        background: 'var(--surface)',
-        borderTop: '1px solid var(--border)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        background: 'color-mix(in srgb, var(--v-ground) 88%, transparent)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        borderTop: '1px solid var(--v-hairline)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-around',
+        alignItems: 'stretch',
         zIndex: 50,
         userSelect: 'none',
-        animation: 'slideUp 0.3s ease-out',
-        backdropFilter: 'blur(10px)',
       }}
     >
-      {navItems.map(({ to, label, icon: Icon, badge, isCenter }) => {
-        const isActive = location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to));
+      {ITEMS.map(({ to, label, icon: Icon, badged, center }) => {
+        const on =
+          location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to));
 
-        if (isCenter) {
+        if (center) {
           return (
             <Link
               key={to}
               to={to}
+              aria-label={label}
               style={{
+                flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginTop: -20,
+                gap: 4,
+                padding: '8px 0 10px',
                 textDecoration: 'none',
               }}
             >
-              <div
+              <span
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: '50%',
-                  background: 'var(--violet)',
-                  color: '#ffffff',
+                  width: 42,
+                  height: 34,
+                  borderRadius: 11,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 14px rgba(108, 76, 255, 0.4)',
-                  transition: 'transform 0.2s ease',
+                  background: 'var(--v-signal)',
+                  color: '#fff',
+                  boxShadow: on ? 'var(--v-glow)' : 'var(--v-lift-1)',
+                  transition: 'box-shadow var(--v-fast)',
                 }}
               >
-                <Icon size={24} />
-              </div>
+                <Icon size={19} />
+              </span>
               <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: isActive ? 'var(--violet)' : 'var(--text-2)',
-                  marginTop: 2,
-                }}
+                className="v-label"
+                style={{ color: on ? 'var(--v-signal)' : 'var(--v-ink-3)', fontSize: 9 }}
               >
                 {label}
               </span>
@@ -88,61 +84,61 @@ export const MobileBottomNav: React.FC = () => {
           <Link
             key={to}
             to={to}
+            aria-label={label}
+            aria-current={on ? 'page' : undefined}
             style={{
+              flex: 1,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 3,
-              flex: 1,
+              gap: 5,
+              padding: '10px 0 12px',
               textDecoration: 'none',
-              color: isActive ? 'var(--primary)' : 'var(--text-2)',
+              color: on ? 'var(--v-signal)' : 'var(--v-ink-3)',
+              transition: 'color var(--v-fast)',
               position: 'relative',
-              padding: '8px 0',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.color = 'var(--primary)';
-              (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)';
-            }}
-            onMouseLeave={e => {
-              if (!isActive) {
-                (e.currentTarget as HTMLElement).style.color = 'var(--text-2)';
-              }
-              (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
             }}
           >
-            <div style={{ position: 'relative' }}>
-              <Icon size={20} />
-              {badge !== undefined && badge > 0 && (
+            {on && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  width: 22,
+                  height: 2.5,
+                  borderRadius: '0 0 3px 3px',
+                  background: 'var(--v-signal)',
+                }}
+              />
+            )}
+            <span style={{ position: 'relative', display: 'flex' }}>
+              <Icon size={19} />
+              {badged && unread > 0 && (
                 <span
                   style={{
                     position: 'absolute',
-                    top: -4,
-                    right: -8,
-                    background: 'var(--ember)',
-                    color: '#ffffff',
+                    top: -6,
+                    left: '58%',
+                    minWidth: 16,
+                    height: 16,
+                    padding: '0 4px',
+                    borderRadius: 999,
+                    background: 'var(--v-amber)',
+                    color: '#150D00',
                     fontSize: 9,
                     fontWeight: 800,
-                    borderRadius: 9999,
-                    padding: '1px 5px',
-                    minWidth: 14,
-                    textAlign: 'center',
+                    fontVariantNumeric: 'tabular-nums',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
-                  {badge > 99 ? '99+' : badge}
+                  {unread > 99 ? '99+' : unread}
                 </span>
               )}
-            </div>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: isActive ? 700 : 500,
-              }}
-            >
-              {label}
             </span>
-            {isActive && <PulseRing color="ember" size={4} active />}
+            <span className="v-label" style={{ color: 'inherit', fontSize: 9 }}>{label}</span>
           </Link>
         );
       })}

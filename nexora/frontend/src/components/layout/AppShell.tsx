@@ -13,6 +13,7 @@ interface AppShellProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
+  actions?: React.ReactNode;
   noScroll?: boolean;
 }
 
@@ -20,6 +21,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   children,
   title,
   subtitle,
+  actions,
   noScroll = false,
 }) => {
   const { isMobile, isTablet } = useViewport();
@@ -32,126 +34,137 @@ export const AppShell: React.FC<AppShellProps> = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        width: '100vw',
-        background: 'var(--bg)',
+        height: '100dvh',
+        width: '100%',
+        background: 'var(--v-ground)',
+        color: 'var(--v-ink)',
         overflow: 'hidden',
-        color: 'var(--text-1)',
       }}
     >
-      {/* Live Region for Screen Reader Accessibility */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {isSyncing ? 'Syncing Gmail inbox...' : 'Gmail synced.'}
+        {isSyncing ? 'Syncing Gmail inbox' : 'Gmail synced'}
       </div>
 
-      {/* Top Bar */}
       <TopBar onToggleSidebar={toggleSidebar} />
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {/* Desktop / Tablet Sidebar */}
-        {!isMobile && (
-          <Sidebar collapsed={isTablet || sidebarCollapsed} />
-        )}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {!isMobile && <Sidebar collapsed={isTablet || sidebarCollapsed} />}
 
-        {/* Main Workspace Area */}
         <main
           role="main"
+          className="v-scroll"
           style={{
             flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
+            minWidth: 0,
             overflowY: noScroll ? 'hidden' : 'auto',
-            padding: isMobile
-              ? '16px 16px 80px'
-              : isTablet
-              ? '24px'
-              : 'var(--spacing-page)',
-            position: 'relative',
-            maxWidth: 1600,
-            margin: '0 auto',
-            width: '100%',
+            overflowX: 'hidden',
           }}
         >
-          {(title || subtitle) && (
-            <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-              {title && (
-                <h1
-                  style={{
-                    fontSize: isMobile ? 22 : 28,
-                    fontWeight: 800,
-                    color: 'var(--text-1)',
-                    margin: 0,
-                    fontFamily: 'Google Sans, Roboto, sans-serif',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  {title}
-                </h1>
-              )}
-              {subtitle && (
-                <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '4px 0 0' }}>
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          )}
+          <div
+            style={{
+              maxWidth: 1560,
+              margin: '0 auto',
+              width: '100%',
+              padding: isMobile ? '16px 14px 96px' : isTablet ? '22px 22px 32px' : '26px 28px 40px',
+            }}
+          >
+            {(title || subtitle || actions) && (
+              <header
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                  marginBottom: isMobile ? 16 : 22,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  {title && (
+                    <h1
+                      style={{
+                        fontSize: isMobile ? 24 : 30,
+                        fontWeight: 800,
+                        letterSpacing: '-0.035em',
+                        color: 'var(--v-ink)',
+                        margin: 0,
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {title}
+                    </h1>
+                  )}
+                  {subtitle && (
+                    <p className="v-body" style={{ marginTop: 6, color: 'var(--v-ink-3)' }}>
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
+                {actions && (
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>{actions}</div>
+                )}
+              </header>
+            )}
 
-          {children}
+            {children}
+          </div>
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
       {isMobile && <MobileBottomNav />}
 
-      {/* Mobile Floating Action Button (FAB) */}
       {isMobile && (
         <button
           onClick={() => openBottomSheet('QUICK_ACTIONS')}
-          className="btn-ember"
-          aria-label="Quick Actions"
+          aria-label="Quick actions"
           style={{
             position: 'fixed',
-            bottom: 80,
+            bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
             right: 16,
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            padding: 0,
+            width: 50,
+            height: 50,
+            borderRadius: 16,
+            border: 'none',
+            background: 'var(--v-amber)',
+            color: '#150D00',
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 40,
+            boxShadow: 'var(--v-lift-3)',
+            cursor: 'pointer',
+            zIndex: 45,
           }}
         >
-          <Plus size={24} />
+          <Plus size={22} />
         </button>
       )}
 
-      {/* Mobile Bottom Sheet Modal */}
       <BottomSheet
         isOpen={bottomSheet.isOpen}
         onClose={closeBottomSheet}
-        title={bottomSheet.type === 'QUICK_ACTIONS' ? 'Quick Actions' : 'Velocity Options'}
+        title={bottomSheet.type === 'QUICK_ACTIONS' ? 'Quick actions' : 'Options'}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button
             onClick={() => { closeBottomSheet(); sync(); }}
-            className="btn-outline"
-            style={{ width: '100%', justifyContent: 'flex-start', height: 48, fontSize: 14 }}
+            className="vbtn vbtn-quiet"
+            style={{ width: '100%', justifyContent: 'flex-start', height: 48 }}
           >
-            <RefreshCw size={18} style={{ color: 'var(--ember)' }} /> Sync Gmail Inbox
+            <RefreshCw size={17} style={{ color: 'var(--v-signal)' }} /> Sync Gmail inbox
           </button>
           <button
             onClick={() => { closeBottomSheet(); navigate('/brain'); }}
-            className="btn-outline"
-            style={{ width: '100%', justifyContent: 'flex-start', height: 48, fontSize: 14 }}
+            className="vbtn vbtn-quiet"
+            style={{ width: '100%', justifyContent: 'flex-start', height: 48 }}
           >
-            <Sparkles size={18} style={{ color: 'var(--violet)' }} /> Ask Velocity Brain
+            <Sparkles size={17} style={{ color: 'var(--v-signal)' }} /> Ask Velocity Brain
           </button>
           <button
-            onClick={() => { closeBottomSheet(); navigate('/inbox?filter=deadlines'); }}
-            className="btn-outline"
-            style={{ width: '100%', justifyContent: 'flex-start', height: 48, fontSize: 14 }}
+            onClick={() => { closeBottomSheet(); navigate('/priority'); }}
+            className="vbtn vbtn-quiet"
+            style={{ width: '100%', justifyContent: 'flex-start', height: 48 }}
           >
-            <Clock size={18} style={{ color: 'var(--warn)' }} /> View Deadlines
+            <Clock size={17} style={{ color: 'var(--v-amber)' }} /> View deadlines
           </button>
         </div>
       </BottomSheet>

@@ -1,43 +1,52 @@
+@import './styles/bento.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* MAANG-Grade Premium Design System */
-    --bg:            #fafbfc;   /* ultra-clean light background */
-    --surface:       #ffffff;   /* pristine white surfaces */
-    --surface-2:     #f3f5f8;   /* subtle hover/selected state */
-    --surface-3:     #e8ecf1;   /* stronger surface variant */
-    --border:        #d4dae3;   /* refined border color */
-    --border-strong: #bcc4ce;
-    --text-1:        #0a0e27;   /* deep charcoal for contrast */
-    --text-2:        #424d67;   /* balanced body text */
-    --text-3:        #7a8399;   /* muted secondary text */
-    --text-4:        #a8b2c1;   /* lighter tertiary text */
+    /* ------------------------------------------------------------------
+       Legacy token names are kept as aliases onto the Instrument Cluster
+       palette (styles/bento.css) so every existing page inherits the new
+       look without being rewritten. Author new code against --v-* tokens.
+       ------------------------------------------------------------------ */
+    --bg:            var(--v-ground);
+    --surface:       var(--v-panel);
+    --surface-2:     var(--v-panel-2);
+    --surface-3:     var(--v-ground-2);
+    --border:        var(--v-hairline);
+    --border-strong: var(--v-hairline-2);
 
-    /* Premium Color System */
-    --primary:       #3b4fea;   /* deep indigo (trust, intelligence) */
-    --primary-light: #5162ff;
-    --primary-pale:  #eef2ff;
-    --secondary:     #00d4aa;   /* vibrant teal (productivity) */
-    --secondary-pale:#e0f9f6;
-    --accent:        #ff6b35;   /* warm orange (action, urgency) */
-    --accent-pale:   #fff3e8;
+    --text-1:        var(--v-ink);
+    --text-2:        var(--v-ink-2);
+    --text-3:        var(--v-ink-3);
+    --text-4:        var(--v-ink-4);
 
-    /* Semantic Colors */
-    --success:       #10b981;   /* emerald */
-    --warning:       #f59e0b;   /* amber */
-    --danger:        #ef4444;   /* red */
-    --info:          #0ea5e9;   /* sky blue */
+    --primary:       var(--v-signal);
+    --primary-light: var(--v-signal-dim);
+    --primary-pale:  var(--v-signal-wash);
+    --secondary:     var(--v-pulse);
+    --secondary-pale:var(--v-pulse-wash);
+    --accent:        var(--v-signal);
+    --accent-pale:   var(--v-signal-wash);
+    --accent-soft:   var(--v-signal-wash);
 
-    /* Legacy Aliases */
-    --unread-dot:    #3b4fea;
-    --star:          #f59e0b;
-    --ember:         #3b4fea;
-    --ember-soft:    #eef2ff;
+    --success:       var(--v-pulse);
+    --warning:       var(--v-amber);
+    --danger:        var(--v-critical);
+    --info:          var(--v-signal);
+    --warn:          var(--v-amber);
 
-    /* AI Category System */
+    --unread-dot:    var(--v-signal);
+    --star:          var(--v-amber);
+    --ember:         var(--v-signal);
+    --ember-soft:    var(--v-signal-wash);
+    --violet:        var(--v-signal);
+    --violet-soft:   var(--v-signal-wash);
+
+    /* Category hues — kept distinct from the accent so they read as data,
+       not as brand. */
     --cat-assignment:   #6366f1;
     --cat-hackathon:    #f97316;
     --cat-placement:    #10b981;
@@ -47,47 +56,24 @@
     --cat-research:     #06b6d4;
     --cat-personal:     #64748b;
 
-    /* Semantic Compatibility Aliases */
-    --paper:      var(--bg);
-    --paper-2:    var(--surface);
-    --line:       var(--border);
-    --line-strong:var(--border-strong);
-    --ember:      var(--accent);
-    --ember-soft: var(--accent-soft);
-    --violet:     #8b5cf6;
-    --violet-soft:#ede9fe;
+    --paper:      var(--v-ground);
+    --paper-2:    var(--v-panel);
+    --line:       var(--v-hairline);
+    --line-strong:var(--v-hairline-2);
 
-    /* Radius System */
-    --r-sm: 8px;
-    --r-md: 12px;
-    --r-lg: 16px;
-    --r-full: 9999px;
+    --r-sm: 10px;
+    --r-md: var(--v-r-chip);
+    --r-lg: var(--v-r-tile);
+    --r-full: var(--v-r-pill);
 
-    /* Spacing System */
     --spacing-page: 28px;
-    --spacing-gap: 24px;
+    --spacing-gap: var(--v-gap);
     --spacing-card: 20px;
-    --sidebar-width: 256px;
-    --sidebar-collapsed-width: 72px;
+    --sidebar-width: 244px;
+    --sidebar-collapsed-width: 68px;
 
-    /* Transitions */
-    --transition-spring: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-    --transition-smooth: all 0.2s ease;
-  }
-
-  html.dark {
-    --bg:            #0f172a;
-    --surface:       #1e293b;
-    --surface-2:     #334155;
-    --border:        #475569;
-    --border-strong: #64748b;
-    --text-1:        #f8fafc;
-    --text-2:        #cbd5e1;
-    --text-3:        #94a3b8;
-    --accent:        #818cf8;
-    --accent-soft:   #312e81;
-    --unread-dot:    #818cf8;
-    --violet-soft:   rgba(139, 92, 246, 0.16);
+    --transition-spring: all var(--v-base);
+    --transition-smooth: all var(--v-fast);
   }
 
   *, *::before, *::after {
@@ -95,553 +81,293 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+
   body {
     margin: 0;
-    background-color: var(--bg);
-    color: var(--text-1);
-    font-family: 'Google Sans', Roboto, Arial, sans-serif;
+    background-color: var(--v-ground);
+    color: var(--v-ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
   }
 
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--v-signal);
     outline-offset: 2px;
     border-radius: var(--r-sm);
   }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* Global scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 9999px;
+  background: var(--v-hairline-2);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--v-r-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-3);
+  background: var(--v-ink-4);
+  background-clip: padding-box;
 }
 
-/* flat clean card styles */
+/* ==========================================================================
+   LEGACY COMPONENT CLASSES
+   Restyled onto the new system so older pages look native.
+   ========================================================================== */
+
 .card-paper {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--spacing-card);
-  transition: var(--transition-smooth);
+  background: var(--v-panel);
+  border: 1px solid var(--v-hairline);
+  border-radius: var(--v-r-tile);
+  padding: 20px;
+  box-shadow: var(--v-lift-1);
+  transition: border-color var(--v-fast), box-shadow var(--v-fast);
 }
-.card-paper:hover {
-  border-color: var(--border-strong);
-}
-
-.surface-elevated {
-  composes: card-paper;
-}
+.card-paper:hover { border-color: var(--v-hairline-2); box-shadow: var(--v-lift-2); }
 
 .section-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--v-ink-3);
 }
 
-/* Compose Button */
-.btn-gmail-compose {
-  background: var(--surface);
-  color: var(--text-1);
-  font-weight: 600;
-  border-radius: 16px;
-  padding: 0 20px;
-  height: 56px;
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: 'Google Sans', Roboto, sans-serif;
-  font-size: 14px;
+.btn-ember,
+.btn-accent {
   display: inline-flex;
-  align-items: center;
-  gap: 12px;
-}
-.btn-gmail-compose:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  background-color: var(--surface-2);
-  border-color: var(--border-strong);
-}
-
-/* Gmail Sidebar Nav Row */
-.gmail-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  height: 36px;
-  padding: 0 16px 0 24px;
-  border-radius: 0 18px 18px 0;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-  color: var(--text-2);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  user-select: none;
-  margin-right: 12px;
-}
-.gmail-nav-item:hover {
-  background-color: var(--surface-2);
-  color: var(--text-1);
-}
-.gmail-nav-item.active {
-  background-color: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 700;
-}
-.gmail-nav-item.active svg {
-  color: var(--accent);
-}
-
-/* Collapsed Nav Item */
-.gmail-nav-item-collapsed {
-  width: 48px;
-  height: 32px;
-  border-radius: 16px;
-  display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  color: var(--text-2);
-  text-decoration: none;
-  margin: 4px auto;
-  transition: background-color 0.15s ease;
-}
-.gmail-nav-item-collapsed:hover {
-  background-color: var(--surface-2);
-}
-.gmail-nav-item-collapsed.active {
-  background-color: var(--accent-soft);
-  color: var(--accent);
-}
-
-/* Buttons */
-.btn-ember {
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
-  height: 36px;
+  height: 38px;
   padding: 0 16px;
-  border-radius: var(--r-full);
-  background: var(--accent);
-  color: #ffffff;
-  font-weight: 600;
+  border-radius: var(--v-r-chip);
+  background: var(--v-signal);
+  color: #fff;
+  font-weight: 700;
   font-size: 13px;
   border: none;
   cursor: pointer;
-  transition: opacity 0.15s ease;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.2);
+  transition: all var(--v-fast);
+  box-shadow: var(--v-lift-1);
 }
-.btn-ember:hover {
-  opacity: 0.9;
-}
-
-.btn-accent {
-  composes: btn-ember;
-}
+.btn-ember:hover,
+.btn-accent:hover { background: var(--v-signal-dim); box-shadow: var(--v-lift-2); }
+.btn-ember:active,
+.btn-accent:active { transform: scale(0.97); }
 
 .btn-violet {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
+  height: 38px;
   padding: 0 16px;
-  border-radius: var(--r-full);
-  background: var(--violet);
-  color: #ffffff;
-  font-weight: 600;
+  border-radius: var(--v-r-chip);
+  background: var(--v-amber);
+  color: #150D00;
+  font-weight: 700;
   font-size: 13px;
   border: none;
   cursor: pointer;
-  transition: opacity 0.15s ease;
-  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.2);
+  transition: all var(--v-fast);
 }
-.btn-violet:hover {
-  opacity: 0.9;
-}
+.btn-violet:hover { filter: brightness(1.08); }
 
 .btn-outline {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
+  height: 38px;
   padding: 0 14px;
-  border-radius: var(--r-full);
-  background: transparent;
-  color: var(--text-2);
-  font-weight: 500;
+  border-radius: var(--v-r-chip);
+  background: var(--v-panel-2);
+  color: var(--v-ink);
+  font-weight: 600;
   font-size: 13px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--v-hairline);
   cursor: pointer;
-  transition: var(--transition-spring);
+  transition: all var(--v-fast);
 }
-.btn-outline:hover {
-  background: var(--surface-2);
-  border-color: var(--accent);
-  color: var(--text-1);
-}
+.btn-outline:hover { border-color: var(--v-hairline-2); background: var(--v-ground-2); }
 
-/* Gmail Row Anatomy */
+.btn-gmail-compose {
+  background: var(--v-signal);
+  color: #fff;
+  font-weight: 700;
+  border-radius: var(--v-r-chip);
+  padding: 0 18px;
+  height: 44px;
+  border: none;
+  box-shadow: var(--v-lift-1);
+  cursor: pointer;
+  transition: all var(--v-fast);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-gmail-compose:hover { background: var(--v-signal-dim); box-shadow: var(--v-lift-2); }
+
+/* Email row */
 .gmail-row {
   display: flex;
   align-items: center;
-  height: 48px;
+  min-height: 52px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--v-hairline);
   cursor: pointer;
-  background: var(--surface);
-  transition: background-color 0.15s ease;
+  background: var(--v-panel);
+  transition: background var(--v-fast);
   font-size: 13px;
-  color: var(--text-1);
+  color: var(--v-ink);
   position: relative;
   user-select: none;
 }
-.gmail-row:hover {
-  background: var(--surface-2);
-  box-shadow: inset 1px 0 0 var(--accent);
+.gmail-row:hover { background: var(--v-panel-2); }
+.gmail-row.unread { font-weight: 700; }
+.gmail-row.unread::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--v-signal);
 }
-.gmail-row.unread {
-  background: var(--surface);
-  font-weight: 700;
-}
-.gmail-row.selected {
-  background: var(--surface-2);
-}
-.gmail-row .actions-cell {
-  display: none;
-}
-.gmail-row:hover .actions-cell {
-  display: flex;
-}
-.gmail-row:hover .date-cell {
-  display: none;
-}
+.gmail-row.selected { background: var(--v-signal-wash); }
+.gmail-row .actions-cell { display: none; }
+.gmail-row:hover .actions-cell { display: flex; }
+.gmail-row:hover .date-cell { display: none; }
 
-/* Underline Category Tabs */
+/* Category tabs */
 .gmail-tab {
-  height: 48px;
-  padding: 0 24px;
+  height: 44px;
+  padding: 0 18px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v-ink-2);
   border: none;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   background: transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--v-fast);
 }
-.gmail-tab:hover {
-  background: var(--surface-2);
-  color: var(--text-1);
-}
+.gmail-tab:hover { color: var(--v-ink); }
 .gmail-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--v-signal);
+  border-bottom-color: var(--v-signal);
   font-weight: 700;
 }
 
-/* Pulse Ring Animation */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 8px rgba(79, 70, 229, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
-  }
+/* Sidebar nav (legacy markup) */
+.gmail-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--v-r-chip);
+  cursor: pointer;
+  transition: all var(--v-fast);
+  color: var(--v-ink-2);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  user-select: none;
+}
+.gmail-nav-item:hover { background: var(--v-panel-2); color: var(--v-ink); }
+.gmail-nav-item.active {
+  background: var(--v-signal-wash);
+  color: var(--v-signal);
+  font-weight: 700;
 }
 
-.pulse-ring-active {
-  animation: pulse-ring 2s infinite cubic-bezier(0.45, 0, 0.55, 1);
+.gmail-nav-item-collapsed {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--v-r-chip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--v-ink-2);
+  text-decoration: none;
+  margin: 3px auto;
+  transition: all var(--v-fast);
 }
+.gmail-nav-item-collapsed:hover { background: var(--v-panel-2); color: var(--v-ink); }
+.gmail-nav-item-collapsed.active { background: var(--v-signal-wash); color: var(--v-signal); }
 
-/* Skeleton Shimmer */
+/* Skeleton */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
+  0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
-.skeleton {
-  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+.skeleton,
+.shimmer {
+  background: linear-gradient(90deg,
+    var(--v-panel-2) 25%,
+    var(--v-ground-2) 50%,
+    var(--v-panel-2) 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.8s infinite ease-in-out;
+  animation: shimmer 1.6s infinite ease-in-out;
   border-radius: var(--r-sm);
 }
 
-/* Prefers Reduced Motion */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 var(--v-signal-wash); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 8px transparent; }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 transparent; }
+}
+.pulse-ring-active { animation: pulse-ring 2s infinite cubic-bezier(0.45, 0, 0.55, 1); }
+
+/* Shared keyframes used across pages */
+@keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes slideUp   { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
+@keyframes scaleIn   { from { opacity: 0; transform: scale(0.96); }      to { opacity: 1; transform: none; } }
+@keyframes spin      { to { transform: rotate(360deg); } }
+
+.animate-fade-in   { animation: fadeIn 240ms var(--v-ease); }
+.animate-slide-down{ animation: slideDown 240ms var(--v-ease); }
+.animate-slide-up  { animation: slideUp 240ms var(--v-ease); }
+.animate-scale-in  { animation: scaleIn 240ms var(--v-ease); }
+.animate-spin      { animation: spin 900ms linear infinite; }
+
+button:active { transform: scale(0.98); }
+
+@media (max-width: 767px) {
+  button, a[role='button'] { min-height: 44px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-  .pulse-ring-active, .skeleton {
-    animation: none !important;
-  }
-}
-
-/* ============================================================================ */
-/* ANIMATIONS & TRANSITIONS */
-/* ============================================================================ */
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes scaleUp {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.05);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-/* Animation Utility Classes */
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-.animate-slide-down {
-  animation: slideDown 0.3s ease-out;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
-}
-
-.animate-slide-in-left {
-  animation: slideInLeft 0.3s ease-out;
-}
-
-.animate-slide-in-right {
-  animation: slideInRight 0.3s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.3s ease-out;
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-.animate-bounce {
-  animation: bounce 1s ease-in-out infinite;
-}
-
-.animate-spring-up {
-  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Interactive Elements */
-button:active {
-  transform: scale(0.98);
-}
-
-a:active {
-  opacity: 0.8;
-}
-
-/* Hover Scale Effect */
-.hover-scale {
-  transition: transform 0.2s ease;
-}
-
-.hover-scale:hover {
-  transform: scale(1.02);
-}
-
-/* Focus States */
-input:focus,
-textarea:focus,
-select:focus {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-/* Loading Shimmer */
-.shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--surface-2) 25%,
-    var(--surface-3) 50%,
-    var(--surface-2) 75%
-  );
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite;
-}
-
-/* Mobile Optimizations */
-@media (max-width: 640px) {
-  /* Faster animations on mobile */
-  * {
-    animation-duration: 0.2s !important;
-  }
-
-  /* Larger touch targets */
-  button,
-  a,
-  input {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  /* Reduced motion preference */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-}
-
-/* Dark Mode Animations */
-html.dark {
-  color-scheme: dark;
-}
-
-html.dark .shimmer {
-  background: linear-gradient(
-    90deg,
-    #334155 25%,
-    #475569 50%,
-    #334155 75%
-  );
-}
-
-/* Accessibility */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }

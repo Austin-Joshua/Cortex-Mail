@@ -1,0 +1,570 @@
+/* ==========================================================================
+   VELOCITY — "Instrument Cluster" design system
+   Bento tiles, telemetry typography, signal colors.
+   ========================================================================== */
+
+:root {
+  /* --- Ground & panels (light) -------------------------------------------
+     Cool, blue-biased neutrals — chosen to sit under an electric-blue accent
+     rather than a default mid-grey. */
+  --v-ground:      #F2F5FA;
+  --v-ground-2:    #E8EDF6;
+  --v-panel:       #FFFFFF;
+  --v-panel-2:     #F7F9FD;
+  --v-hairline:    #DDE4F0;
+  --v-hairline-2:  #C6D0E3;
+
+  /* --- Ink --- */
+  --v-ink:         #0C1220;
+  --v-ink-2:       #46536E;
+  --v-ink-3:       #7A87A3;
+  --v-ink-4:       #A6B0C6;
+  --v-on-signal:   #FFFFFF;
+
+  /* --- Signal colors ----------------------------------------------------- */
+  --v-signal:      #3D5AFE;   /* electric blue — primary instrument light */
+  --v-signal-dim:  #6B80FF;
+  --v-signal-wash: rgba(61, 90, 254, 0.09);
+
+  --v-amber:       #E8890C;   /* instrument amber — the one bold spend */
+  --v-amber-wash:  rgba(232, 137, 12, 0.12);
+
+  --v-pulse:       #00A86B;   /* live / positive */
+  --v-pulse-wash:  rgba(0, 168, 107, 0.12);
+
+  --v-critical:    #E11D48;
+  --v-critical-wash: rgba(225, 29, 72, 0.10);
+
+  /* --- Depth --- */
+  --v-lift-1: 0 1px 2px rgba(12, 18, 32, 0.05);
+  --v-lift-2: 0 4px 16px rgba(12, 18, 32, 0.07);
+  --v-lift-3: 0 16px 40px rgba(12, 18, 32, 0.11);
+  --v-glow:   0 0 0 1px rgba(61, 90, 254, 0.35), 0 8px 32px rgba(61, 90, 254, 0.16);
+
+  /* --- Geometry --- */
+  --v-r-tile: 20px;
+  --v-r-chip: 12px;
+  --v-r-pill: 999px;
+  --v-gap: 16px;
+
+  /* --- Motion --- */
+  --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --v-fast: 140ms var(--v-ease);
+  --v-base: 240ms var(--v-ease);
+}
+
+html.dark {
+  --v-ground:      #080C16;
+  --v-ground-2:    #0C1220;
+  --v-panel:       #121A2B;
+  --v-panel-2:     #18223A;
+  --v-hairline:    #232F4A;
+  --v-hairline-2:  #33436A;
+
+  --v-ink:         #EEF2FA;
+  --v-ink-2:       #A7B3CC;
+  --v-ink-3:       #75839F;
+  --v-ink-4:       #56637E;
+
+  --v-signal:      #6B80FF;
+  --v-signal-dim:  #4A63F0;
+  --v-signal-wash: rgba(107, 128, 255, 0.14);
+
+  --v-amber:       #FFB020;
+  --v-amber-wash:  rgba(255, 176, 32, 0.14);
+
+  --v-pulse:       #00D68F;
+  --v-pulse-wash:  rgba(0, 214, 143, 0.14);
+
+  --v-critical:    #FF4D6A;
+  --v-critical-wash: rgba(255, 77, 106, 0.14);
+
+  --v-lift-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --v-lift-2: 0 4px 18px rgba(0, 0, 0, 0.45);
+  --v-lift-3: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --v-glow:   0 0 0 1px rgba(107, 128, 255, 0.4), 0 8px 34px rgba(107, 128, 255, 0.2);
+}
+
+/* ==========================================================================
+   TELEMETRY TYPOGRAPHY
+   ========================================================================== */
+
+.v-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--v-ink-3);
+  line-height: 1;
+}
+
+.v-readout {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--v-ink);
+  line-height: 1;
+}
+
+.v-readout-xl { font-size: 64px; }
+.v-readout-lg { font-size: 40px; }
+.v-readout-md { font-size: 28px; }
+
+.v-num { font-variant-numeric: tabular-nums; }
+
+.v-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--v-ink);
+  margin: 0;
+}
+
+.v-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--v-ink-2);
+  margin: 0;
+}
+
+.v-meta {
+  font-size: 11.5px;
+  color: var(--v-ink-3);
+  margin: 0;
+}
+
+/* ==========================================================================
+   BENTO GRID
+   12 columns at desktop, 6 at tablet, 1 at mobile.
+   Tiles declare spans via .v-c{n} / .v-r{n}.
+   ========================================================================== */
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: minmax(112px, auto);
+  gap: var(--v-gap);
+}
+
+.v-c3  { grid-column: span 3; }
+.v-c4  { grid-column: span 4; }
+.v-c5  { grid-column: span 5; }
+.v-c6  { grid-column: span 6; }
+.v-c7  { grid-column: span 7; }
+.v-c8  { grid-column: span 8; }
+.v-c12 { grid-column: span 12; }
+
+.v-r2 { grid-row: span 2; }
+.v-r3 { grid-row: span 3; }
+
+@media (max-width: 1279px) {
+  .bento { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .v-c3  { grid-column: span 3; }
+  .v-c4,
+  .v-c5  { grid-column: span 6; }
+  .v-c6,
+  .v-c7,
+  .v-c8,
+  .v-c12 { grid-column: span 6; }
+}
+
+/* Mobile keeps the bento rhythm at 2-up: compact metrics pair off, wide
+   tiles (streams, strips, the hero) run the full width. */
+@media (max-width: 767px) {
+  :root { --v-gap: 12px; --v-r-tile: 16px; }
+
+  .bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: auto;
+  }
+  .bento > * { grid-row: auto; }
+
+  .v-c3,
+  .v-c4  { grid-column: span 1; }
+  .v-c5,
+  .v-c6,
+  .v-c7,
+  .v-c8,
+  .v-c12 { grid-column: span 2; }
+
+  .tile { padding: 16px; gap: 12px; }
+  .stream { margin: 0 -16px -16px; }
+  .stream-row { padding: 11px 16px; }
+
+  .v-readout-xl { font-size: 46px; }
+  .v-readout-lg { font-size: 30px; }
+  .v-readout-md { font-size: 24px; }
+}
+
+/* Very narrow phones can't hold two metric tiles side by side. */
+@media (max-width: 380px) {
+  .bento { grid-template-columns: minmax(0, 1fr); }
+  .bento > * { grid-column: span 1 !important; }
+}
+
+/* ==========================================================================
+   TILE
+   ========================================================================== */
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  background: var(--v-panel);
+  border: 1px solid var(--v-hairline);
+  border-radius: var(--v-r-tile);
+  box-shadow: var(--v-lift-1);
+  transition: border-color var(--v-fast), box-shadow var(--v-fast), transform var(--v-fast);
+  overflow: hidden;
+}
+
+.tile-link { cursor: pointer; }
+
+.tile-link:hover {
+  border-color: var(--v-hairline-2);
+  box-shadow: var(--v-lift-2);
+  transform: translateY(-2px);
+}
+
+.tile-link:focus-visible {
+  outline: none;
+  box-shadow: var(--v-glow);
+}
+
+/* Featured tile — the hero readout. Carries the accent. */
+.tile-feature {
+  background:
+    radial-gradient(120% 100% at 100% 0%, var(--v-signal-wash) 0%, transparent 60%),
+    var(--v-panel);
+  border-color: var(--v-hairline-2);
+}
+
+/* A thin colored rule pinned to the tile's top edge, used to encode state. */
+.tile-rule::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--rule, var(--v-signal));
+  opacity: 0.9;
+}
+
+/* The trailing slot drops onto its own line rather than colliding with a
+   wrapped label — half-width tiles on mobile hit this constantly. */
+.tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.tile-head > :first-child { flex: 1 1 auto; min-width: 0; }
+.tile-head > :last-child:not(:first-child) { flex: 0 0 auto; }
+
+.tile-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ==========================================================================
+   GLYPH — the small square icon holder
+   ========================================================================== */
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--glyph-wash, var(--v-signal-wash));
+  color: var(--glyph-fg, var(--v-signal));
+}
+
+.glyph-lg { width: 44px; height: 44px; border-radius: 13px; }
+
+/* ==========================================================================
+   DELTA — trend indicator
+   ========================================================================== */
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: var(--v-r-pill);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.delta-up   { background: var(--v-pulse-wash);    color: var(--v-pulse); }
+.delta-down { background: var(--v-critical-wash); color: var(--v-critical); }
+.delta-flat { background: var(--v-signal-wash);   color: var(--v-ink-3); }
+
+/* ==========================================================================
+   CHIPS / PILLS
+   ========================================================================== */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--v-r-pill);
+  border: 1px solid var(--v-hairline);
+  background: var(--v-panel-2);
+  color: var(--v-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--v-fast);
+  white-space: nowrap;
+}
+
+.chip:hover { border-color: var(--v-hairline-2); color: var(--v-ink); }
+
+.chip-on {
+  background: var(--v-signal);
+  border-color: var(--v-signal);
+  color: var(--v-on-signal);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--dot, var(--v-ink-4));
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+.vbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--v-r-chip);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: all var(--v-fast);
+  white-space: nowrap;
+}
+
+.vbtn:active { transform: scale(0.97); }
+.vbtn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.vbtn-signal {
+  background: var(--v-signal);
+  color: var(--v-on-signal);
+  box-shadow: var(--v-lift-1);
+}
+.vbtn-signal:hover:not(:disabled) { background: var(--v-signal-dim); box-shadow: var(--v-lift-2); }
+
+.vbtn-amber {
+  background: var(--v-amber);
+  color: #150D00;
+}
+.vbtn-amber:hover:not(:disabled) { filter: brightness(1.08); }
+
+.vbtn-quiet {
+  background: var(--v-panel-2);
+  border-color: var(--v-hairline);
+  color: var(--v-ink);
+}
+.vbtn-quiet:hover:not(:disabled) { border-color: var(--v-hairline-2); background: var(--v-ground-2); }
+
+.vbtn-bare {
+  background: transparent;
+  color: var(--v-ink-2);
+  height: 34px;
+  padding: 0 10px;
+}
+.vbtn-bare:hover:not(:disabled) { background: var(--v-panel-2); color: var(--v-ink); }
+
+/* ==========================================================================
+   NAV RAIL
+   ========================================================================== */
+
+.rail-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 38px;
+  padding: 0 11px;
+  border-radius: var(--v-r-chip);
+  color: var(--v-ink-2);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background var(--v-fast), color var(--v-fast);
+  user-select: none;
+}
+
+.rail-item:hover { background: var(--v-panel-2); color: var(--v-ink); }
+
+.rail-item-on {
+  background: var(--v-signal-wash);
+  color: var(--v-signal);
+  font-weight: 700;
+}
+
+/* active marker: a short bar on the leading edge */
+.rail-item-on::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--v-signal);
+}
+
+.rail-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 19px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--v-r-pill);
+  background: var(--v-ground-2);
+  color: var(--v-ink-2);
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-badge-hot { background: var(--v-amber); color: #150D00; }
+
+/* ==========================================================================
+   BARS & METERS
+   ========================================================================== */
+
+.meter {
+  height: 6px;
+  border-radius: var(--v-r-pill);
+  background: var(--v-ground-2);
+  overflow: hidden;
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--meter, var(--v-signal));
+  transition: width var(--v-base);
+}
+
+/* Column chart built from flex children */
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 100%;
+  min-height: 56px;
+}
+
+.spark > i {
+  flex: 1;
+  min-width: 3px;
+  border-radius: 3px 3px 1px 1px;
+  background: var(--v-signal-wash);
+  transition: background var(--v-fast);
+}
+
+.spark > i[data-peak='1'] { background: var(--v-signal); }
+
+/* ==========================================================================
+   STREAM ROWS (email / activity lists inside tiles)
+   ========================================================================== */
+
+.stream {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -20px -20px;
+}
+
+.stream-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 20px;
+  border-top: 1px solid var(--v-hairline);
+  cursor: pointer;
+  transition: background var(--v-fast);
+  min-width: 0;
+}
+
+.stream-row:hover { background: var(--v-panel-2); }
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   MOTION
+   ========================================================================== */
+
+@keyframes v-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes v-sweep {
+  from { stroke-dashoffset: var(--dash-len); }
+}
+
+@keyframes v-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.v-rise { animation: v-rise 420ms var(--v-ease) both; }
+.v-breathe { animation: v-breathe 2.4s ease-in-out infinite; }
+
+/* The gauge arc draws itself once on mount. */
+.gauge-arc {
+  animation: v-sweep 1100ms var(--v-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-rise, .v-breathe, .gauge-arc { animation: none !important; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* ==========================================================================
+   SCROLLBAR
+   ========================================================================== */
+
+.v-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.v-scroll::-webkit-scrollbar-track { background: transparent; }
+.v-scroll::-webkit-scrollbar-thumb {
+  background: var(--v-hairline-2);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--v-r-pill);
+}
+.v-scroll::-webkit-scrollbar-thumb:hover { background: var(--v-ink-4); background-clip: padding-box; }
+
+/* Any wide content inside a tile scrolls itself, never the page. */
+.v-xscroll { overflow-x: auto; overscroll-behavior-x: contain; }

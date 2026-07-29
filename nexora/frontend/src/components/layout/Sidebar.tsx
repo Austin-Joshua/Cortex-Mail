@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Inbox, Sparkles, BarChart2, Bell, Settings, RefreshCw,
-  Zap, Clock, Archive, FileText, Share2, HelpCircle
+  Zap, Clock, Archive, FileText, Share2, HelpCircle,
 } from 'lucide-react';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useEmails } from '../../hooks/useEmails';
@@ -12,289 +12,208 @@ interface SidebarProps {
   collapsed: boolean;
 }
 
-const MAIN_NAV = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/inbox',         icon: Inbox,           label: 'Inbox', badge: 'unread' },
-  { to: '/priority',      icon: Zap,             label: 'Priority', badge: 'hot' },
-  { to: '/scheduled',     icon: Clock,           label: 'Scheduled' },
+type Badge = 'unread' | 'notif' | 'hot';
+
+interface NavItem {
+  to: string;
+  icon: React.ComponentType<{ size?: number }>;
+  label: string;
+  badge?: Badge;
+}
+
+const SECTIONS: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Workspace',
+    items: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/inbox',     icon: Inbox,           label: 'Inbox', badge: 'unread' },
+      { to: '/priority',  icon: Zap,             label: 'Priority', badge: 'hot' },
+      { to: '/scheduled', icon: Clock,           label: 'Scheduled' },
+    ],
+  },
+  {
+    title: 'Compose',
+    items: [
+      { to: '/brain',   icon: Sparkles, label: 'Velocity Brain' },
+      { to: '/drafts',  icon: FileText, label: 'Drafts' },
+      { to: '/archive', icon: Archive,  label: 'Archive' },
+      { to: '/shared',  icon: Share2,   label: 'Shared' },
+    ],
+  },
+  {
+    title: 'Signals',
+    items: [
+      { to: '/analytics',     icon: BarChart2, label: 'Analytics' },
+      { to: '/notifications', icon: Bell,      label: 'Notifications', badge: 'notif' },
+    ],
+  },
 ];
 
-const FEATURES_NAV = [
-  { to: '/brain',         icon: Sparkles,        label: 'AI Brain' },
-  { to: '/drafts',        icon: FileText,        label: 'Drafts', badge: 'count' },
-  { to: '/archive',       icon: Archive,         label: 'Archive' },
-  { to: '/shared',        icon: Share2,          label: 'Shared' },
+const SYSTEM: NavItem[] = [
+  { to: '/settings', icon: Settings,   label: 'Settings' },
+  { to: '/help',     icon: HelpCircle, label: 'Help' },
 ];
-
-const INSIGHTS_NAV = [
-  { to: '/analytics',     icon: BarChart2,       label: 'Analytics' },
-  { to: '/notifications', icon: Bell,            label: 'Notifications', badge: 'notif' },
-];
-
-const SYSTEM_NAV = [
-  { to: '/settings',      icon: Settings,        label: 'Settings' },
-  { to: '/help',          icon: HelpCircle,      label: 'Help & Support' },
-];
-
-const NavSection: React.FC<{
-  title?: string;
-  items: typeof MAIN_NAV;
-  collapsed: boolean;
-  location: ReturnType<typeof useLocation>;
-  unreadEmailCount: number;
-  unreadNotifCount: number;
-  emails: any[];
-}> = ({ title, items, collapsed, location, unreadEmailCount, unreadNotifCount }) => {
-  return (
-    <>
-      {title && !collapsed && (
-        <div style={{
-          padding: '16px 16px 8px 16px',
-          fontSize: '11px',
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'var(--text-3)',
-        }}>
-          {title}
-        </div>
-      )}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: collapsed ? '4px 8px' : '0 8px' }}>
-        {items.map(({ to, icon: Icon, label, badge }) => {
-          const isActive = location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to));
-          let badgeContent = null;
-
-          if (badge === 'unread') badgeContent = unreadEmailCount > 0 ? unreadEmailCount : null;
-          if (badge === 'notif') badgeContent = unreadNotifCount > 0 ? unreadNotifCount : null;
-          if (badge === 'hot') badgeContent = '!';
-
-          if (collapsed) {
-            return (
-              <Link
-                key={to}
-                to={to}
-                title={label}
-                style={{
-                  width: 40,
-                  height: 40,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 10,
-                  background: isActive ? 'var(--primary)' : 'transparent',
-                  color: isActive ? 'white' : 'var(--text-2)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  position: 'relative',
-                }}
-              >
-                <Icon size={18} />
-                {badgeContent && (
-                  <div style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    background: 'var(--accent)',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: 18,
-                    height: 18,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    {badgeContent}
-                  </div>
-                )}
-              </Link>
-            );
-          }
-
-          return (
-            <Link
-              key={to}
-              to={to}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '10px 12px',
-                borderRadius: 10,
-                background: isActive ? 'var(--primary-pale)' : 'transparent',
-                color: isActive ? 'var(--primary)' : 'var(--text-2)',
-                textDecoration: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                fontWeight: isActive ? 600 : 500,
-                fontSize: 14,
-                position: 'relative',
-              }}
-            >
-              <Icon size={18} />
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {label}
-              </span>
-              {badgeContent && (
-                <span style={{
-                  background: 'var(--accent)',
-                  color: 'white',
-                  borderRadius: 12,
-                  padding: '2px 8px',
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}>
-                  {badgeContent}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-    </>
-  );
-};
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { unreadCount: unreadNotifCount } = useNotificationStore();
+  const { unreadCount: notifCount } = useNotificationStore();
   const { sync, isSyncing, categoryCounts, emails } = useEmails();
 
-  const unreadEmailCount = emails.filter(e => !e.isRead).length;
+  const unreadCount = emails.filter((e) => !e.isRead).length;
+
+  const isOn = (to: string) =>
+    location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to));
+
+  const badgeFor = (badge?: Badge) => {
+    if (badge === 'unread') return unreadCount > 0 ? (unreadCount > 99 ? '99+' : `${unreadCount}`) : null;
+    if (badge === 'notif')  return notifCount > 0 ? (notifCount > 99 ? '99+' : `${notifCount}`) : null;
+    if (badge === 'hot')    return unreadCount > 0 ? '!' : null;
+    return null;
+  };
+
+  const renderItem = ({ to, icon: Icon, label, badge }: NavItem) => {
+    const on = isOn(to);
+    const badgeText = badgeFor(badge);
+
+    if (collapsed) {
+      return (
+        <Link
+          key={to}
+          to={to}
+          title={label}
+          aria-label={label}
+          aria-current={on ? 'page' : undefined}
+          style={{
+            position: 'relative',
+            width: 40,
+            height: 40,
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 'var(--v-r-chip)',
+            background: on ? 'var(--v-signal-wash)' : 'transparent',
+            color: on ? 'var(--v-signal)' : 'var(--v-ink-2)',
+            transition: 'all var(--v-fast)',
+          }}
+        >
+          <Icon size={18} />
+          {badgeText && (
+            <span
+              style={{
+                position: 'absolute',
+                top: 3,
+                right: 3,
+                width: 7,
+                height: 7,
+                borderRadius: 999,
+                background: badge === 'hot' ? 'var(--v-amber)' : 'var(--v-signal)',
+              }}
+            />
+          )}
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        key={to}
+        to={to}
+        aria-current={on ? 'page' : undefined}
+        className={`rail-item${on ? ' rail-item-on' : ''}`}
+      >
+        <Icon size={17} />
+        <span className="truncate">{label}</span>
+        {badgeText && (
+          <span className={`rail-badge${badge === 'hot' ? ' rail-badge-hot' : ''}`}>{badgeText}</span>
+        )}
+      </Link>
+    );
+  };
 
   return (
-    <aside style={{
-      width: collapsed ? 72 : 260,
-      minWidth: collapsed ? 72 : 260,
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      flexShrink: 0,
-      background: 'var(--bg)',
-      borderRight: '1px solid var(--border)',
-      transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      overflow: 'hidden',
-      userSelect: 'none',
-    }}>
-      {/* Header with Sync Button */}
-      <div style={{
-        padding: collapsed ? '12px 8px' : '16px',
-        borderBottom: '1px solid var(--border)',
-      }}>
+    <aside
+      style={{
+        width: collapsed ? 68 : 244,
+        minWidth: collapsed ? 68 : 244,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0,
+        background: 'var(--v-ground)',
+        borderRight: '1px solid var(--v-hairline)',
+        transition: 'width var(--v-base)',
+        userSelect: 'none',
+      }}
+    >
+      {/* Sync — the single primary action */}
+      <div style={{ padding: '14px 14px 10px' }}>
         <button
           onClick={() => sync()}
           disabled={isSyncing}
-          style={{
-            width: collapsed ? 44 : '100%',
-            height: 44,
-            borderRadius: collapsed ? 10 : 12,
-            background: 'var(--primary)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 10,
-            padding: collapsed ? 0 : '0 14px',
-            fontWeight: 600,
-            fontSize: 14,
-            transition: 'all 0.2s ease',
-          }}
-          title="Sync Gmail inbox"
+          title="Sync Gmail"
+          className="vbtn vbtn-signal"
+          style={{ width: '100%', padding: collapsed ? 0 : '0 14px', height: 40 }}
         >
-          <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
-          {!collapsed && (isSyncing ? 'Syncing...' : 'Sync Inbox')}
+          <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+          {!collapsed && (isSyncing ? 'Syncing…' : 'Sync inbox')}
         </button>
       </div>
 
-      {/* Navigation Sections */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-        <NavSection
-          title="MAIN"
-          items={MAIN_NAV}
-          collapsed={collapsed}
-          location={location}
-          unreadEmailCount={unreadEmailCount}
-          unreadNotifCount={unreadNotifCount}
-          emails={emails}
-        />
+      {/* Navigation */}
+      <div
+        className="v-scroll"
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '4px 12px 12px' }}
+      >
+        {SECTIONS.map((section) => (
+          <div key={section.title} style={{ marginBottom: 14 }}>
+            {!collapsed && (
+              <div className="v-label" style={{ padding: '10px 11px 7px' }}>{section.title}</div>
+            )}
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {section.items.map(renderItem)}
+            </nav>
+          </div>
+        ))}
 
-        <NavSection
-          title="FEATURES"
-          items={FEATURES_NAV}
-          collapsed={collapsed}
-          location={location}
-          unreadEmailCount={unreadEmailCount}
-          unreadNotifCount={unreadNotifCount}
-          emails={emails}
-        />
-
-        <NavSection
-          title="INSIGHTS"
-          items={INSIGHTS_NAV}
-          collapsed={collapsed}
-          location={location}
-          unreadEmailCount={unreadEmailCount}
-          unreadNotifCount={unreadNotifCount}
-          emails={emails}
-        />
-
-        {/* Categories Section */}
         {!collapsed && (
-          <div style={{ padding: '16px 8px' }}>
-            <div style={{
-              padding: '8px 16px',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'var(--text-3)',
-            }}>
-              CATEGORIES
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {Object.keys(CAT_COLORS).map(cat => {
+          <div>
+            <div className="v-label" style={{ padding: '10px 11px 7px' }}>Categories</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {Object.keys(CAT_COLORS).map((cat) => {
                 const cfg = CAT_COLORS[cat];
-                const count = categoryCounts[cat] ?? 0;
-                const isCatActive = location.pathname === '/inbox' && location.search.includes(`category=${cat}`);
+                const count = (categoryCounts as Record<string, number>)[cat] ?? 0;
+                if (count === 0) return null;
+                const on = location.pathname === '/inbox' && location.search.includes(`category=${cat}`);
 
                 return (
-                  <div
+                  <button
                     key={cat}
                     onClick={() => navigate(`/inbox?category=${cat}`)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
-                      padding: '8px 12px',
-                      borderRadius: 8,
+                      width: '100%',
+                      height: 32,
+                      padding: '0 11px',
+                      borderRadius: 9,
+                      border: 'none',
                       cursor: 'pointer',
-                      background: isCatActive ? 'var(--surface-2)' : 'transparent',
-                      color: isCatActive ? 'var(--text-1)' : 'var(--text-2)',
-                      fontSize: 13,
-                      fontWeight: isCatActive ? 600 : 400,
-                      transition: 'all 0.2s ease',
+                      background: on ? 'var(--v-panel-2)' : 'transparent',
+                      color: on ? 'var(--v-ink)' : 'var(--v-ink-2)',
+                      fontSize: 12.5,
+                      fontWeight: on ? 700 : 500,
+                      transition: 'all var(--v-fast)',
                     }}
                   >
-                    <span style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 2,
-                      background: cfg.color,
-                      flexShrink: 0,
-                    }} />
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cfg.label}
+                    <span className="dot" style={{ ['--dot' as string]: cfg.color } as React.CSSProperties} />
+                    <span className="truncate" style={{ flex: 1, textAlign: 'left' }}>{cfg.label}</span>
+                    <span className="v-num" style={{ fontSize: 11, color: 'var(--v-ink-3)', fontWeight: 700 }}>
+                      {count}
                     </span>
-                    {count > 0 && (
-                      <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>
-                        {count}
-                      </span>
-                    )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -302,15 +221,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         )}
       </div>
 
-      {/* System Navigation */}
-      <NavSection
-        items={SYSTEM_NAV}
-        collapsed={collapsed}
-        location={location}
-        unreadEmailCount={unreadEmailCount}
-        unreadNotifCount={unreadNotifCount}
-        emails={emails}
-      />
+      {/* System */}
+      <div style={{ borderTop: '1px solid var(--v-hairline)', padding: '10px 12px' }}>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {SYSTEM.map(renderItem)}
+        </nav>
+      </div>
     </aside>
   );
 };
