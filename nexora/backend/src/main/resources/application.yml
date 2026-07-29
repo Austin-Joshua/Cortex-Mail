@@ -44,7 +44,12 @@ google:
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
-  api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+  # Rolling alias on purpose. A pinned version (this was gemini-1.5-flash)
+  # eventually gets retired, and every call starts returning 404 while the
+  # service quietly falls through to the keyword classifier — the failure is
+  # invisible. `-latest` tracks the current stable flash model instead.
+  model: ${GEMINI_MODEL:gemini-flash-latest}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/models}
 
 jwt:
   secret: ${JWT_SECRET}

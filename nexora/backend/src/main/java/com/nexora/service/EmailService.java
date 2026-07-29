@@ -225,4 +225,71 @@ public class EmailService {
         email.setReaction(Reaction.DONE);
         emailRepository.save(email);
     }
+
+    // ---------------------------------------------------------------- priority
+
+    /**
+     * Unread mail ordered by how much it needs the user: HIGH first, then
+     * MEDIUM, then LOW, newest first inside each band. Backs /api/priority.
+     */
+    public List<Email> getPriorityEmails(Long userId, int limit) {
+        List<Email> out = new ArrayList<>();
+        for (Priority p : List.of(Priority.HIGH, Priority.MEDIUM, Priority.LOW)) {
+            if (out.size() >= limit) break;
+            List<Email> band = emailRepository
+                    .findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
+                            userId, p, PageRequest.of(0, limit));
+            for (Email e : band) {
+                if (out.size() >= limit) break;
+                out.add(e);
+            }
+        }
+        return out;
+    }
+
+    /** Pins an email to the top of Priority by marking it IMPORTANT. */
+    public Email flagAsImportant(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        email.setReaction(Reaction.IMPORTANT);
+        email.setPriority(Priority.HIGH);
+        return emailRepository.save(email);
+    }
+
+    /** Clears the IMPORTANT pin, leaving the classifier's own priority. */
+    public Email unflagAsImportant(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getReaction() == Reaction.IMPORTANT) {
+            email.setReaction(Reaction.NONE);
+        }
+        return emailRepository.save(email);
+    }
+
+    /**
+     * Unread mail the classifier did not rank HIGH but which carries a
+     * deadline inside the next week — the cases most likely to be missed.
+     */
+    public List<Email> getSuggestedPriorityEmails(Long userId) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime horizon = now.plusDays(7);
+        List<Email> candidates = new ArrayList<>();
+        candidates.addAll(emailRepository
+                .findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
+                        userId, Priority.MEDIUM, PageRequest.of(0, 50)));
+        candidates.addAll(emailRepository
+                .findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
+                        userId, Priority.LOW, PageRequest.of(0, 50)));
+
+        return candidates.stream()
+                .filter(e -> e.getDeadlineDetected() != null)
+                .filter(e -> !e.getDeadlineDetected().isBefore(now)
+                        && e.getDeadlineDetected().isBefore(horizon))
+                .sorted(Comparator.comparing(Email::getDeadlineDetected))
+                .limit(10)
+                .collect(Collectors.toList());
+    }
+
+    private Email ownedEmail(Long userId, Long emailId) {
+        return emailRepository.findByIdAndUserId(emailId, userId)
+                .orElseThrow(() -> new NexoraException("Email " + emailId + " not found"));
+    }
 }

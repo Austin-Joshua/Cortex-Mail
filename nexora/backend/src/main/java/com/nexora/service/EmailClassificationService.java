@@ -149,7 +149,7 @@ Body:
     public String callGemini(String systemPrompt, String userMessage) {
         try {
             RestTemplate restTemplate = new RestTemplate();
-            String url = geminiConfig.getApiUrl() + "?key=" + geminiConfig.getApiKey();
+            String url = geminiConfig.getGenerateContentUrl();
 
             Map<String, Object> requestBody = new HashMap<>();
             Map<String, Object> part = new HashMap<>();
@@ -164,6 +164,9 @@ Body:
 
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            // Key travels in a header, not the query string, so it stays out
+            // of access logs and proxy logs.
+            headers.set("x-goog-api-key", geminiConfig.getApiKey());
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             @SuppressWarnings("rawtypes")
@@ -181,6 +184,22 @@ Body:
                         }
                     }
                 }
+            }
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            // A retired model answers 404 forever. Without a distinct message
+            // it looks identical to "no key configured" and the whole AI layer
+            // degrades to keyword matching without anyone noticing — which is
+            // exactly how gemini-1.5-flash stayed broken.
+            if (e.getStatusCode().value() == 404) {
+                log.error("Gemini model '{}' returned 404 — it is retired or unavailable to this key. "
+                                + "Set GEMINI_MODEL to a current model. Falling back to local classification.",
+                        geminiConfig.getModel());
+            } else if (e.getStatusCode().value() == 429) {
+                log.warn("Gemini quota exceeded — falling back to local classification.");
+            } else if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) {
+                log.error("Gemini rejected the API key ({}). Check GEMINI_API_KEY.", e.getStatusCode().value());
+            } else {
+                log.error("Gemini call failed with {}: {}", e.getStatusCode(), e.getMessage());
             }
         } catch (Exception e) {
             log.error("Gemini API call failed: {}", e.getMessage());
