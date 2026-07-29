@@ -71,11 +71,7 @@ public class EmailClassificationService {
                 email.setAiActionItems(result.has("action_items") ? result.get("action_items").toString() : null);
 
                 String deadlineStr = getText(result, "deadline");
-                if (deadlineStr != null && !deadlineStr.equalsIgnoreCase("null")) {
-                    try {
-                        email.setDeadlineDetected(LocalDateTime.parse(deadlineStr, DateTimeFormatter.ISO_DATE_TIME));
-                    } catch (Exception ignored) {}
-                }
+                email.setDeadlineDetected(parseDeadline(deadlineStr));
 
                 emailRepository.save(email);
 
@@ -99,6 +95,30 @@ public class EmailClassificationService {
         } catch (InterruptedException e) {
             log.error("Classification semaphore acquisition interrupted for email {}: {}", emailId, e.getMessage());
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Parses a deadline the model emitted. It returns an offset whenever the
+     * email states a timezone ("5:00 PM IST" comes back as ...T17:00:00+05:30),
+     * and LocalDateTime.parse silently discards that offset — keeping the wall
+     * clock and shifting the real instant by the offset, so an IST deadline
+     * landed 5.5 hours late on a UTC server. Convert offset-bearing values to
+     * the server zone first; values without an offset are already local.
+     */
+    private LocalDateTime parseDeadline(String value) {
+        if (value == null || value.isBlank() || value.equalsIgnoreCase("null")) return null;
+        try {
+            return java.time.OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                    .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                    .toLocalDateTime();
+        } catch (Exception noOffset) {
+            try {
+                return LocalDateTime.parse(value, DateTimeFormatter.ISO_DATE_TIME);
+            } catch (Exception e) {
+                log.debug("Unparseable deadline from model: {}", value);
+                return null;
+            }
         }
     }
 
@@ -366,12 +386,7 @@ Body:
                         .actionDescription(getText(item, "description") != null ? getText(item, "description") : "Action required")
                         .build();
 
-                String deadline = getText(item, "deadline");
-                if (deadline != null && !deadline.equalsIgnoreCase("null")) {
-                    try {
-                        action.setDeadline(LocalDateTime.parse(deadline, DateTimeFormatter.ISO_DATE_TIME));
-                    } catch (Exception ignored) {}
-                }
+                action.setDeadline(parseDeadline(getText(item, "deadline")));
                 actionRepository.save(action);
             } catch (Exception e) {
                 log.warn("Could not save action item: {}", e.getMessage());
