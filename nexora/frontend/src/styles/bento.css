@@ -163,15 +163,24 @@ html.dark {
 .v-r2 { grid-row: span 2; }
 .v-r3 { grid-row: span 3; }
 
+/* Tablet: six columns. The compact metric tiles (3 and 4 wide on desktop)
+   both become half width so they pair off cleanly — mapping c3 to half and
+   c4 to full meant they could never sit side by side and every row left a
+   ragged gap. Row spans are dropped for the same reason: a full-width tile
+   spanning two rows punches holes the following tiles flow around. */
 @media (max-width: 1279px) {
   .bento { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .v-c3  { grid-column: span 3; }
-  .v-c4,
-  .v-c5  { grid-column: span 6; }
+
+  .v-c3,
+  .v-c4  { grid-column: span 3; }
+  .v-c5,
   .v-c6,
   .v-c7,
   .v-c8,
   .v-c12 { grid-column: span 6; }
+
+  .v-r2,
+  .v-r3  { grid-row: auto; }
 }
 
 /* Mobile keeps the bento rhythm at 2-up: compact metrics pair off, wide
