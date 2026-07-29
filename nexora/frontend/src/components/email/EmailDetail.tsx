@@ -45,7 +45,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
         })
         .catch(() => {});
     }
-  }, [email?.id, email?.isRead, queryClient]);
+  }, [email, email?.id, email?.isRead, queryClient]);
 
   const { data: threadEmails = [], isLoading: isThreadLoading } = useQuery({
     queryKey: ['email-thread', email?.gmailThreadId],

@@ -40,8 +40,10 @@ export const DashboardPageNew: React.FC = () => {
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   const unread = data?.unreadCount ?? 0;
-  const deadlines = data?.upcomingDeadlines ?? [];
-  const actions = data?.pendingActions ?? [];
+  // Memoised so the `?? []` fallback does not mint a new array each render,
+  // which would defeat every downstream useMemo that depends on it.
+  const deadlines = useMemo(() => data?.upcomingDeadlines ?? [], [data]);
+  const actions = useMemo(() => data?.pendingActions ?? [], [data]);
 
   /** Overdue deadlines drag the score hardest — they are the real friction. */
   const overdue = useMemo(

@@ -10,6 +10,24 @@
 
 ---
 
+## Repository layout
+
+```
+nexora/
+├── frontend/   React + TypeScript web client (Vite)
+├── backend/    Spring Boot 3 API (Java 17)
+└── mobile/     Flutter native client — see mobile/README.md
+```
+
+**Verified state**, so you know what you are picking up:
+
+| | |
+|---|---|
+| `frontend` — `npm run build` | builds clean |
+| `backend` — `mvn compile` | compiles clean (77 classes) |
+| `mobile` — `flutter analyze` / `flutter test` | clean / 17 passing |
+| `mobile` — `flutter build apk` | **not yet verified on a machine with the Android SDK** |
+
 ## 📋 Table of Contents
 
 - [Features](#features)

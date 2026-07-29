@@ -84,7 +84,9 @@ export const EmailVolumeHeatmap: React.FC = () => {
     staleTime: 300_000,
   });
 
-  const emails = emailPage?.content ?? [];
+  // Memoised so the `?? []` fallback does not mint a new array each render,
+  // which would make the grid rebuild on every paint.
+  const emails = React.useMemo(() => emailPage?.content ?? [], [emailPage]);
 
   const grid = React.useMemo(() => buildGrid(emails), [emails]);
   const maxCount = React.useMemo(() => Math.max(1, ...grid.map((d) => d.count)), [grid]);
