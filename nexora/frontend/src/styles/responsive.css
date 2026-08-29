@@ -1,0 +1,470 @@
+/* ==========================================================================
+   CORTEX MAIL — responsive shell & native-feel layout
+   Mobile <768 · Tablet 768–1279 · Desktop ≥1280
+   ========================================================================== */
+
+/* --- Layout tokens (single source of truth) --- */
+
+:root {
+  --shell-pad-x: 28px;
+  --shell-pad-y: 24px;
+  --shell-pad-bottom: 32px;
+  --shell-max: 1560px;
+  --shell-header-size: 30px;
+  --sidebar-width: 252px;
+  --sidebar-collapsed-width: 68px;
+}
+
+@media (max-width: 1279px) {
+  :root {
+    --shell-pad-x: 20px;
+    --shell-pad-y: 20px;
+    --shell-pad-bottom: 28px;
+    --shell-header-size: 26px;
+    --sidebar-width: 220px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --shell-pad-x: 14px;
+    --shell-pad-y: 16px;
+    --shell-pad-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    --shell-header-size: 24px;
+    --v-gap: 12px;
+    --v-r-tile: 16px;
+  }
+}
+
+/* --- App shell --- */
+
+.shell-inner {
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  /* Horizontal + bottom only — header owns top padding (avoids double inset) */
+  padding: 0 var(--shell-pad-x) var(--shell-pad-bottom);
+}
+
+.shell-inner--flush {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-flush-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-flush-body--pad-header {
+  padding: 0 var(--shell-pad-x) var(--shell-pad-y);
+}
+
+.shell-flush-body--full {
+  padding: 0;
+}
+
+.shell-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  margin-bottom: 18px;
+  padding-top: var(--shell-pad-y);
+  box-sizing: border-box;
+}
+
+/* Flush pages (inbox/brain): header spans full width with its own horizontal pad */
+.shell-inner--flush .shell-header {
+  padding-inline: var(--shell-pad-x);
+}
+
+.shell-header h1 {
+  font-size: var(--shell-header-size);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--v-ink);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.shell-header .v-body {
+  margin-top: 6px;
+  max-width: min(640px, 100%);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* --- Smooth native scrolling --- */
+
+.v-scroll {
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .v-scroll {
+    scroll-behavior: smooth;
+  }
+}
+
+/* --- Mail workspace (inbox, archive, drafts) --- */
+
+.mail-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--v-panel);
+  border: 1px solid var(--v-hairline);
+  border-radius: var(--v-r-tile);
+  box-shadow: var(--v-lift-1);
+}
+
+.shell-inner--flush .mail-workspace {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  background: var(--bg);
+}
+
+.mail-workspace-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mail-workspace-detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* --- Inbox category tab rail --- */
+
+.inbox-tab-rail {
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .inbox-tab-rail {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .inbox-tab-rail::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* --- Dashboard banners --- */
+
+.status-banner {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--v-hairline);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+
+.sync-toolbar {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--v-ink-2);
+}
+
+/* --- Cortex gauge pending --- */
+
+@keyframes gauge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.gauge-pending .v-readout {
+  letter-spacing: -0.04em;
+}
+
+.gauge-pending .v-label {
+  color: var(--v-ink-3);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gauge-pending .v-readout {
+    animation: gauge-pulse 2.4s ease-in-out infinite;
+  }
+}
+
+/* --- Settings --- */
+
+.settings-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.settings-nav {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  max-width: 720px;
+  overscroll-behavior: contain;
+}
+
+/* --- Brain layout --- */
+
+.brain-layout {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--v-hairline);
+  border-radius: var(--v-r-tile);
+  overflow: hidden;
+  background: var(--v-panel);
+  box-shadow: var(--v-lift-1);
+}
+
+.brain-history {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--v-hairline);
+  background: var(--v-ground-2);
+  min-width: 0;
+  min-height: 0;
+}
+
+.brain-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+/* --- Sidebar (tablet) --- */
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .app-sidebar {
+    width: var(--sidebar-width) !important;
+    min-width: var(--sidebar-width) !important;
+  }
+}
+
+/* --- Top bar --- */
+
+.app-topbar {
+  height: 64px;
+  padding-inline: var(--shell-pad-x);
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
+}
+
+/* --- Email list performance --- */
+
+.gmail-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 52px;
+}
+
+/* --- Dashboard KPI mini row --- */
+
+.kpi-mini-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.kpi-mini-cell {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--v-panel-2);
+  border: 1px solid var(--v-hairline);
+  text-align: center;
+}
+
+/* --- Settings role grid --- */
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+/* ==========================================================================
+   MOBILE ≤767
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  .shell-header {
+    margin-bottom: 14px;
+    gap: 12px;
+  }
+
+  .shell-header .v-body {
+    font-size: 13px;
+  }
+
+  .gmail-tab {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .inbox-tab-rail {
+    padding-inline: var(--shell-pad-x);
+  }
+
+  .sync-toolbar {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .sync-toolbar .vbtn {
+    flex-shrink: 0;
+  }
+
+  .app-topbar {
+    height: 56px;
+  }
+
+  .brain-layout {
+    border-radius: 0;
+    border-inline: none;
+  }
+
+  .brain-layout--history-open {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .brain-layout--history-open .brain-history {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    border-right: none;
+    box-shadow: var(--v-lift-3);
+  }
+
+  .settings-layout {
+    flex-direction: column;
+    overflow-y: auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .settings-nav {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-nav .gmail-nav-item {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .settings-nav .gmail-nav-item.active {
+    background: var(--v-signal-wash);
+    color: var(--v-signal);
+  }
+
+  .settings-panel {
+    padding: 16px var(--shell-pad-x) var(--shell-pad-bottom);
+    max-width: none;
+  }
+
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-mini-row {
+    flex-direction: column;
+  }
+
+  .shell-quick-fab {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 78px) !important;
+  }
+}
+
+/* ==========================================================================
+   TABLET 768–1279
+   ========================================================================== */
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .brain-layout {
+    border-radius: 16px;
+  }
+}
+
+/* Very narrow phones: stack KPI tiles (override bento 2-col) */
+@media (max-width: 380px) {
+  .kpi-mini-row {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gauge-pending .v-readout {
+    animation: none !important;
+  }
+}

@@ -9,9 +9,11 @@ export interface CortexScoreFactor {
 }
 
 export interface CortexScore {
-  score: number;
+  score?: number | null;
   band: string;
   factors: CortexScoreFactor[];
+  ready?: boolean;
+  statusMessage?: string;
 }
 
 export interface DashboardSummary {

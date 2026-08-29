@@ -18,7 +18,7 @@ import { BrandLogo } from '../common/BrandLogo';
 
 export const TopBar: React.FC = () => {
   const { setSearchQuery, searchQuery, setActiveCategory } = useEmailStore();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const { handleLogout } = useAuth();
   const { sync, isSyncing } = useEmailSync();
   const { unreadCount, setUnreadCount, togglePanel, isPanelOpen } = useNotificationStore();
@@ -61,6 +61,10 @@ export const TopBar: React.FC = () => {
   }, []);
 
   const goHome = () => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+      return;
+    }
     navigate('/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -71,13 +75,12 @@ export const TopBar: React.FC = () => {
 
   return (
     <header
+      className="app-topbar"
       style={{
-        height: 64,
         background: 'var(--v-panel)',
         borderBottom: '1px solid var(--v-hairline)',
         display: 'flex',
         alignItems: 'center',
-        padding: isMobile ? '0 12px' : '0 28px 0 32px',
         flexShrink: 0,
         zIndex: 40,
         boxShadow: 'var(--v-lift-1)',
@@ -132,6 +135,7 @@ export const TopBar: React.FC = () => {
           textSize={isMobile ? 13 : 15}
           showText={!isMobile}
           onClick={goHome}
+          ariaLabel={isAuthenticated ? 'Cortex Mail — dashboard' : 'Cortex Mail — home'}
         />
 
         {!isMobile && (

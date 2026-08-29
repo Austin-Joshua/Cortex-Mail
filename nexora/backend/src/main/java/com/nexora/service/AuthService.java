@@ -32,6 +32,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
+    private final EmailClassificationService classificationService;
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -135,6 +136,7 @@ public class AuthService {
 
     public AuthResponse updateProfile(Long userId, UserRole role, Boolean calendarSyncEnabled) {
         User user = getCurrentUser(userId);
+        UserRole previousRole = user.getUserRole();
         if (role != null) {
             user.setUserRole(role);
         }
@@ -142,6 +144,9 @@ public class AuthService {
             user.setCalendarSyncEnabled(calendarSyncEnabled);
         }
         user = userRepository.save(user);
+        if (role != null && role != previousRole) {
+            classificationService.reclassifyInboxForPreferencesAsync(userId);
+        }
         String jwt = jwtTokenProvider.generateToken(user);
         return AuthResponse.builder()
                 .token(jwt)

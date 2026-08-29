@@ -62,12 +62,15 @@ export const emailApi = {
     return data;
   },
 
-  classifyInbox: async (): Promise<{
+  classifyInbox: async (options: { force?: boolean } = {}): Promise<{
     message: string;
     classified: number;
     groups?: Record<string, number>;
+    forced?: boolean;
   }> => {
-    const { data } = await axiosInstance.post('/api/emails/classify');
+    const { data } = await axiosInstance.post('/api/emails/classify', null, {
+      params: { force: options?.force ?? false },
+    });
     return data;
   },
 

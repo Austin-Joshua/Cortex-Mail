@@ -1,12 +1,21 @@
 package com.nexora.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class CortexScoreResponse {
-    private int score;
+    /** Null while {@link #ready} is false — never expose a fake numeric score. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Integer score;
     private String band;
     private List<Factor> factors = new ArrayList<>();
+    /** False until Gmail is synced and inbox mail is fully classified. */
+    private boolean ready;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String statusMessage;
 
     public CortexScoreResponse() {}
 
@@ -14,14 +23,31 @@ public class CortexScoreResponse {
         return new CortexScoreResponseBuilder();
     }
 
-    public int getScore() { return score; }
-    public void setScore(int score) { this.score = score; }
+    /** Score not ready — no numeric value is emitted in JSON. */
+    public static CortexScoreResponse pending(String band, String statusMessage) {
+        return builder()
+                .ready(false)
+                .band(band)
+                .statusMessage(statusMessage)
+                .factors(List.of())
+                .build();
+    }
+
+    public Integer getScore() { return score; }
+    public void setScore(Integer score) { this.score = score; }
 
     public String getBand() { return band; }
     public void setBand(String band) { this.band = band; }
 
     public List<Factor> getFactors() { return factors; }
     public void setFactors(List<Factor> factors) { this.factors = factors; }
+
+    @JsonProperty("ready")
+    public boolean isReady() { return ready; }
+    public void setReady(boolean ready) { this.ready = ready; }
+
+    public String getStatusMessage() { return statusMessage; }
+    public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
 
     public static class Factor {
         private String key;
@@ -54,31 +80,37 @@ public class CortexScoreResponse {
             public FactorBuilder detail(String detail) { this.detail = detail; return this; }
 
             public Factor build() {
-                Factor f = new Factor();
-                f.key = key;
-                f.label = label;
-                f.points = points;
-                f.detail = detail;
-                return f;
+                Factor factor = new Factor();
+                factor.key = key;
+                factor.label = label;
+                factor.points = points;
+                factor.detail = detail;
+                return factor;
             }
         }
     }
 
     public static class CortexScoreResponseBuilder {
-        private int score;
+        private Integer score;
         private String band;
         private List<Factor> factors = new ArrayList<>();
+        private boolean ready = false;
+        private String statusMessage;
 
         public CortexScoreResponseBuilder score(int score) { this.score = score; return this; }
         public CortexScoreResponseBuilder band(String band) { this.band = band; return this; }
         public CortexScoreResponseBuilder factors(List<Factor> factors) { this.factors = factors; return this; }
+        public CortexScoreResponseBuilder ready(boolean ready) { this.ready = ready; return this; }
+        public CortexScoreResponseBuilder statusMessage(String statusMessage) { this.statusMessage = statusMessage; return this; }
 
         public CortexScoreResponse build() {
-            CortexScoreResponse r = new CortexScoreResponse();
-            r.score = score;
-            r.band = band;
-            r.factors = factors != null ? factors : new ArrayList<>();
-            return r;
+            CortexScoreResponse response = new CortexScoreResponse();
+            response.score = ready ? score : null;
+            response.band = band;
+            response.factors = factors != null ? factors : new ArrayList<>();
+            response.ready = ready;
+            response.statusMessage = statusMessage;
+            return response;
         }
     }
 }

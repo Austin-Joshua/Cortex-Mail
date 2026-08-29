@@ -239,7 +239,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
           </button>
           {email.inInbox !== false && (
             <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
-              onClick={() => emailApi.archive(email.id).then(invalidateMail)}>
+              onClick={() => emailApi.archive(email.id).then(() => { invalidateMail(); onClose?.(); })}>
               Archive
             </button>
           )}

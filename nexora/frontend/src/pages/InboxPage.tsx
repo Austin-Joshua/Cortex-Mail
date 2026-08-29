@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
@@ -6,26 +6,22 @@ import { EmailList } from '../components/email/EmailList';
 import { EmailDetail } from '../components/email/EmailDetail';
 import { SenderView } from '../components/email/SenderView';
 import { useEmailStore } from '../store/emailStore';
+import { useAuthStore } from '../store/authStore';
 import { emailApi } from '../api/emailApi';
 import { useViewport } from '../hooks/useViewport';
+import {
+  getVisibleInboxDivisions,
+  type InboxDivisionKey,
+} from '../utils/inboxDivisions';
 import type { Email, EmailCategory } from '../types/Email';
 
 type ViewMode = EmailCategory | 'ALL' | 'SENDERS';
 
-const TABS: Array<{ key: ViewMode; label: string }> = [
-  { key: 'ALL',          label: 'Primary' },
-  { key: 'SENDERS',      label: 'Senders' },
-  { key: 'ASSIGNMENT',   label: 'Assignments' },
-  { key: 'HACKATHON',    label: 'Hackathons' },
-  { key: 'PLACEMENT',    label: 'Placement' },
-  { key: 'ATTENDANCE',   label: 'Attendance' },
-  { key: 'MEETING',      label: 'Meetings' },
-  { key: 'ANNOUNCEMENT', label: 'Announcements' },
-  { key: 'RESEARCH',     label: 'Research' },
-  { key: 'PERSONAL',     label: 'Personal' },
-];
+const INBOX_FETCH_SIZE = 500;
 
-const INBOX_FETCH_SIZE = 200;
+function isCategoryView(view: ViewMode): view is EmailCategory {
+  return view !== 'ALL' && view !== 'SENDERS';
+}
 
 export const InboxPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -33,26 +29,29 @@ export const InboxPage: React.FC = () => {
   const queryClient = useQueryClient();
   const urlEmailId = searchParams.get('emailId');
   const urlCategory = searchParams.get('category') as ViewMode | null;
-
-  const [activeView, setActiveView] = useState<ViewMode>(urlCategory ?? 'ALL');
+  const activeView: ViewMode = urlCategory ?? 'ALL';
 
   const { isMobile, isTablet } = useViewport();
   const { searchQuery, selectedEmail, setSelectedEmail } = useEmailStore();
+  const userRole = useAuthStore((s) => s.user?.userRole);
 
-  const { data: inboxPage, isLoading: inboxLoading } = useQuery({
-    queryKey: ['emails', 'inbox-all', searchQuery],
+  const categoryParam = isCategoryView(activeView) ? activeView : undefined;
+
+  const { data: emailPage, isLoading: listLoading } = useQuery({
+    queryKey: ['emails', 'inbox', activeView, searchQuery],
     queryFn: () => emailApi.getEmails({
       page: 0,
       size: INBOX_FETCH_SIZE,
+      category: categoryParam,
       search: searchQuery || undefined,
     }),
-    staleTime: 45_000,
+    staleTime: 30_000,
   });
 
   const { data: categoryCounts = {} } = useQuery({
     queryKey: ['email-categories'],
     queryFn: emailApi.getCategoryCounts,
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
 
   const { data: labelCounts } = useQuery({
@@ -61,26 +60,31 @@ export const InboxPage: React.FC = () => {
     staleTime: 120_000,
   });
 
-  const allEmails = inboxPage?.content ?? [];
-  const totalElements = inboxPage?.totalElements ?? allEmails.length;
-  const inboxUnread = labelCounts?.INBOX?.messagesUnread ?? allEmails.filter((e) => !e.isRead).length;
+  const visibleDivisions = useMemo(
+    () => getVisibleInboxDivisions(userRole, categoryCounts),
+    [userRole, categoryCounts],
+  );
 
-  const displayedEmails = useMemo(() => {
-    if (activeView === 'SENDERS') return [];
-    if (activeView === 'ALL') return allEmails;
-    return allEmails.filter((e) => e.category === activeView);
-  }, [allEmails, activeView]);
+  const displayedEmails = emailPage?.content ?? [];
+  const listTotal = emailPage?.totalElements ?? displayedEmails.length;
+  const inboxTotal = categoryCounts
+    ? Object.entries(categoryCounts).reduce((sum, [, n]) => sum + Number(n), 0)
+    : listTotal;
+  const inboxUnread = labelCounts?.INBOX?.messagesUnread
+    ?? displayedEmails.filter((e) => !e.isRead).length;
+
+  const tabCount = (key: InboxDivisionKey | 'ALL'): number => {
+    if (key === 'ALL') {
+      return searchQuery ? listTotal : inboxTotal;
+    }
+    if (searchQuery && activeView === key) {
+      return listTotal;
+    }
+    return Number(categoryCounts[key] ?? 0);
+  };
 
   const showDetail = !!(selectedEmail || urlEmailId);
   const mobileDetailOnly = isMobile && showDetail;
-
-  useEffect(() => {
-    if (urlCategory && TABS.some((t) => t.key === urlCategory)) {
-      setActiveView(urlCategory);
-    } else {
-      setActiveView('ALL');
-    }
-  }, [urlCategory]);
 
   const classifyOnce = useRef(false);
 
@@ -97,19 +101,20 @@ export const InboxPage: React.FC = () => {
   }, [categoryCounts.UNCATEGORIZED, queryClient]);
 
   useEffect(() => {
-    if (urlEmailId && allEmails.length > 0) {
-      const found = allEmails.find((e) => e.id === parseInt(urlEmailId, 10));
+    if (urlEmailId && displayedEmails.length > 0) {
+      const found = displayedEmails.find((e) => e.id === parseInt(urlEmailId, 10));
       if (found) setSelectedEmail(found);
     }
-  }, [urlEmailId, allEmails, setSelectedEmail]);
+  }, [urlEmailId, displayedEmails, setSelectedEmail]);
 
   const handleTabClick = (key: ViewMode) => {
-    setActiveView(key);
     setSelectedEmail(null);
     if (key === 'ALL') {
       navigate('/inbox', { replace: true });
     } else if (key !== 'SENDERS') {
       navigate(`/inbox?category=${key}`, { replace: true });
+    } else {
+      navigate('/inbox?category=SENDERS', { replace: true });
     }
   };
 
@@ -121,6 +126,7 @@ export const InboxPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
         queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
         queryClient.invalidateQueries({ queryKey: ['emails'] });
+        queryClient.invalidateQueries({ queryKey: ['email-categories'] });
       } catch { /* ignore */ }
     }
   };
@@ -128,11 +134,12 @@ export const InboxPage: React.FC = () => {
   return (
     <AppShell noScroll flush>
       <div
+        className="mail-workspace"
         style={{
-          display: 'flex',
-          flex: 1,
-          minHeight: 0,
           flexDirection: 'column',
+          border: 'none',
+          boxShadow: 'none',
+          borderRadius: 0,
           background: 'var(--bg)',
         }}
       >
@@ -147,26 +154,26 @@ export const InboxPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleTabClick('ALL')}
-              className="vbtn vbtn-bare"
-              style={{
-                padding: '0 12px',
-                height: 44,
-                whiteSpace: 'nowrap',
-                fontWeight: 700,
-                fontSize: 12,
-                color: activeView === 'ALL' ? 'var(--v-signal)' : 'var(--v-ink-2)',
-                flexShrink: 0,
-              }}
+              className={`gmail-tab${activeView === 'ALL' ? ' active' : ''}`}
+              style={{ flexShrink: 0 }}
             >
-              {inboxUnread > 0 ? `${inboxUnread} unread` : 'Inbox'}
-              {totalElements > 0 ? ` · ${totalElements}` : ''}
+              Inbox
+              {inboxTotal > 0 && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: activeView === 'ALL' ? 'var(--accent)' : 'var(--text-3)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {inboxUnread > 0 ? `${inboxUnread} unread · ${tabCount('ALL')}` : tabCount('ALL')}
+                </span>
+              )}
             </button>
 
-            {TABS.map(({ key, label }) => {
+            {visibleDivisions.map(({ key, label }) => {
               const isActive = activeView === key;
-              const count = key !== 'ALL' && key !== 'SENDERS'
-                ? (categoryCounts[key as string] ?? 0)
-                : undefined;
+              const count = tabCount(key);
 
               return (
                 <button
@@ -176,7 +183,7 @@ export const InboxPage: React.FC = () => {
                   className={`gmail-tab${isActive ? ' active' : ''}`}
                 >
                   {label}
-                  {count !== undefined && count > 0 && (
+                  {key !== 'SENDERS' && count > 0 && (
                     <span
                       style={{
                         fontSize: 11,
@@ -214,7 +221,7 @@ export const InboxPage: React.FC = () => {
                 >
                   <EmailList
                     emails={displayedEmails}
-                    isLoading={inboxLoading}
+                    isLoading={listLoading}
                     onEmailSelect={handleEmailSelect}
                   />
                 </div>
@@ -235,7 +242,7 @@ export const InboxPage: React.FC = () => {
                     emailId={selectedEmail ? selectedEmail.id : parseInt(urlEmailId!, 10)}
                     onClose={() => {
                       setSelectedEmail(null);
-                      navigate('/inbox', { replace: true });
+                      navigate(activeView === 'ALL' ? '/inbox' : `/inbox?category=${activeView}`, { replace: true });
                     }}
                   />
                 </div>

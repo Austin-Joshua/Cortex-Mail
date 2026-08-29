@@ -7,6 +7,8 @@ interface GaugeProps {
   label?: string;
   /** Stroke color; defaults to the signal token. */
   tone?: string;
+  /** When true, show placeholder instead of a numeric score. */
+  pending?: boolean;
 }
 
 /**
@@ -14,13 +16,14 @@ interface GaugeProps {
  * mount via stroke-dashoffset. pathLength is normalised to 100 so the offset
  * maths is just `100 - value`.
  */
-export const Gauge: React.FC<GaugeProps> = ({ value, size = 152, label, tone }) => {
-  const v = Math.max(0, Math.min(100, value));
+export const Gauge: React.FC<GaugeProps> = ({ value, size = 152, label, tone, pending }) => {
+  const v = pending ? 0 : Math.max(0, Math.min(100, value));
   // 270° arc on a r=52 circle centred at (70,70), opening at the bottom.
   const d = 'M 33.23 106.77 A 52 52 0 1 1 106.77 106.77';
 
   return (
     <div
+      className={pending ? 'gauge-pending' : undefined}
       style={{
         position: 'relative',
         width: size,
@@ -40,12 +43,12 @@ export const Gauge: React.FC<GaugeProps> = ({ value, size = 152, label, tone }) 
           className="gauge-arc"
           d={d}
           fill="none"
-          stroke={tone ?? 'var(--v-signal)'}
+          stroke={pending ? 'var(--v-hairline)' : (tone ?? 'var(--v-signal)')}
           strokeWidth="9"
           strokeLinecap="round"
           pathLength={100}
           strokeDasharray="100"
-          strokeDashoffset={100 - v}
+          strokeDashoffset={pending ? 100 : 100 - v}
           style={{ ['--dash-len' as string]: '100' } as React.CSSProperties}
         />
       </svg>
@@ -63,8 +66,8 @@ export const Gauge: React.FC<GaugeProps> = ({ value, size = 152, label, tone }) 
           pointerEvents: 'none',
         }}
       >
-        <span className="v-readout v-readout-xl" style={{ fontSize: size * 0.3 }}>
-          {v}
+        <span className="v-readout v-readout-xl" style={{ fontSize: pending ? size * 0.22 : size * 0.3, color: pending ? 'var(--v-ink-3)' : undefined }}>
+          {pending ? '—' : v}
         </span>
         {label && <span className="v-label">{label}</span>}
       </div>

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { LandingPage }       from './pages/LandingPage';
@@ -16,11 +16,10 @@ import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { PriorityInboxPage } from './pages/PriorityInboxPage';
 import { DraftsPage }        from './pages/DraftsPage';
 import { ScheduledEmailsPage } from './pages/ScheduledEmailsPage';
-import { LoadingSpinner }    from './components/common/LoadingSpinner';
 
-const ArchivePage = lazy(() => import('./pages/ArchivePage').then(m => ({ default: m.ArchivePage })));
-const SharedPage = lazy(() => import('./pages/SharedPage').then(m => ({ default: m.SharedPage })));
-const HelpPage = lazy(() => import('./pages/HelpPage').then(m => ({ default: m.HelpPage })));
+import { ArchivePage } from './pages/ArchivePage';
+import { SharedPage } from './pages/SharedPage';
+import { HelpPage } from './pages/HelpPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -48,8 +47,8 @@ function App() {
         {/* Features */}
         <Route path="/brain"           element={<ProtectedRoute><BrainPage /></ProtectedRoute>} />
         <Route path="/drafts"          element={<ProtectedRoute><DraftsPage /></ProtectedRoute>} />
-        <Route path="/archive"         element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><ArchivePage /></Suspense></ProtectedRoute>} />
-        <Route path="/shared"          element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><SharedPage /></Suspense></ProtectedRoute>} />
+        <Route path="/archive"         element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
+        <Route path="/shared"          element={<ProtectedRoute><SharedPage /></ProtectedRoute>} />
 
         {/* Insights */}
         <Route path="/analytics"       element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
@@ -57,7 +56,7 @@ function App() {
 
         {/* System */}
         <Route path="/settings"        element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-        <Route path="/help"            element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><HelpPage /></Suspense></ProtectedRoute>} />
+        <Route path="/help"            element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
 
         {/* Detail Routes */}
         <Route path="/emails/:id"      element={<ProtectedRoute><EmailDetailPage /></ProtectedRoute>} />

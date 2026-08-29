@@ -69,8 +69,8 @@ export const Sidebar: React.FC = () => {
     <aside
       className="app-sidebar"
       style={{
-        width: 252,
-        minWidth: 252,
+        width: 'var(--sidebar-width)',
+        minWidth: 'var(--sidebar-width)',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',

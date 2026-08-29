@@ -69,8 +69,10 @@ public class EmailController {
     }
 
     @PostMapping("/classify")
-    public ResponseEntity<Map<String, Object>> classifyInbox(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(emailService.classifyInbox(user.getId(), user));
+    public ResponseEntity<Map<String, Object>> classifyInbox(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "false") boolean force) {
+        return ResponseEntity.ok(emailService.classifyInbox(user.getId(), user, force));
     }
 
     @GetMapping("/categories")

@@ -6,6 +6,7 @@ import com.nexora.model.Email.Priority;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -55,6 +56,16 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
            "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Email> searchInboxByUserId(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
 
+    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.category = :category AND " +
+           "(LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Email> searchInboxByUserIdAndCategory(
+            @Param("userId") Long userId,
+            @Param("search") String search,
+            @Param("category") EmailCategory category,
+            Pageable pageable);
+
     Page<Email> findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
             Long userId, EmailCategory category, Pageable pageable);
 
@@ -97,6 +108,10 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     @Query("SELECT e.category, COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true GROUP BY e.category")
     List<Object[]> countByUserIdGroupByCategory(@Param("userId") Long userId);
 
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Email e SET e.category = 'UNCATEGORIZED' WHERE e.user.id = :userId AND e.inInbox = true AND e.category <> 'SPAM'")
+    int resetInboxCategoriesExceptSpam(@Param("userId") Long userId);
+
     List<Email> findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
         Long userId, Priority priority, Pageable pageable);
 
@@ -112,6 +127,14 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
                                    @Param("end") LocalDateTime end);
 
     List<Email> findTop20ByUserIdOrderByReceivedAtDesc(Long userId);
+
+    /** Important / starred / high-priority inbox mail — candidates for selective Gemini enrichment. */
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.isDraft = false
+            AND (e.isImportant = true OR e.isStarred = true OR e.priority = com.nexora.model.Email.Priority.HIGH)
+            ORDER BY e.receivedAt DESC
+            """)
+    Page<Email> findGeminiPriorityCandidates(@Param("userId") Long userId, Pageable pageable);
 
     long countByUserIdAndIsReadFalse(Long userId);
 

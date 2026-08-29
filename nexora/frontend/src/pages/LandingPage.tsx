@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, X, ArrowRight, ChevronDown, Lock, EyeOff, KeyRound,
   Brain, Timer, Flame, CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useAuthStore } from '../store/authStore';
 import { useReveal, useScrollProgress } from '../hooks/useReveal';
 import { Odometer } from '../components/landing/Odometer';
 import { Gauge } from '../components/bento/Gauge';
@@ -85,6 +86,8 @@ const Reveal: React.FC<{
 /* ------------------------------------------------------------------ page */
 
 export const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { handleGoogleLogin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('auth_error');
@@ -92,6 +95,12 @@ export const LandingPage: React.FC = () => {
   const [stuck, setStuck] = useState(false);
   const progress = useScrollProgress();
   const heroRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && !authError) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, authError, navigate]);
 
   useEffect(() => {
     const onScroll = () => setStuck(window.scrollY > 12);

@@ -15,6 +15,12 @@ public class GeminiConfig {
     @Value("${gemini.base-url}")
     private String baseUrl;
 
+    @Value("${gemini.refinement-batch-size:25}")
+    private int refinementBatchSize;
+
+    @Value("${gemini.max-concurrent:6}")
+    private int maxConcurrent;
+
     public String getApiKey() {
         return apiKey;
     }
@@ -38,6 +44,14 @@ public class GeminiConfig {
                 && !apiKey.contains("mock")
                 && !apiKey.contains("your_")
                 && !apiKey.contains("your-");
+    }
+
+    public int getRefinementBatchSize() {
+        return Math.max(1, refinementBatchSize);
+    }
+
+    public int getMaxConcurrent() {
+        return Math.max(1, maxConcurrent);
     }
 
     /** Never log the key itself — only whether one is present. */

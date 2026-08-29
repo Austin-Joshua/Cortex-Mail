@@ -4,6 +4,7 @@ import { BrainChat } from '../components/brain/BrainChat';
 import { brainApi } from '../api/brainApi';
 import type { BrainConversation } from '../types/Brain';
 import { History, Clock, Plus, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { useViewport } from '../hooks/useViewport';
 
 const formatRelativeTime = (dateStr?: string) => {
   if (!dateStr) return '';
@@ -22,9 +23,14 @@ const formatRelativeTime = (dateStr?: string) => {
 };
 
 export const BrainPage: React.FC = () => {
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const { isMobile } = useViewport();
+  const [historyOpen, setHistoryOpen] = useState(!isMobile);
   const [conversations, setConversations] = useState<BrainConversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setHistoryOpen(!isMobile);
+  }, [isMobile]);
 
   const fetchHistory = () => {
     brainApi.getHistory().then(setConversations).catch(() => {});
@@ -37,28 +43,13 @@ export const BrainPage: React.FC = () => {
   return (
     <AppShell title="Cortex Brain" subtitle="Ask questions about your synced Gmail — answers cite real messages" noScroll flush>
       <div
+        className={`brain-layout${historyOpen ? ' brain-layout--history-open' : ''}`}
         style={{
-          display: 'grid',
-          gridTemplateColumns: historyOpen ? '240px minmax(0, 1fr)' : 'minmax(0, 1fr)',
-          flex: 1,
-          minHeight: 0,
-          border: '1px solid var(--v-hairline)',
-          borderRadius: 20,
-          overflow: 'hidden',
-          background: 'var(--v-panel)',
-          boxShadow: 'var(--v-lift-1)',
+          gridTemplateColumns: historyOpen && !isMobile ? 'minmax(200px, 240px) minmax(0, 1fr)' : 'minmax(0, 1fr)',
         }}
       >
         {historyOpen && (
-          <aside
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              borderRight: '1px solid var(--v-hairline)',
-              background: 'var(--v-ground-2)',
-              minWidth: 0,
-            }}
-          >
+          <aside className="brain-history">
             <div
               style={{
                 display: 'flex',
@@ -102,7 +93,10 @@ export const BrainPage: React.FC = () => {
                     <button
                       key={conv.id}
                       type="button"
-                      onClick={() => setSelectedConversationId(conv.id)}
+                      onClick={() => {
+                        setSelectedConversationId(conv.id);
+                        if (isMobile) setHistoryOpen(false);
+                      }}
                       style={{
                         display: 'block',
                         width: '100%',
@@ -140,7 +134,7 @@ export const BrainPage: React.FC = () => {
           </aside>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, position: 'relative' }}>
+        <div className="brain-main">
           {!historyOpen && (
             <button
               type="button"

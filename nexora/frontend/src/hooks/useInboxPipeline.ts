@@ -24,6 +24,7 @@ export function useInboxPipeline(autoStart = true) {
   const [status, setStatus] = useState('');
   const [classified, setClassified] = useState(0);
   const started = useRef(false);
+  const classifyBgStarted = useRef(false);
 
   const syncMutation = useMutation({
     mutationFn: emailApi.syncEmails,
@@ -51,6 +52,23 @@ export function useInboxPipeline(autoStart = true) {
     }
   };
 
+  const runClassifyStep = async () => {
+    setPhase('extracting');
+    setStatus('Separating mail by source and content…');
+    const classifyResult = await classifyMutation.mutateAsync({});
+    setClassified(typeof classifyResult.classified === 'number' ? classifyResult.classified : 0);
+
+    queryClient.invalidateQueries({ queryKey: ['emails'] });
+    queryClient.invalidateQueries({ queryKey: ['email-categories'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+
+    setPhase('grouped');
+    setStatus(
+      `Inbox ready · ${typeof classifyResult.classified === 'number' ? classifyResult.classified : 0} mails separated into groups.`,
+    );
+  };
+
   const runPipeline = async (force = false) => {
     if (syncMutation.isPending || classifyMutation.isPending) return;
 
@@ -67,22 +85,24 @@ export function useInboxPipeline(autoStart = true) {
           }
           queryClient.invalidateQueries({ queryKey: ['emails'] });
           queryClient.invalidateQueries({ queryKey: ['sync-status'] });
-          setPhase('busy');
-          setStatus(syncResult.message || 'Background sync in progress — your mail is still available.');
-          return;
+          setStatus(syncResult.message || 'Background sync already running — classifying local mail.');
+          if (!force) {
+            setPhase('grouped');
+            return;
+          }
+        } else {
+          if (syncResult.labelCounts) {
+            queryClient.setQueryData(['gmail-label-counts'], syncResult.labelCounts);
+          }
+          setLastSyncedAt(new Date().toISOString());
+          await refreshUser();
+          queryClient.invalidateQueries({ queryKey: ['emails'] });
+          queryClient.invalidateQueries({ queryKey: ['email-drafts'] });
+          queryClient.invalidateQueries({ queryKey: ['email-archived'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+          queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
+          queryClient.invalidateQueries({ queryKey: ['sync-status'] });
         }
-
-        if (syncResult.labelCounts) {
-          queryClient.setQueryData(['gmail-label-counts'], syncResult.labelCounts);
-        }
-        setLastSyncedAt(new Date().toISOString());
-        await refreshUser();
-        queryClient.invalidateQueries({ queryKey: ['emails'] });
-        queryClient.invalidateQueries({ queryKey: ['email-drafts'] });
-        queryClient.invalidateQueries({ queryKey: ['email-archived'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-        queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
-        queryClient.invalidateQueries({ queryKey: ['sync-status'] });
       }
 
       setPhase('inbox_ready');
@@ -90,20 +110,7 @@ export function useInboxPipeline(autoStart = true) {
       setPhase('scoring');
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
 
-      setPhase('extracting');
-      setStatus('Separating mail by source and content…');
-      const classifyResult = await classifyMutation.mutateAsync();
-      setClassified(typeof classifyResult.classified === 'number' ? classifyResult.classified : 0);
-
-      queryClient.invalidateQueries({ queryKey: ['emails'] });
-      queryClient.invalidateQueries({ queryKey: ['email-categories'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['sync-status'] });
-
-      setPhase('grouped');
-      setStatus(
-        `Inbox ready · ${typeof classifyResult.classified === 'number' ? classifyResult.classified : 0} mails separated into groups.`,
-      );
+      await runClassifyStep();
     } catch (err: unknown) {
       console.error('Inbox pipeline failed', err);
       setPhase('error');
@@ -127,6 +134,21 @@ export function useInboxPipeline(autoStart = true) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.userId]);
 
+  useEffect(() => {
+    if (!user?.lastSyncedAt || classifyBgStarted.current || classifyMutation.isPending) return;
+    const unclassified = Number(emailsState.categoryCounts?.UNCATEGORIZED ?? 0);
+    if (unclassified <= 0) return;
+    classifyBgStarted.current = true;
+    void (async () => {
+      try {
+        await runClassifyStep();
+      } catch {
+        classifyBgStarted.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.lastSyncedAt, emailsState.categoryCounts?.UNCATEGORIZED]);
+
   return {
     ...emailsState,
     phase,
@@ -134,6 +156,7 @@ export function useInboxPipeline(autoStart = true) {
     classified,
     runPipeline,
     isPipelineRunning:
-      phase === 'syncing' || phase === 'extracting' || phase === 'scoring' || syncMutation.isPending,
+      phase === 'syncing' || phase === 'extracting' || phase === 'scoring'
+      || syncMutation.isPending || classifyMutation.isPending,
   };
 }

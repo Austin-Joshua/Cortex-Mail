@@ -1,4 +1,5 @@
 @import './styles/bento.css';
+@import './styles/responsive.css';
 
 @tailwind base;
 @tailwind components;
@@ -49,11 +50,15 @@
     --cat-assignment:   var(--v-red);
     --cat-hackathon:    var(--v-orange);
     --cat-placement:    var(--v-green);
+    --cat-internship:   var(--v-orange);
     --cat-meeting:      var(--v-orange);
     --cat-attendance:   var(--v-red);
     --cat-announcement: var(--v-orange);
     --cat-research:     var(--v-green);
+    --cat-finance:      var(--v-green);
     --cat-personal:     var(--v-ink-3);
+    --cat-promotional:  var(--v-ink-3);
+    --cat-spam:         var(--v-red);
 
     --paper:      var(--v-ground);
     --paper-2:    var(--v-panel);
@@ -65,11 +70,10 @@
     --r-lg: var(--v-r-tile);
     --r-full: var(--v-r-pill);
 
-    --spacing-page: 28px;
+    /* Layout tokens owned by responsive.css — aliases here for legacy pages */
+    --spacing-page: var(--shell-pad-x, 28px);
     --spacing-gap: var(--v-gap);
     --spacing-card: 20px;
-    --sidebar-width: 244px;
-    --sidebar-collapsed-width: 68px;
 
     --transition-spring: all var(--v-base);
     --transition-smooth: all var(--v-fast);
@@ -293,18 +297,6 @@
   flex-shrink: 0;
   overflow: hidden;
   padding: 0 8px 0 0;
-}
-@media (max-width: 900px) {
-  .inbox-tab-rail {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .inbox-tab-rail::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 /* Sidebar nav (legacy markup) */

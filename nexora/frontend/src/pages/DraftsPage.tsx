@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Search, X } from 'lucide-react';
@@ -16,6 +16,10 @@ export const DraftsPage: React.FC = () => {
   const { isMobile } = useViewport();
   const { selectedEmail, setSelectedEmail } = useEmailStore();
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    setSelectedEmail(null);
+  }, [setSelectedEmail]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['email-drafts', search],
@@ -45,9 +49,15 @@ export const DraftsPage: React.FC = () => {
       title="Drafts"
       subtitle={total > 0 ? `${total} from your Gmail Drafts` : 'Unsent mail from your Gmail account'}
     >
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', background: 'var(--v-panel)', border: '1px solid var(--v-hairline)', borderRadius: 16 }}>
+      <div className="mail-workspace" style={{ minHeight: 320 }}>
         {!mobileDetailOnly && (
-          <div style={{ flex: showDetail && !isMobile ? '0 0 42%' : 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: showDetail && !isMobile ? '1px solid var(--v-hairline)' : undefined }}>
+          <div
+            className="mail-workspace-list"
+            style={{
+              flex: showDetail && !isMobile ? '0 0 42%' : 1,
+              borderRight: showDetail && !isMobile ? '1px solid var(--v-hairline)' : undefined,
+            }}
+          >
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--v-hairline)', display: 'flex', gap: 8 }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, height: 38, padding: '0 12px', borderRadius: 999, background: 'var(--v-ground-2)', border: '1px solid var(--v-hairline)' }}>
                 <Search size={14} style={{ color: 'var(--v-ink-3)' }} />
@@ -82,7 +92,7 @@ export const DraftsPage: React.FC = () => {
         )}
 
         {showDetail && (
-          <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+          <div className="mail-workspace-detail v-scroll">
             <EmailDetail
               emailId={selectedEmail.id}
               onClose={() => setSelectedEmail(null)}

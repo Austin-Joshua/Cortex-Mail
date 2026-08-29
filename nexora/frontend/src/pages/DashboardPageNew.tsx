@@ -32,12 +32,6 @@ export const DashboardPageNew: React.FC = () => {
   } = useInboxPipeline(true);
   const navigate = useNavigate();
 
-  const { data } = useQuery({
-    queryKey: ['dashboard-summary'],
-    queryFn: dashboardApi.getSummary,
-    staleTime: 60_000,
-  });
-
   const { data: syncStatus } = useQuery({
     queryKey: ['sync-status'],
     queryFn: emailApi.getSyncStatus,
@@ -45,15 +39,34 @@ export const DashboardPageNew: React.FC = () => {
     refetchInterval: isPipelineRunning ? 5000 : false,
   });
 
+  const { data } = useQuery({
+    queryKey: ['dashboard-summary'],
+    queryFn: dashboardApi.getSummary,
+    staleTime: 60_000,
+    refetchInterval: isPipelineRunning || (syncStatus?.unclassifiedInbox ?? 0) > 0 ? 5000 : false,
+  });
+
+  const { data: volumeHistory } = useQuery({
+    queryKey: ['email-volume', 7],
+    queryFn: () => dashboardApi.getEmailVolume(7),
+    staleTime: 60_000,
+  });
+
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
-  const unread = data?.unreadCount ?? inboxUnread;
-  const inboxTotal = data?.gmailLabelCounts?.INBOX?.messagesTotal
+  const labelsReady = syncStatus?.gmailCounts
+    && Object.keys(syncStatus.gmailCounts).length > 0;
+  const unclassified = syncStatus?.unclassifiedInbox
+    ?? Number(categoryCounts.UNCATEGORIZED ?? 0);
+
+  const unread = data?.unreadCount ?? (labelsReady ? inboxUnread : null);
+  const inboxTotal = syncStatus?.localCounts?.inboxTotal
+    ?? data?.gmailLabelCounts?.INBOX?.messagesTotal
     ?? labelCounts?.INBOX?.messagesTotal
-    ?? emails.length;
+    ?? null;
   const importantUnread = data?.gmailLabelCounts?.IMPORTANT?.messagesUnread
     ?? labelCounts?.IMPORTANT?.messagesUnread
     ?? 0;
@@ -70,33 +83,40 @@ export const DashboardPageNew: React.FC = () => {
   );
 
   const cortex = data?.cortexScore;
-  const hasSyncedMail = Boolean(user?.lastSyncedAt) || emails.length > 0
+  const hasSyncedMail = Boolean(user?.lastSyncedAt)
     || (syncStatus?.localCounts?.allStored ?? 0) > 0;
-  const score = !hasSyncedMail
-    ? null
-    : (cortex?.score ?? Math.max(0, Math.round(
-      100 - Math.min(40, unread * 1.2) - Math.min(15, importantUnread * 2)
-      - Math.min(25, actions.length * 3) - Math.min(20, overdue * 5),
-    )));
-  const scoreBand = !hasSyncedMail ? undefined : cortex?.band;
-  const scoreTone = score == null
+  const scoreReady = cortex?.ready === true
+    && !isPipelineRunning
+    && unclassified === 0;
+  const score = scoreReady && cortex?.score != null ? cortex.score : null;
+  const scoreBand = scoreReady ? cortex?.band : undefined;
+  const scorePendingMessage = cortex?.statusMessage
+    ?? (unclassified > 0
+      ? `${unclassified} inbox messages still being classified — score updates when analysis finishes.`
+      : isPipelineRunning
+        ? 'Analyzing your Gmail inbox — score appears when sync and classification finish.'
+        : !hasSyncedMail
+          ? 'Sync Gmail to compute your score from real inbox data.'
+          : 'Waiting for score from Gmail and stored mail.');
+  const scoreTone = !scoreReady
     ? 'var(--v-ink-3)'
-    : score >= 75 ? 'var(--v-green)' : score >= 45 ? 'var(--v-orange)' : 'var(--v-red)';
-  const scoreVerdict =
-    !hasSyncedMail
-      ? 'Sync Gmail to score'
-      : (scoreBand
-        ?? (score != null && score >= 75 ? 'Running clear' : score != null && score >= 45 ? 'Some drag' : 'Backlog building'));
-
-  const labelsReady = syncStatus?.gmailCounts
-    && Object.keys(syncStatus.gmailCounts).length > 0;
-  const extractOk = Boolean(labelsReady && syncStatus?.inboxAligned && syncStatus?.draftsAligned);
+    : (score ?? 0) >= 75 ? 'var(--v-green)' : (score ?? 0) >= 45 ? 'var(--v-orange)' : 'var(--v-red)';
+  const scoreVerdict = scoreReady
+    ? (scoreBand ?? 'Scored')
+    : unclassified > 0
+      ? 'Classifying'
+      : isPipelineRunning
+        ? 'Analyzing…'
+        : !hasSyncedMail
+          ? 'Sync Gmail to score'
+          : (cortex?.band ?? 'Pending');
 
   const syncChip =
     phase === 'error' ? 'error'
-      : phase === 'busy' || isPipelineRunning || phase === 'syncing' || phase === 'extracting' || phase === 'scoring'
-        ? 'syncing'
-        : phase === 'grouped' || user?.lastSyncedAt
+      : phase === 'syncing' ? 'syncing'
+      : isPipelineRunning || phase === 'extracting' || phase === 'scoring' || unclassified > 0
+        ? 'classifying'
+        : phase === 'busy' || phase === 'grouped' || user?.lastSyncedAt
           ? 'synced'
           : 'idle';
 
@@ -113,6 +133,7 @@ export const DashboardPageNew: React.FC = () => {
   const [showWhyScore, setShowWhyScore] = React.useState(false);
 
   const scoreSource = useMemo(() => {
+    if (!scoreReady || unread == null) return scorePendingMessage;
     const parts = [
       `${unread} unread (Gmail INBOX)`,
       importantUnread > 0 ? `${importantUnread} important` : null,
@@ -122,26 +143,24 @@ export const DashboardPageNew: React.FC = () => {
     return parts.length
       ? `Built from: ${parts.join(' · ')}`
       : 'Built from your Gmail inbox labels after sync';
-  }, [unread, importantUnread, actions.length, overdue]);
+  }, [scoreReady, scorePendingMessage, unread, importantUnread, actions.length, overdue]);
 
-  /** Last 7 days of received mail, oldest → newest. */
+  /** Last 7 days of received mail from backend analytics (not a partial page fetch). */
   const week = useMemo(() => {
     const buckets = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
       d.setDate(d.getDate() - (6 - i));
-      return { day: d.getDay(), date: d, count: 0 };
+      return { day: d.getDay(), date: d, count: 0, key: d.toISOString().slice(0, 10) };
     });
-    const start = buckets[0].date.getTime();
-    for (const e of emails) {
-      if (!e.receivedAt) continue;
-      const t = new Date(e.receivedAt).getTime();
-      if (Number.isNaN(t) || t < start) continue;
-      const idx = Math.floor((t - start) / 86_400_000);
-      if (idx >= 0 && idx < 7) buckets[idx].count += 1;
+    const byDate = new Map(
+      (volumeHistory ?? []).map((pt) => [String(pt.date).slice(0, 10), pt.count]),
+    );
+    for (const b of buckets) {
+      b.count = byDate.get(b.key) ?? 0;
     }
     return buckets;
-  }, [emails]);
+  }, [volumeHistory]);
 
   const weekPeak = Math.max(1, ...week.map((d) => d.count));
   const weekTotal = week.reduce((s, d) => s + d.count, 0);
@@ -173,25 +192,20 @@ export const DashboardPageNew: React.FC = () => {
 
   const activeZone = FLOW_ZONES.find((z) => hour >= z.from && hour < z.to);
 
+  const pageSubtitle = scoreReady
+    ? `${scoreBand} · ${weekTotal} messages this week`
+    : scorePendingMessage;
+
   return (
-    <AppShell title={`${greeting}, ${firstName}`} subtitle={`${scoreVerdict} · ${weekTotal} messages this week`}>
+    <AppShell title={`${greeting}, ${firstName}`} subtitle={pageSubtitle}>
       <div
-        style={{
-          marginBottom: 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-          fontSize: 12.5,
-          color: 'var(--v-ink-2)',
-        }}
+        className="sync-toolbar"
       >
         <span>
           Sync:{' '}
           <strong style={{
             color: syncChip === 'error' ? 'var(--v-red)'
-              : syncChip === 'syncing' ? 'var(--v-orange)'
+              : syncChip === 'syncing' || syncChip === 'classifying' ? 'var(--v-orange)'
                 : 'var(--v-ink)',
           }}>
             {syncChip}
@@ -205,19 +219,10 @@ export const DashboardPageNew: React.FC = () => {
 
       {(isPipelineRunning || phase === 'grouped' || phase === 'busy' || phase === 'error') && status && (
         <div
+          className="status-banner"
           style={{
-            marginBottom: 14,
-            padding: '10px 14px',
-            borderRadius: 12,
-            border: '1px solid var(--v-hairline)',
             background: phase === 'error' ? 'var(--v-red-wash)' : phase === 'busy' ? 'var(--v-orange-wash, #fff7ed)' : 'var(--v-panel-2)',
             color: phase === 'error' ? 'var(--v-red)' : phase === 'busy' ? 'var(--v-orange)' : 'var(--v-ink-2)',
-            fontSize: 13,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
           }}
         >
           <span>{status}</span>
@@ -234,56 +239,6 @@ export const DashboardPageNew: React.FC = () => {
         </div>
       )}
 
-      {syncStatus && (
-        <div
-          style={{
-            marginBottom: 14,
-            padding: '12px 14px',
-            borderRadius: 12,
-            border: '1px solid var(--v-hairline)',
-            background: 'var(--v-panel)',
-            fontSize: 12.5,
-            color: 'var(--v-ink-2)',
-            lineHeight: 1.5,
-          }}
-        >
-          <div style={{ fontWeight: 800, color: 'var(--v-ink)', marginBottom: 6 }}>
-            Gmail extract check
-            {!labelsReady
-              ? ' · awaiting sync'
-              : extractOk
-                ? ' · aligned'
-                : ' · needs attention'}
-          </div>
-          <div>
-            Gmail inbox {syncStatus.gmailCounts?.inboxTotal ?? '—'}
-            {' · '}local inbox {syncStatus.localCounts?.inboxTotal ?? 0}
-            {' · '}drafts Gmail {syncStatus.gmailCounts?.drafts ?? '—'} / local {syncStatus.localCounts?.drafts ?? 0}
-            {' · '}archive {syncStatus.localCounts?.archived ?? 0}
-            {' · '}stored {syncStatus.localCounts?.allStored ?? 0}
-            {' · '}groups {Object.keys(syncStatus.categoryGroups || {}).length}
-            {syncStatus.unclassifiedInbox > 0 ? ` · ${syncStatus.unclassifiedInbox} unclassified` : ''}
-          </div>
-          {syncStatus.notes?.slice(0, 2).map((n) => (
-            <div key={n} style={{ marginTop: 4, color: 'var(--v-ink-3)' }}>{n}</div>
-          ))}
-          {syncStatus.sampleInbox?.[0] && (
-            <div style={{ marginTop: 6 }}>
-              Latest: <strong style={{ color: 'var(--v-ink)' }}>{String(syncStatus.sampleInbox[0].subject || '(no subject)')}</strong>
-              {' · '}{String(syncStatus.sampleInbox[0].category || 'UNCATEGORIZED')}
-            </div>
-          )}
-          <button
-            type="button"
-            className="vbtn vbtn-bare"
-            style={{ marginTop: 8, height: 30, padding: '0 8px' }}
-            onClick={() => runPipeline(true)}
-          >
-            Re-extract from Gmail
-          </button>
-        </div>
-      )}
-
       <div className="bento">
 
         {/* ---- HERO: the instrument ---- */}
@@ -293,7 +248,7 @@ export const DashboardPageNew: React.FC = () => {
             icon={<GaugeIcon size={17} />}
             tone={scoreTone}
             right={
-              <span className={`delta ${score == null ? 'delta-flat' : score >= 75 ? 'delta-up' : score >= 45 ? 'delta-flat' : 'delta-down'}`}>
+              <span className={`delta ${!scoreReady ? 'delta-flat' : (score ?? 0) >= 75 ? 'delta-up' : (score ?? 0) >= 45 ? 'delta-flat' : 'delta-down'}`}>
                 {scoreVerdict}
               </span>
             }
@@ -303,32 +258,27 @@ export const DashboardPageNew: React.FC = () => {
             className="tile-body"
             style={{ alignItems: 'center', justifyContent: 'center', gap: 18, paddingBlock: 8 }}
           >
-            <Gauge value={score ?? 0} tone={scoreTone} label={score == null ? 'sync first' : 'of 100'} />
+            <Gauge pending={!scoreReady} value={score ?? 0} tone={scoreTone} label={scoreReady ? 'of 100' : 'pending'} />
 
             <p className="v-meta" style={{ textAlign: 'center', maxWidth: 340, lineHeight: 1.45 }}>
-              {score == null
-                ? 'Cortex Score starts after Gmail extract. Empty inbox is not “Critical” — sync to measure real load.'
-                : `${scoreBand ? `${scoreBand} · ` : ''}${scoreSource}`}
+              {scoreReady
+                ? `${scoreBand ? `${scoreBand} · ` : ''}${scoreSource}`
+                : scorePendingMessage}
             </p>
 
             <button
               type="button"
               className="vbtn vbtn-bare"
               style={{ height: 30 }}
+              disabled={!scoreReady}
               onClick={() => setShowWhyScore((v) => !v)}
             >
               {showWhyScore ? 'Hide score factors' : 'Why this score'}
             </button>
 
-            {showWhyScore && (
+            {showWhyScore && scoreReady && (
               <div style={{ width: '100%', fontSize: 12.5, color: 'var(--v-ink-2)', lineHeight: 1.45 }}>
-                {(cortex?.factors?.length
-                  ? cortex.factors
-                  : [
-                      { key: 'unread', label: 'Gmail INBOX unread', points: -Math.round(Math.min(40, unread * 1.2)), detail: `${unread} unread` },
-                      { key: 'actions', label: 'Unresolved actions', points: -Math.round(Math.min(25, actions.length * 3)), detail: `${actions.length} actions` },
-                    ]
-                ).map((f) => (
+                {(cortex?.factors ?? []).map((f) => (
                   <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                     <span>{f.label}: {f.detail}</span>
                     <strong style={{ color: 'var(--v-ink)' }}>{f.points}</strong>
@@ -337,23 +287,13 @@ export const DashboardPageNew: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <div className="kpi-mini-row">
               {[
-                { k: 'Backlog', v: unread, tone: 'var(--v-ink)' },
+                { k: 'Backlog', v: unread ?? '—', tone: 'var(--v-ink)' },
                 { k: 'Actions', v: actions.length, tone: 'var(--v-red)' },
                 { k: 'Overdue', v: overdue, tone: overdue ? 'var(--v-critical)' : 'var(--v-ink-4)' },
               ].map((s) => (
-                <div
-                  key={s.k}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    padding: '10px 12px',
-                    borderRadius: 12,
-                    background: 'var(--v-panel-2)',
-                    border: '1px solid var(--v-hairline)',
-                  }}
-                >
+                <div key={s.k} className="kpi-mini-cell">
                   <div className="v-readout" style={{ fontSize: 20, color: s.tone }}>
                     {s.v}
                   </div>
@@ -368,8 +308,12 @@ export const DashboardPageNew: React.FC = () => {
         <Tile span={3} rule="var(--v-ink)" index={1} onClick={() => navigate('/inbox')}>
           <TileHead label="Unread" icon={<Inbox size={17} />} tone="var(--v-ink)"
             right={<ArrowUpRight size={15} style={{ color: 'var(--v-ink-4)' }} />} />
-          <div className="v-readout v-readout-lg">{unread}</div>
-          <p className="v-meta">{inboxTotal > 0 ? `${inboxTotal} in inbox · Gmail` : 'sync inbox to load mail'}</p>
+          <div className="v-readout v-readout-lg">{unread ?? '—'}</div>
+          <p className="v-meta">
+            {inboxTotal != null
+              ? `${inboxTotal} in inbox · Gmail`
+              : 'awaiting Gmail inbox count'}
+          </p>
         </Tile>
 
         <Tile span={4} rule="var(--v-red)" index={2} onClick={() => navigate('/priority')}>

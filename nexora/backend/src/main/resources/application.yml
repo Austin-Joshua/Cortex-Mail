@@ -55,6 +55,9 @@ gemini:
   # invisible. `-latest` tracks the current stable flash model instead.
   model: ${GEMINI_MODEL:gemini-flash-latest}
   base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/models}
+  # Max inbox messages enriched with Gemini per background pass (after fast local classify).
+  refinement-batch-size: ${GEMINI_REFINEMENT_BATCH_SIZE:25}
+  max-concurrent: ${GEMINI_MAX_CONCURRENT:6}
 
 jwt:
   secret: ${JWT_SECRET}

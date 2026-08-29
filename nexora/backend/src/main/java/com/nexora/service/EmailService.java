@@ -37,7 +37,12 @@ public class EmailService {
 
         Page<Email> emailPage;
 
-        if (search != null && !search.isBlank()) {
+        boolean hasSearch = search != null && !search.isBlank();
+
+        if (hasSearch && category != null) {
+            emailPage = emailRepository.searchInboxByUserIdAndCategory(
+                    userId, search, EmailCategory.valueOf(category), pageable);
+        } else if (hasSearch) {
             emailPage = emailRepository.searchInboxByUserId(userId, search, pageable);
         } else if (category != null && priority != null) {
             emailPage = emailRepository.findByUserIdAndInInboxTrueAndCategoryAndPriorityOrderByReceivedAtDesc(
@@ -198,13 +203,18 @@ public class EmailService {
      * After inbox sync: separate mail by Gmail label source + content, then group.
      * Runs synchronously so groups appear immediately in the UI.
      */
-    public Map<String, Object> classifyInbox(Long userId, User user) {
-        int classified = classificationService.classifyInboxBySourceAndContent(userId);
+    public Map<String, Object> classifyInbox(Long userId, User user, boolean force) {
+        int classified = force
+                ? classificationService.reclassifyInboxForPreferences(userId)
+                : classificationService.classifyInboxBySourceAndContent(userId);
         Map<String, Long> groups = getCategoryCounts(userId);
         return Map.of(
-                "message", "Mails separated and grouped by source and content",
+                "message", force
+                        ? "All inbox mail re-analyzed with your account preferences"
+                        : "Mails separated and grouped by source and content",
                 "classified", classified,
-                "groups", groups
+                "groups", groups,
+                "forced", force
         );
     }
 

@@ -8,6 +8,7 @@ interface BrandLogoProps {
   className?: string;
   /** Light text for navy / dark surfaces */
   inverted?: boolean;
+  ariaLabel?: string;
 }
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
@@ -17,6 +18,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   onClick,
   className = '',
   inverted = false,
+  ariaLabel = 'Cortex Mail — home',
 }) => {
   const gid = useId().replace(/:/g, '');
   const ink = inverted ? '#FFFFFF' : 'var(--v-ink)';
@@ -92,7 +94,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       <button
         type="button"
         onClick={onClick}
-        aria-label="Cortex Mail — home"
+        aria-label={ariaLabel}
         className={className}
         style={{
           display: 'flex',

@@ -2,6 +2,7 @@ package com.nexora.service;
 
 import com.nexora.dto.response.CortexScoreResponse;
 import com.nexora.dto.response.GmailLabelCountResponse;
+import com.nexora.model.Email.EmailCategory;
 import com.nexora.model.EmailAction;
 import com.nexora.repository.EmailActionRepository;
 import com.nexora.repository.EmailRepository;
@@ -26,8 +27,26 @@ public class CortexScoreService {
     private final EmailRepository emailRepository;
 
     public CortexScoreResponse compute(Long userId) {
-        long unread = gmailSyncService.getInboxUnreadCount(userId);
+        long localInbox = emailRepository.countByUserIdAndInInboxTrue(userId);
+        if (localInbox == 0) {
+            return scorePending("Sync Gmail first", "Connect and sync Gmail — no score is shown until real inbox mail is stored.");
+        }
+
+        long unclassified = emailRepository.countByUserIdAndCategoryAndInInboxTrue(
+                userId, EmailCategory.UNCATEGORIZED);
+        if (unclassified > 0) {
+            return scorePending(
+                    "Classifying",
+                    unclassified + " inbox messages still being analyzed — score appears when classification finishes.");
+        }
+
         Map<String, GmailLabelCountResponse> labels = gmailSyncService.getLabelCounts(userId);
+        GmailLabelCountResponse inboxLabel = labels.get("INBOX");
+        if (inboxLabel == null || inboxLabel.getMessagesTotal() == null) {
+            return scorePending("Awaiting Gmail", "Waiting for Gmail label counts before scoring.");
+        }
+
+        long unread = gmailSyncService.getInboxUnreadCount(userId);
         long importantUnread = 0;
         if (labels.get("IMPORTANT") != null && labels.get("IMPORTANT").getMessagesUnread() != null) {
             importantUnread = labels.get("IMPORTANT").getMessagesUnread();
@@ -69,10 +88,15 @@ public class CortexScoreService {
         String band = bandFor(score);
 
         return CortexScoreResponse.builder()
+                .ready(true)
                 .score(score)
                 .band(band)
                 .factors(factors)
                 .build();
+    }
+
+    private CortexScoreResponse scorePending(String band, String message) {
+        return CortexScoreResponse.pending(band, message);
     }
 
     private static CortexScoreResponse.Factor factor(String key, String label, double points, String detail) {

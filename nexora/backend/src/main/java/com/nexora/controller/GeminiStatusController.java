@@ -20,7 +20,9 @@ public class GeminiStatusController {
     public ResponseEntity<Map<String, Object>> getGeminiStatus() {
         return ResponseEntity.ok(Map.of(
             "configured", geminiConfig.isConfigured(),
-            "model", "gemini-1.5-flash"
+            "model", geminiConfig.getModel(),
+            "refinementBatchSize", geminiConfig.getRefinementBatchSize(),
+            "maxConcurrent", geminiConfig.getMaxConcurrent()
         ));
     }
 }

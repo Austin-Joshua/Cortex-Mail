@@ -1,6 +1,7 @@
 import type { UserRole } from '../types/User';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/authApi';
+import { emailApi } from '../api/emailApi';
 import { useNavigate } from 'react-router-dom';
 
 export function useAuth() {
@@ -31,6 +32,7 @@ export function useAuth() {
   };
 
   const updateProfile = async (params: { role?: UserRole; calendarSyncEnabled?: boolean }) => {
+    const previousRole = user?.userRole;
     const authResponse = await authApi.updateProfile({
       userRole: params.role,
       calendarSyncEnabled: params.calendarSyncEnabled,
@@ -46,6 +48,9 @@ export function useAuth() {
       calendarSyncEnabled: authResponse.calendarSyncEnabled,
       lastSyncedAt: authResponse.lastSyncedAt,
     });
+    if (params.role && params.role !== previousRole) {
+      void emailApi.classifyInbox({ force: true }).catch(() => {});
+    }
   };
 
   const updateRole = async (role: UserRole) => {

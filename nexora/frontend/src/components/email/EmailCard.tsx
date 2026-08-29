@@ -32,7 +32,7 @@ function formatGmailDate(dateStr: string): string {
   }
 }
 
-export const EmailCard: React.FC<EmailCardProps> = ({ email, onClick, isSelected }) => {
+export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick, isSelected }) => {
   const { setSelectedEmail } = useEmailStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -221,4 +221,4 @@ export const EmailCard: React.FC<EmailCardProps> = ({ email, onClick, isSelected
       </div>
     </div>
   );
-};
+});
