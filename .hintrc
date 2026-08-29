@@ -1,0 +1,17 @@
+{
+  "extends": ["development"],
+  "browserslist": [
+    "Chrome >= 114",
+    "Firefox >= 121",
+    "Safari >= 17.5",
+    "Edge >= 114"
+  ],
+  "hints": {
+    "compat-api/css": ["default", {
+      "ignore": ["text-wrap"]
+    }],
+    "compat-api/html": ["default", {
+      "ignore": ["meta[name=theme-color]"]
+    }]
+  }
+}

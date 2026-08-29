@@ -396,6 +396,7 @@
   font-size: 13.5px;
   font-weight: 600;
   transition: background var(--v-fast), color var(--v-fast);
+  -webkit-user-select: none;
   user-select: none;
 }
 

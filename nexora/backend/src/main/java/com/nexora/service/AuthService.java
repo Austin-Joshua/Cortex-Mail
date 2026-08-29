@@ -6,11 +6,7 @@ import com.nexora.dto.response.AuthResponse;
 import com.nexora.exception.NexoraException;
 import com.nexora.model.User;
 import com.nexora.model.User.UserRole;
-import com.nexora.model.Email;
-import com.nexora.model.EmailAction;
 import com.nexora.repository.UserRepository;
-import com.nexora.repository.EmailRepository;
-import com.nexora.repository.EmailActionRepository;
 import com.nexora.security.JwtTokenProvider;
 import com.nexora.security.TokenEncryptor;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +29,6 @@ import java.util.Objects;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final EmailRepository emailRepository;
-    private final EmailActionRepository actionRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
@@ -212,159 +206,6 @@ public class AuthService {
                 .calendarSyncEnabled(user.getCalendarSyncEnabled())
                 .lastSyncedAt(user.getLastSyncedAt())
                 .build();
-    }
-
-    private void seedMockEmails(User user) {
-        // Clear existing mock emails for this user to avoid duplicating them on every login
-        List<Email> existing = emailRepository.findTop20ByUserIdOrderByReceivedAtDesc(user.getId());
-        if (!existing.isEmpty()) {
-            emailRepository.deleteAll(existing);
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-
-        // 1. Software Engineering Assignment
-        Email assignment = Email.builder()
-                .user(user)
-                .gmailMessageId("msg-1")
-                .gmailThreadId("thread-1")
-                .senderName("Prof. Alan Turing")
-                .senderEmail("turing@university.edu")
-                .subject("URGENT: Software Engineering Assignment 3 Submission")
-                .bodySnippet("Hi team, please ensure you submit your Software Engineering Assignment 3 by Friday evening. Late submissions will not be graded.")
-                .bodyFull("Hi team, please ensure you submit your Software Engineering Assignment 3 by Friday evening. Make sure to include the architecture diagram and UML designs. Late submissions will not be graded.")
-                .receivedAt(now.minusHours(4))
-                .isRead(false)
-                .hasAttachments(true)
-                .category(Email.EmailCategory.ASSIGNMENT)
-                .priority(Email.Priority.HIGH)
-                .aiSummary("Submit Software Engineering Assignment 3 by Friday evening. Architecture diagram and UML designs are required.")
-                .deadlineDetected(now.plusDays(2))
-                .build();
-        assignment = emailRepository.save(assignment);
-
-        EmailAction assignmentAction = EmailAction.builder()
-                .email(assignment)
-                .userId(user.getId())
-                .actionType(EmailAction.ActionType.SUBMIT)
-                .actionDescription("Submit Software Engineering Assignment 3")
-                .deadline(now.plusDays(2))
-                .build();
-        actionRepository.save(assignmentAction);
-
-        // 2. Google Recruiting
-        Email placement = Email.builder()
-                .user(user)
-                .gmailMessageId("msg-2")
-                .gmailThreadId("thread-2")
-                .senderName("Google Careers Recruiting")
-                .senderEmail("careers@google.com")
-                .subject("Shortlisted for Google Software Engineer Internship Interview")
-                .bodySnippet("Congratulations! You have been shortlisted for the Software Engineer position. Please reply with your availability for a technical interview.")
-                .bodyFull("Congratulations! You have been shortlisted for the Software Engineer position. Please reply with your availability for a technical interview this week. We are excited to chat with you.")
-                .receivedAt(now.minusHours(2))
-                .isRead(false)
-                .hasAttachments(false)
-                .category(Email.EmailCategory.PLACEMENT)
-                .priority(Email.Priority.HIGH)
-                .aiSummary("Shortlisted for Google SWE Interview. Please reply with your availability for a technical interview this week.")
-                .deadlineDetected(now.plusDays(1))
-                .build();
-        placement = emailRepository.save(placement);
-
-        EmailAction placementAction = EmailAction.builder()
-                .email(placement)
-                .userId(user.getId())
-                .actionType(EmailAction.ActionType.REPLY)
-                .actionDescription("Reply with interview availability to Google Careers Recruiting")
-                .deadline(now.plusDays(1))
-                .build();
-        actionRepository.save(placementAction);
-
-        // 3. Hackathon
-        Email hackathon = Email.builder()
-                .user(user)
-                .gmailMessageId("msg-3")
-                .gmailThreadId("thread-3")
-                .senderName("Nexora Dev Community")
-                .senderEmail("dev@nexora.io")
-                .subject("Nexora Hackathon 2026 Registration Open")
-                .bodySnippet("Register for the upcoming Nexora Hackathon 2026. Showcase your AI email assistant project and win up to $5,000 in prizes.")
-                .bodyFull("Register for the upcoming Nexora Hackathon 2026. Showcase your AI email assistant project and win up to $5,000 in prizes. Teams can be up to 4 members. Registration closes in 5 days.")
-                .receivedAt(now.minusDays(1))
-                .isRead(true)
-                .hasAttachments(false)
-                .category(Email.EmailCategory.HACKATHON)
-                .priority(Email.Priority.HIGH)
-                .aiSummary("Registration is open for Nexora Hackathon 2026 with a $5,000 prize pool. Showcase your AI email assistant.")
-                .deadlineDetected(now.plusDays(5))
-                .build();
-        hackathon = emailRepository.save(hackathon);
-
-        EmailAction hackathonAction = EmailAction.builder()
-                .email(hackathon)
-                .userId(user.getId())
-                .actionType(EmailAction.ActionType.REGISTER)
-                .actionDescription("Register for Nexora Hackathon 2026")
-                .deadline(now.plusDays(5))
-                .build();
-        actionRepository.save(hackathonAction);
-
-        // 4. Meeting
-        Email meeting = Email.builder()
-                .user(user)
-                .gmailMessageId("msg-4")
-                .gmailThreadId("thread-4")
-                .senderName("Sarah Jenkins")
-                .senderEmail("sarah.jenkins@team.com")
-                .subject("Project Check-in / Sync Meeting")
-                .bodySnippet("Let's sync up today at 3 PM to review the frontend styling, dashboard layout, and integration progress.")
-                .bodyFull("Hi Austin, Let's sync up today at 3 PM to review the frontend styling, dashboard layout, and integration progress. The link is meet.google.com/abc-defg-hij.")
-                .receivedAt(now.minusHours(1))
-                .isRead(false)
-                .hasAttachments(false)
-                .category(Email.EmailCategory.MEETING)
-                .priority(Email.Priority.MEDIUM)
-                .aiSummary("Project check-in sync meeting scheduled for today at 3 PM to review styling, dashboard, and integration.")
-                .deadlineDetected(now.plusHours(3))
-                .build();
-        meeting = emailRepository.save(meeting);
-
-        EmailAction meetingAction = EmailAction.builder()
-                .email(meeting)
-                .userId(user.getId())
-                .actionType(EmailAction.ActionType.ATTEND)
-                .actionDescription("Attend Project Check-in Sync Meeting")
-                .deadline(now.plusHours(3))
-                .build();
-        actionRepository.save(meetingAction);
-
-        // 5. Announcement
-        Email announcement = Email.builder()
-                .user(user)
-                .gmailMessageId("msg-5")
-                .gmailThreadId("thread-5")
-                .senderName("Placement Officer")
-                .senderEmail("placement@university.edu")
-                .subject("Placement Drive Briefing Session Announcement")
-                .bodySnippet("There will be a mandatory briefing session for all final-year students regarding upcoming campus placements. Read the guidelines.")
-                .bodyFull("Dear Students, There will be a mandatory briefing session for all final-year students regarding upcoming campus placements. Read the guidelines document before attending.")
-                .receivedAt(now.minusDays(2))
-                .isRead(true)
-                .hasAttachments(true)
-                .category(Email.EmailCategory.ANNOUNCEMENT)
-                .priority(Email.Priority.MEDIUM)
-                .aiSummary("Mandatory placement drive briefing session for final-year students announced. Read guidelines before attending.")
-                .build();
-        announcement = emailRepository.save(announcement);
-
-        EmailAction announcementAction = EmailAction.builder()
-                .email(announcement)
-                .userId(user.getId())
-                .actionType(EmailAction.ActionType.REVIEW)
-                .actionDescription("Review placement guidelines document")
-                .build();
-        actionRepository.save(announcementAction);
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────

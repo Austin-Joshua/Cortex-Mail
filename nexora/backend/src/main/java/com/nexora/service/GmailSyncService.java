@@ -911,7 +911,7 @@ public class GmailSyncService {
     private String getHeader(List<MessagePartHeader> headers, String name) {
         return headers.stream()
                 .filter(h -> h != null && h.getName() != null && h.getName().equalsIgnoreCase(name))
-                .map(MessagePartHeader::getValue)
+                .map(h -> h.getValue() != null ? h.getValue() : "")
                 .findFirst()
                 .orElse("");
     }

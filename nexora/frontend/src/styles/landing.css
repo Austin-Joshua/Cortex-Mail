@@ -38,8 +38,8 @@
   height: 68px;
   padding: 0 clamp(16px, 4vw, 44px);
   background: color-mix(in srgb, var(--v-ground) 82%, transparent);
-  backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid transparent;
   transition: border-color var(--v-base);
 }
@@ -79,7 +79,6 @@
   letter-spacing: -0.045em;
   line-height: 0.98;
   margin: 0;
-  text-wrap: balance;
 }
 
 .lp-h2 {
@@ -88,7 +87,11 @@
   letter-spacing: -0.035em;
   line-height: 1.06;
   margin: 0;
-  text-wrap: balance;
+}
+
+@supports (text-wrap: balance) {
+  .lp-display,
+  .lp-h2 { text-wrap: balance; }
 }
 
 .lp-lead {

@@ -1,8 +1,5 @@
 package com.nexora.dto.response;
 
-import com.nexora.dto.response.EmailResponse;
-import com.nexora.dto.response.GmailLabelCountResponse;
-
 import java.util.List;
 import java.util.Map;
 

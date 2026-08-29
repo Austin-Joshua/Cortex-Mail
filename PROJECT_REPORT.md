@@ -34,10 +34,10 @@ Cortex Mail is an **AI-assisted Gmail intelligence web app**. It does **not** re
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 18, TypeScript, Vite, TanStack Query, Zustand, React Router, PWA |
+| Frontend | React 19, TypeScript, Vite, TanStack Query, Zustand, React Router, PWA |
 | Backend | Spring Boot 3, Java 17, Spring Security, JPA |
-| Data (dev) | H2 in-memory |
-| Data (prod intent) | MySQL |
+| Data (dev default) | H2 in-memory |
+| Data (production) | Supabase Postgres + Flyway (`SPRING_PROFILES_ACTIVE=prod`) |
 | External | Gmail API, Google Calendar API, Google Gemini (optional), Claude (optional) |
 | Deploy (documented) | Frontend → Vercel; Backend → Render |
 

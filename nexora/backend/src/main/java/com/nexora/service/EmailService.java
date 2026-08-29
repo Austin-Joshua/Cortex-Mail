@@ -532,7 +532,7 @@ public class EmailService {
                 .filter(e -> e.getDeadlineDetected() != null)
                 .filter(e -> !e.getDeadlineDetected().isBefore(now)
                         && e.getDeadlineDetected().isBefore(horizon))
-                .sorted(Comparator.comparing(Email::getDeadlineDetected))
+                .sorted(Comparator.comparing(e -> e.getDeadlineDetected()))
                 .limit(10)
                 .collect(Collectors.toList());
     }
