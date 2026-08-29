@@ -22,8 +22,8 @@ export const PrivacyPolicyPage: React.FC = () => {
               width: 40,
               height: 40,
               borderRadius: 10,
-              background: 'var(--ember-soft)',
-              color: 'var(--ember)',
+              background: 'var(--v-navy-soft)',
+              color: 'var(--v-navy)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -32,40 +32,58 @@ export const PrivacyPolicyPage: React.FC = () => {
             <Shield size={20} />
           </div>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, fontFamily: 'Google Sans, Roboto, sans-serif' }}>
+            <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>
               Privacy Policy &amp; OAuth Disclosure
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '2px 0 0' }}>
-              Last updated: July 2026
+              Last updated: August 2026 · Cortex Mail
             </p>
           </div>
         </div>
 
         <div className="card-paper" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <section>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ember)', margin: '0 0 8px' }}>
-              1. Gmail OAuth Access &amp; Read Scope
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+              1. Gmail OAuth access
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-              Cortex Mail requests Google OAuth access to fetch and analyze incoming emails for deadlines, priority classification, and AI summaries. We request read-only access by default and optional send permissions for user-initiated email replies.
+              Cortex Mail requests Google OAuth access to sync and analyze your Gmail for classification,
+              Cortex Score, deadlines, and Brain Q&amp;A. When you use in-app controls, we may also apply
+              Gmail mailbox actions you initiate (mark read/unread, star, archive, trash/restore).
+              We do not send email on your behalf unless a future feature explicitly asks you to confirm a send.
             </p>
           </section>
 
           <section>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ember)', margin: '0 0 8px' }}>
-              2. Data Protection &amp; Encryption
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+              2. Data protection &amp; encryption
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-              Your OAuth access tokens are encrypted at rest using industry-standard AES-256 encryption. Raw email content is analyzed securely and stored only as metadata (summaries, action items, deadlines) required for your dashboard.
+              OAuth tokens are encrypted at rest (AES-256). Synced mail content is stored in your
+              application database (Supabase Postgres in production) and scoped to your account.
             </p>
           </section>
 
           <section>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ember)', margin: '0 0 8px' }}>
-              3. Data Sharing &amp; Privacy Guarantee
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+              3. Data sharing
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-              Cortex Mail never sells, rents, or shares your personal email data with third-party advertisers. All email classification is powered by isolated AI models operating under strict privacy constraints.
+              Cortex Mail does not sell or rent your email content for advertising. Optional AI providers
+              (Gemini/Claude) may receive excerpts only when those features are enabled and used.
+            </p>
+          </section>
+
+          <section>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+              4. Google API Services User Data Policy
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
+              Use of information from Google APIs complies with the{' '}
+              <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">
+                Google API Services User Data Policy
+              </a>
+              , including Limited Use.
             </p>
           </section>
         </div>

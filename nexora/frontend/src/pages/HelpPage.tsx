@@ -11,7 +11,7 @@ const CATEGORIES = [
     items: [
       {
         q: 'How do I connect Gmail?',
-        a: 'Sign in with Google and grant read-only access. Cortex Mail never gets permission to delete or send from your account.',
+        a: 'Sign in with Google. Cortex Mail syncs your mail and can apply mailbox actions you start in the app (read, star, archive, trash). It does not send mail for you.',
       },
       {
         q: 'Where is my data stored?',

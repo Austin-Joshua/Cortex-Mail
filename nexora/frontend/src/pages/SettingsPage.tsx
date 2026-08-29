@@ -5,10 +5,10 @@ import { useAuthStore } from '../store/authStore';
 import { Shield, User, Zap, LogOut } from 'lucide-react';
 
 const SECURITY_POINTS = [
-  'Gmail access is read-only — Cortex Mail never sends or modifies emails',
+  'Mailbox changes (read, star, archive, trash) only run when you click them in Cortex Mail',
   'Gmail tokens encrypted at rest with AES-256',
   'JWT sessions expire automatically after 24 hours',
-  'No emails stored in plain text — only AI-processed metadata',
+  'Synced content stays in your Cortex Mail workspace — not sold or used for ads',
 ];
 
 export const SettingsPage: React.FC = () => {
