@@ -25,6 +25,7 @@ public class DashboardService {
     private final EmailActionRepository actionRepository;
     private final EmailService emailService;
     private final GmailSyncService gmailSyncService;
+    private final CortexScoreService cortexScoreService;
 
     public DashboardSummaryResponse getSummary(Long userId) {
         // Priority emails (top 5 HIGH unread)
@@ -69,6 +70,7 @@ public class DashboardService {
                 .todaysMeetings(todaysMeetings.stream()
                         .map(e -> emailService.toResponse(e, false))
                         .collect(Collectors.toList()))
+                .cortexScore(cortexScoreService.compute(userId))
                 .build();
     }
 

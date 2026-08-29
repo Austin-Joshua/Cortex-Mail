@@ -5,14 +5,21 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "emails",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_emails_user_gmail_message", columnNames = {"user_id", "gmail_message_id"})
+    },
     indexes = {
         @Index(name = "idx_user_category", columnList = "user_id, category"),
         @Index(name = "idx_user_priority", columnList = "user_id, priority"),
-        @Index(name = "idx_user_received", columnList = "user_id, received_at")
+        @Index(name = "idx_user_received", columnList = "user_id, received_at"),
+        @Index(name = "idx_emails_user_thread", columnList = "user_id, gmail_thread_id"),
+        @Index(name = "idx_emails_user_inbox_received", columnList = "user_id, in_inbox, received_at"),
+        @Index(name = "idx_emails_user_unread", columnList = "user_id, is_read, in_inbox")
     }
 )
 @Getter
@@ -31,7 +38,7 @@ public class Email {
     @JsonIgnore
     private User user;
 
-    @Column(name = "gmail_message_id", unique = true, nullable = false)
+    @Column(name = "gmail_message_id", nullable = false)
     private String gmailMessageId;
 
     @Column(name = "gmail_thread_id")
@@ -49,9 +56,15 @@ public class Email {
     @Column(name = "body_snippet", columnDefinition = "TEXT")
     private String bodySnippet;
 
+    /** Normalized plain text for AI / search (Gmail-derived, not invented). */
     @JsonIgnore
-    @Column(name = "body_full", columnDefinition = "LONGTEXT")
+    @Column(name = "body_full", columnDefinition = "TEXT")
     private String bodyFull;
+
+    /** Sanitized HTML for UI rendering (sanitized server-side at MIME extract time). */
+    @JsonIgnore
+    @Column(name = "body_html", columnDefinition = "TEXT")
+    private String bodyHtml;
 
     @Column(name = "received_at")
     private LocalDateTime receivedAt;
@@ -108,6 +121,14 @@ public class Email {
     @Builder.Default
     private Boolean isArchived = false;
 
+    @Column(name = "is_trash")
+    @Builder.Default
+    private Boolean isTrash = false;
+
+    @Column(name = "is_spam")
+    @Builder.Default
+    private Boolean isSpam = false;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private EmailCategory category = EmailCategory.UNCATEGORIZED;
@@ -123,7 +144,7 @@ public class Email {
     @Column(name = "ai_summary", columnDefinition = "TEXT")
     private String aiSummary;
 
-    @Column(name = "ai_action_items", columnDefinition = "JSON")
+    @Column(name = "ai_action_items", columnDefinition = "TEXT")
     private String aiActionItems;
 
     @Column(name = "deadline_detected")
@@ -136,8 +157,13 @@ public class Email {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "email", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<EmailAction> actions;
+    @OneToMany(mappedBy = "email", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<EmailAction> actions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "email", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<EmailAttachment> attachments = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

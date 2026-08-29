@@ -27,6 +27,10 @@ public class NexoraApplication {
                         if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
                             val = val.substring(1, val.length() - 1);
                         }
+                        // Spring Boot reads spring.profiles.active; map common env alias.
+                        if ("SPRING_PROFILES_ACTIVE".equals(key)) {
+                            System.setProperty("spring.profiles.active", val);
+                        }
                         System.setProperty(key, val);
                     }
                 });

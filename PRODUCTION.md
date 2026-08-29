@@ -123,16 +123,20 @@ GOOGLE_REDIRECT_URI=https://your-render-backend.onrender.com/api/auth/google/cal
 JWT_SECRET=your-32-char-secret-key
 ENCRYPTION_KEY=your16charkey
 CORS_ALLOWED_ORIGINS=https://your-vercel-frontend.vercel.app
-CLAUDE_API_KEY=your-claude-key (optional)
 GEMINI_API_KEY=your-gemini-key (optional)
-DB_URL=mysql://user:pass@host:3306/nexora_db
-DB_USERNAME=root
-DB_PASSWORD=your_mysql_password
-DB_DRIVER=com.mysql.cj.jdbc.Driver
-DB_DIALECT=org.hibernate.dialect.MySQLDialect
+SPRING_PROFILES_ACTIVE=prod
+DB_URL=jdbc:postgresql://aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require
+DB_USERNAME=postgres.YOUR_PROJECT_REF
+DB_PASSWORD=your_supabase_db_password
+DB_DRIVER=org.postgresql.Driver
+DB_DIALECT=org.hibernate.dialect.PostgreSQLDialect
 PORT=8080
 H2_CONSOLE_ENABLED=false
 ```
+
+**Supabase (recommended production DB):** use Session pooler JDBC URL from Dashboard → Connect. Flyway runs on boot (`application-prod.yml`) and creates the schema. Do not put DB credentials on Vercel.
+
+**RLS:** migrations enable Row Level Security on app tables and revoke `anon`/`authenticated` grants. Cortex Mail accesses Postgres as the DB role (not the Supabase Data API). Do not expose these tables via PostgREST without explicit policies.
 
 ### 2.4 Deploy
 

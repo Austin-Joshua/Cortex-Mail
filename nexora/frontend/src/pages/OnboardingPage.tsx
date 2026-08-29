@@ -21,10 +21,10 @@ const ROLES: RoleOption[] = [
 ];
 
 const ACCESS_POINTS = [
-  'Reads your Gmail inbox (read-only OAuth scope)',
-  'Stores AI summaries & action items — not raw emails',
-  'Sends email content to AI for classification',
-  'Never sends, modifies, or deletes your emails',
+  'Connects to Gmail with modify scope (sync labels: read, star, archive, trash)',
+  'Gmail remains the source of truth — Cortex mirrors state, then adds intelligence',
+  'Stores synced mail locally for score, classification, and Brain Q&A',
+  'Never invents Gmail-native fields (ids, labels, sender, timestamps)',
 ];
 
 export const OnboardingPage: React.FC = () => {

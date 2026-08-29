@@ -14,6 +14,7 @@ public class DashboardSummaryResponse {
     private Map<String, Long> categoryCounts;
     private Map<String, GmailLabelCountResponse> gmailLabelCounts;
     private List<EmailResponse> todaysMeetings;
+    private CortexScoreResponse cortexScore;
 
     public DashboardSummaryResponse() {}
 
@@ -82,6 +83,14 @@ public class DashboardSummaryResponse {
 
     public void setTodaysMeetings(List<EmailResponse> todaysMeetings) {
         this.todaysMeetings = todaysMeetings;
+    }
+
+    public CortexScoreResponse getCortexScore() {
+        return cortexScore;
+    }
+
+    public void setCortexScore(CortexScoreResponse cortexScore) {
+        this.cortexScore = cortexScore;
     }
 
     public static DashboardSummaryResponseBuilder builder() {
@@ -247,6 +256,7 @@ public class DashboardSummaryResponse {
         private Map<String, Long> categoryCounts;
         private Map<String, GmailLabelCountResponse> gmailLabelCounts;
         private List<EmailResponse> todaysMeetings;
+        private CortexScoreResponse cortexScore;
 
         DashboardSummaryResponseBuilder() {}
 
@@ -285,6 +295,11 @@ public class DashboardSummaryResponse {
             return this;
         }
 
+        public DashboardSummaryResponseBuilder cortexScore(CortexScoreResponse cortexScore) {
+            this.cortexScore = cortexScore;
+            return this;
+        }
+
         public DashboardSummaryResponse build() {
             DashboardSummaryResponse r = new DashboardSummaryResponse();
             r.priorityEmails = this.priorityEmails;
@@ -294,6 +309,7 @@ public class DashboardSummaryResponse {
             r.categoryCounts = this.categoryCounts;
             r.gmailLabelCounts = this.gmailLabelCounts;
             r.todaysMeetings = this.todaysMeetings;
+            r.cortexScore = this.cortexScore;
             return r;
         }
     }

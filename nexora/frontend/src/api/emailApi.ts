@@ -84,6 +84,30 @@ export const emailApi = {
     await axiosInstance.patch(`/api/emails/${id}/read`);
   },
 
+  markUnread: async (id: number): Promise<void> => {
+    await axiosInstance.patch(`/api/emails/${id}/unread`);
+  },
+
+  setStarred: async (id: number, starred: boolean): Promise<void> => {
+    await axiosInstance.patch(`/api/emails/${id}/star`, { starred });
+  },
+
+  archive: async (id: number): Promise<void> => {
+    await axiosInstance.patch(`/api/emails/${id}/archive`);
+  },
+
+  moveToInbox: async (id: number): Promise<void> => {
+    await axiosInstance.patch(`/api/emails/${id}/inbox`);
+  },
+
+  trash: async (id: number): Promise<void> => {
+    await axiosInstance.patch(`/api/emails/${id}/trash`);
+  },
+
+  restore: async (id: number): Promise<void> => {
+    await axiosInstance.patch(`/api/emails/${id}/restore`);
+  },
+
   updateReaction: async (id: number, reaction: EmailReaction): Promise<void> => {
     await axiosInstance.patch(`/api/emails/${id}/reaction`, { reaction });
   },

@@ -27,12 +27,23 @@ export interface GmailLabelCount {
   threadsUnread?: number;
 }
 
+export interface EmailAttachment {
+  id?: number;
+  gmailAttachmentId?: string;
+  filename?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  contentId?: string;
+  isInline?: boolean;
+}
+
 export interface GmailSyncResult {
   message: string;
   newCount: number;
   updatedCount: number;
   inboxMessagesProcessed: number;
   labelCounts: Record<string, GmailLabelCount>;
+  syncMode?: 'FULL' | 'INCREMENTAL';
 }
 
 export interface Email {
@@ -44,9 +55,11 @@ export interface Email {
   subject?: string;
   bodySnippet?: string;
   bodyFull?: string;
+  bodyHtml?: string;
   receivedAt?: string;
   isRead: boolean;
   hasAttachments: boolean;
+  attachments?: EmailAttachment[];
   gmailLabelIds?: string;
   recipientTo?: string;
   recipientCc?: string;
@@ -55,6 +68,8 @@ export interface Email {
   inInbox?: boolean;
   isDraft?: boolean;
   isArchived?: boolean;
+  isTrash?: boolean;
+  isSpam?: boolean;
   sizeEstimate?: number;
   category: EmailCategory;
   priority: Priority;

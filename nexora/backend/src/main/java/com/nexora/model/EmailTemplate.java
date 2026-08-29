@@ -24,10 +24,10 @@ public class EmailTemplate {
     @Column(columnDefinition = "TEXT")
     private String subject;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String body;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String htmlBody;
 
     @Column(columnDefinition = "TEXT")

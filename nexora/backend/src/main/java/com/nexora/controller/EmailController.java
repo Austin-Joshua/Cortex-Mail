@@ -117,11 +117,55 @@ public class EmailController {
     }
 
     @PatchMapping("/{id}/read")
-    public ResponseEntity<Void> markRead(
+    public ResponseEntity<EmailResponse> markRead(
             @AuthenticationPrincipal User user,
             @PathVariable Long id) {
-        emailService.markRead(user.getId(), id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(emailService.markRead(user.getId(), id));
+    }
+
+    @PatchMapping("/{id}/unread")
+    public ResponseEntity<EmailResponse> markUnread(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(emailService.markUnread(user.getId(), id));
+    }
+
+    @PatchMapping("/{id}/star")
+    public ResponseEntity<EmailResponse> setStarred(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        boolean starred = Boolean.TRUE.equals(body.get("starred"))
+                || "true".equalsIgnoreCase(String.valueOf(body.getOrDefault("starred", "false")));
+        return ResponseEntity.ok(emailService.setStarred(user.getId(), id, starred));
+    }
+
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<EmailResponse> archive(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(emailService.archive(user.getId(), id));
+    }
+
+    @PatchMapping("/{id}/inbox")
+    public ResponseEntity<EmailResponse> moveToInbox(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(emailService.moveToInbox(user.getId(), id));
+    }
+
+    @PatchMapping("/{id}/trash")
+    public ResponseEntity<EmailResponse> trash(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(emailService.trash(user.getId(), id));
+    }
+
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<EmailResponse> restoreFromTrash(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(emailService.restoreFromTrash(user.getId(), id));
     }
 
     @PatchMapping("/{id}/reaction")

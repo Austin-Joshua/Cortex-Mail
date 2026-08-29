@@ -16,6 +16,11 @@ spring:
       hibernate:
         dialect: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
         format_sql: true
+  flyway:
+    # H2 default keeps Flyway off; enable via prod profile or FLYWAY_ENABLED=true
+    enabled: ${FLYWAY_ENABLED:false}
+    baseline-on-migrate: true
+    locations: classpath:db/migration
   jackson:
     default-property-inclusion: non_null
   h2:
@@ -29,13 +34,13 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,beans
+        include: health,info
 
 server:
   port: ${PORT:8080}
   forward-headers-strategy: framework
   error:
-    include-message: always
+    include-message: ${ERROR_INCLUDE_MESSAGE:never}
 
 google:
   client-id: ${GOOGLE_CLIENT_ID}

@@ -30,10 +30,10 @@ public class EmailDraft {
     @Column(columnDefinition = "TEXT")
     private String subject;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String body;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String htmlBody;
 
     private Long scheduledSendTime;

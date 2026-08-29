@@ -160,23 +160,20 @@ Rough product-completion estimate for the **current Cortex Mail vision** (Gmail 
 | Area | Status | ~Done |
 |------|--------|-------|
 | Google OAuth + session | Working | 90% |
-| Gmail INBOX full sync + label counts | Working | 90% |
+| Gmail INBOX full sync + label counts | Working (canonical upsert) | 95% |
+| Incremental `history.list` sync | Working (Tranches 1–2) | 90% |
 | Drafts sync + UI | Working | 85% |
 | Archive sync + UI | Working (cap ~300) | 70% |
+| MIME plain + **sanitized HTML** + attachment records | Working (Tranches 1–2) | 85% |
+| Bidirectional Gmail mutations (read/star/archive/trash) | Working (Gmail→DB) | 85% |
 | Post-sync classification + grouping | Working (local rules; AI optional) | 75% |
-| Cortex Score from real Gmail signals | Working | 80% |
-| Inbox / detail display | Working | 90% |
-| Sync integrity check API + dashboard panel | Working | 85% |
+| Cortex Score (backend, explainable 0–100) | Working (Tranches 1–2) | 90% |
+| Supabase Postgres + Flyway | Wired (prod profile) | 90% |
 | Brain Q&A | Present | 65% |
 | Analytics | Present | 70% |
-| Calendar deadline sync | Present | 60% |
-| PWA / responsive web | Present | 80% |
-| Native mobile | Removed — not pursued | 0% (by design) |
-| Production hardening (MySQL always-on, scopes audit, zero-doc drift) | Partial | 50% |
-| Multi-provider mail (Outlook, etc.) | Not started | 0% |
-| Team / shared inbox collaboration | Stub / light | 20% |
+| Pub/Sub Watch / search parity / classifier rewrite | Out of scope for T1–2 | 0% |
 
-**Overall idea execution (single-user Gmail intelligence web app): ~70–75%.**
+**Overall idea execution (single-user Gmail intelligence web app): ~80%** after Tranches 1–2.
 
 ### Done (executed)
 

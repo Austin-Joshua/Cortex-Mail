@@ -17,6 +17,7 @@ public class EmailResponse {
     private String subject;
     private String bodySnippet;
     private String bodyFull;
+    private String bodyHtml;
     private LocalDateTime receivedAt;
     private Boolean isRead;
     private Boolean hasAttachments;
@@ -28,6 +29,8 @@ public class EmailResponse {
     private Boolean inInbox;
     private Boolean isDraft;
     private Boolean isArchived;
+    private Boolean isTrash;
+    private Boolean isSpam;
     private Long sizeEstimate;
     private EmailCategory category;
     private Priority priority;
@@ -37,36 +40,10 @@ public class EmailResponse {
     private LocalDateTime deadlineDetected;
     private Boolean isDeadlineAddedToCalendar;
     private List<ActionItemDto> actions;
+    private List<AttachmentDto> attachments;
     private LocalDateTime createdAt;
 
     public EmailResponse() {}
-
-    public EmailResponse(Long id, String gmailMessageId, String gmailThreadId, String senderName, String senderEmail,
-                         String subject, String bodySnippet, String bodyFull, LocalDateTime receivedAt, Boolean isRead,
-                         Boolean hasAttachments, EmailCategory category, Priority priority, Reaction reaction, String aiSummary,
-                         String aiActionItems, LocalDateTime deadlineDetected, Boolean isDeadlineAddedToCalendar,
-                         List<ActionItemDto> actions, LocalDateTime createdAt) {
-        this.id = id;
-        this.gmailMessageId = gmailMessageId;
-        this.gmailThreadId = gmailThreadId;
-        this.senderName = senderName;
-        this.senderEmail = senderEmail;
-        this.subject = subject;
-        this.bodySnippet = bodySnippet;
-        this.bodyFull = bodyFull;
-        this.receivedAt = receivedAt;
-        this.isRead = isRead;
-        this.hasAttachments = hasAttachments;
-        this.category = category;
-        this.priority = priority;
-        this.reaction = reaction;
-        this.aiSummary = aiSummary;
-        this.aiActionItems = aiActionItems;
-        this.deadlineDetected = deadlineDetected;
-        this.isDeadlineAddedToCalendar = isDeadlineAddedToCalendar;
-        this.actions = actions;
-        this.createdAt = createdAt;
-    }
 
     public Long getId() {
         return id;
@@ -132,6 +109,14 @@ public class EmailResponse {
         this.bodyFull = bodyFull;
     }
 
+    public String getBodyHtml() {
+        return bodyHtml;
+    }
+
+    public void setBodyHtml(String bodyHtml) {
+        this.bodyHtml = bodyHtml;
+    }
+
     public LocalDateTime getReceivedAt() {
         return receivedAt;
     }
@@ -179,6 +164,12 @@ public class EmailResponse {
 
     public Boolean getIsArchived() { return isArchived; }
     public void setIsArchived(Boolean isArchived) { this.isArchived = isArchived; }
+
+    public Boolean getIsTrash() { return isTrash; }
+    public void setIsTrash(Boolean isTrash) { this.isTrash = isTrash; }
+
+    public Boolean getIsSpam() { return isSpam; }
+    public void setIsSpam(Boolean isSpam) { this.isSpam = isSpam; }
 
     public Long getSizeEstimate() { return sizeEstimate; }
     public void setSizeEstimate(Long sizeEstimate) { this.sizeEstimate = sizeEstimate; }
@@ -247,12 +238,70 @@ public class EmailResponse {
         this.actions = actions;
     }
 
+    public List<AttachmentDto> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<AttachmentDto> attachments) {
+        this.attachments = attachments;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public static class AttachmentDto {
+        private Long id;
+        private String filename;
+        private String mimeType;
+        private Long sizeBytes;
+        private Boolean isInline;
+
+        public AttachmentDto() {}
+
+        public AttachmentDto(Long id, String filename, String mimeType, Long sizeBytes, Boolean isInline) {
+            this.id = id;
+            this.filename = filename;
+            this.mimeType = mimeType;
+            this.sizeBytes = sizeBytes;
+            this.isInline = isInline;
+        }
+
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getFilename() { return filename; }
+        public void setFilename(String filename) { this.filename = filename; }
+        public String getMimeType() { return mimeType; }
+        public void setMimeType(String mimeType) { this.mimeType = mimeType; }
+        public Long getSizeBytes() { return sizeBytes; }
+        public void setSizeBytes(Long sizeBytes) { this.sizeBytes = sizeBytes; }
+        public Boolean getIsInline() { return isInline; }
+        public void setIsInline(Boolean isInline) { this.isInline = isInline; }
+
+        public static AttachmentDtoBuilder builder() {
+            return new AttachmentDtoBuilder();
+        }
+
+        public static class AttachmentDtoBuilder {
+            private Long id;
+            private String filename;
+            private String mimeType;
+            private Long sizeBytes;
+            private Boolean isInline;
+
+            public AttachmentDtoBuilder id(Long id) { this.id = id; return this; }
+            public AttachmentDtoBuilder filename(String filename) { this.filename = filename; return this; }
+            public AttachmentDtoBuilder mimeType(String mimeType) { this.mimeType = mimeType; return this; }
+            public AttachmentDtoBuilder sizeBytes(Long sizeBytes) { this.sizeBytes = sizeBytes; return this; }
+            public AttachmentDtoBuilder isInline(Boolean isInline) { this.isInline = isInline; return this; }
+            public AttachmentDto build() {
+                return new AttachmentDto(id, filename, mimeType, sizeBytes, isInline);
+            }
+        }
     }
 
     public static class ActionItemDto {
@@ -370,6 +419,7 @@ public class EmailResponse {
         private String subject;
         private String bodySnippet;
         private String bodyFull;
+        private String bodyHtml;
         private LocalDateTime receivedAt;
         private Boolean isRead;
         private Boolean hasAttachments;
@@ -381,6 +431,8 @@ public class EmailResponse {
         private Boolean inInbox;
         private Boolean isDraft;
         private Boolean isArchived;
+        private Boolean isTrash;
+        private Boolean isSpam;
         private Long sizeEstimate;
         private EmailCategory category;
         private Priority priority;
@@ -390,6 +442,7 @@ public class EmailResponse {
         private LocalDateTime deadlineDetected;
         private Boolean isDeadlineAddedToCalendar;
         private List<ActionItemDto> actions;
+        private List<AttachmentDto> attachments;
         private LocalDateTime createdAt;
 
         EmailResponseBuilder() {}
@@ -431,6 +484,11 @@ public class EmailResponse {
 
         public EmailResponseBuilder bodyFull(String bodyFull) {
             this.bodyFull = bodyFull;
+            return this;
+        }
+
+        public EmailResponseBuilder bodyHtml(String bodyHtml) {
+            this.bodyHtml = bodyHtml;
             return this;
         }
 
@@ -489,6 +547,16 @@ public class EmailResponse {
             return this;
         }
 
+        public EmailResponseBuilder isTrash(Boolean isTrash) {
+            this.isTrash = isTrash;
+            return this;
+        }
+
+        public EmailResponseBuilder isSpam(Boolean isSpam) {
+            this.isSpam = isSpam;
+            return this;
+        }
+
         public EmailResponseBuilder sizeEstimate(Long sizeEstimate) {
             this.sizeEstimate = sizeEstimate;
             return this;
@@ -534,6 +602,11 @@ public class EmailResponse {
             return this;
         }
 
+        public EmailResponseBuilder attachments(List<AttachmentDto> attachments) {
+            this.attachments = attachments;
+            return this;
+        }
+
         public EmailResponseBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -549,6 +622,7 @@ public class EmailResponse {
             r.subject = this.subject;
             r.bodySnippet = this.bodySnippet;
             r.bodyFull = this.bodyFull;
+            r.bodyHtml = this.bodyHtml;
             r.receivedAt = this.receivedAt;
             r.isRead = this.isRead;
             r.hasAttachments = this.hasAttachments;
@@ -560,6 +634,8 @@ public class EmailResponse {
             r.inInbox = this.inInbox;
             r.isDraft = this.isDraft;
             r.isArchived = this.isArchived;
+            r.isTrash = this.isTrash;
+            r.isSpam = this.isSpam;
             r.sizeEstimate = this.sizeEstimate;
             r.category = this.category;
             r.priority = this.priority;
@@ -569,6 +645,7 @@ public class EmailResponse {
             r.deadlineDetected = this.deadlineDetected;
             r.isDeadlineAddedToCalendar = this.isDeadlineAddedToCalendar;
             r.actions = this.actions;
+            r.attachments = this.attachments;
             r.createdAt = this.createdAt;
             return r;
         }

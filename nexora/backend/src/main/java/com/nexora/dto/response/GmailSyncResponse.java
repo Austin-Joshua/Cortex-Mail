@@ -8,17 +8,27 @@ public class GmailSyncResponse {
     private int updatedCount;
     private int inboxMessagesProcessed;
     private Map<String, GmailLabelCountResponse> labelCounts;
+    /** "FULL" or "INCREMENTAL" */
+    private String syncMode;
 
     public GmailSyncResponse() {}
 
     public GmailSyncResponse(String message, int newCount, int updatedCount,
                              int inboxMessagesProcessed,
                              Map<String, GmailLabelCountResponse> labelCounts) {
+        this(message, newCount, updatedCount, inboxMessagesProcessed, labelCounts, null);
+    }
+
+    public GmailSyncResponse(String message, int newCount, int updatedCount,
+                             int inboxMessagesProcessed,
+                             Map<String, GmailLabelCountResponse> labelCounts,
+                             String syncMode) {
         this.message = message;
         this.newCount = newCount;
         this.updatedCount = updatedCount;
         this.inboxMessagesProcessed = inboxMessagesProcessed;
         this.labelCounts = labelCounts;
+        this.syncMode = syncMode;
     }
 
     public String getMessage() { return message; }
@@ -39,4 +49,7 @@ public class GmailSyncResponse {
     public void setLabelCounts(Map<String, GmailLabelCountResponse> labelCounts) {
         this.labelCounts = labelCounts;
     }
+
+    public String getSyncMode() { return syncMode; }
+    public void setSyncMode(String syncMode) { this.syncMode = syncMode; }
 }

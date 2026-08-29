@@ -17,9 +17,12 @@ import java.util.Optional;
 @Repository
 public interface EmailRepository extends JpaRepository<Email, Long> {
 
-    boolean existsByGmailMessageId(String gmailMessageId);
+    boolean existsByUserIdAndGmailMessageId(Long userId, String gmailMessageId);
+
+    Optional<Email> findByUserIdAndGmailMessageId(Long userId, String gmailMessageId);
 
     Optional<Email> findByGmailMessageId(String gmailMessageId);
+
 
     Optional<Email> findByIdAndUserId(Long id, Long userId);
 

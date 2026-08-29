@@ -77,18 +77,97 @@ public class EmailService {
         return toResponse(email, true);
     }
 
-    public void markRead(Long userId, Long emailId) {
-        Email email = emailRepository.findByIdAndUserId(emailId, userId)
-                .orElseThrow(() -> new NexoraException("Email not found", 404));
-        if (!Boolean.TRUE.equals(email.getIsRead())) {
+    public EmailResponse markRead(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getGmailMessageId() != null) {
+            var gmailMsg = gmailSyncService.markReadInGmail(userId, email.getGmailMessageId());
+            gmailSyncService.applyGmailMessageLabels(email, gmailMsg);
+        } else {
             email.setIsRead(true);
-            emailRepository.save(email);
-            // Propagate mark-as-read back to Gmail asynchronously
-            if (email.getGmailMessageId() != null) {
-                java.util.concurrent.CompletableFuture.runAsync(() ->
-                        gmailSyncService.markReadInGmail(userId, email.getGmailMessageId()));
-            }
         }
+        emailRepository.save(email);
+        return toResponse(email, false);
+    }
+
+    public EmailResponse markUnread(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getGmailMessageId() != null) {
+            var gmailMsg = gmailSyncService.markUnreadInGmail(userId, email.getGmailMessageId());
+            gmailSyncService.applyGmailMessageLabels(email, gmailMsg);
+        } else {
+            email.setIsRead(false);
+        }
+        emailRepository.save(email);
+        return toResponse(email, false);
+    }
+
+    public EmailResponse setStarred(Long userId, Long emailId, boolean starred) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getGmailMessageId() != null) {
+            var gmailMsg = starred
+                    ? gmailSyncService.starInGmail(userId, email.getGmailMessageId())
+                    : gmailSyncService.unstarInGmail(userId, email.getGmailMessageId());
+            gmailSyncService.applyGmailMessageLabels(email, gmailMsg);
+        } else {
+            email.setIsStarred(starred);
+        }
+        emailRepository.save(email);
+        return toResponse(email, false);
+    }
+
+    public EmailResponse archive(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getGmailMessageId() != null) {
+            var gmailMsg = gmailSyncService.archiveInGmail(userId, email.getGmailMessageId());
+            gmailSyncService.applyGmailMessageLabels(email, gmailMsg);
+        } else {
+            email.setInInbox(false);
+            email.setIsArchived(true);
+        }
+        emailRepository.save(email);
+        return toResponse(email, false);
+    }
+
+    public EmailResponse moveToInbox(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getGmailMessageId() != null) {
+            var gmailMsg = gmailSyncService.moveToInboxInGmail(userId, email.getGmailMessageId());
+            gmailSyncService.applyGmailMessageLabels(email, gmailMsg);
+        } else {
+            email.setInInbox(true);
+            email.setIsArchived(false);
+            email.setIsTrash(false);
+        }
+        emailRepository.save(email);
+        return toResponse(email, false);
+    }
+
+    public EmailResponse trash(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getGmailMessageId() != null) {
+            var gmailMsg = gmailSyncService.trashInGmail(userId, email.getGmailMessageId());
+            gmailSyncService.applyGmailMessageLabels(email, gmailMsg);
+        } else {
+            email.setIsTrash(true);
+            email.setInInbox(false);
+            email.setIsArchived(false);
+        }
+        emailRepository.save(email);
+        return toResponse(email, false);
+    }
+
+    public EmailResponse restoreFromTrash(Long userId, Long emailId) {
+        Email email = ownedEmail(userId, emailId);
+        if (email.getGmailMessageId() != null) {
+            var gmailMsg = gmailSyncService.restoreFromTrashInGmail(userId, email.getGmailMessageId());
+            gmailSyncService.applyGmailMessageLabels(email, gmailMsg);
+        } else {
+            email.setIsTrash(false);
+            email.setInInbox(true);
+            email.setIsArchived(false);
+        }
+        emailRepository.save(email);
+        return toResponse(email, false);
     }
 
     public void updateReaction(Long userId, Long emailId, String reaction) {
@@ -281,6 +360,19 @@ public class EmailService {
                     .build()).collect(Collectors.toList());
         }
 
+        List<EmailResponse.AttachmentDto> attachments = new ArrayList<>();
+        if (includeFullBody && email.getAttachments() != null) {
+            attachments = email.getAttachments().stream()
+                    .map(a -> EmailResponse.AttachmentDto.builder()
+                            .id(a.getId())
+                            .filename(a.getFilename())
+                            .mimeType(a.getMimeType())
+                            .sizeBytes(a.getSizeBytes())
+                            .isInline(a.getIsInline())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+
         return EmailResponse.builder()
                 .id(email.getId())
                 .gmailMessageId(email.getGmailMessageId())
@@ -290,6 +382,7 @@ public class EmailService {
                 .subject(email.getSubject())
                 .bodySnippet(email.getBodySnippet())
                 .bodyFull(includeFullBody ? email.getBodyFull() : null)
+                .bodyHtml(includeFullBody ? email.getBodyHtml() : null)
                 .receivedAt(email.getReceivedAt())
                 .isRead(email.getIsRead())
                 .hasAttachments(email.getHasAttachments())
@@ -301,6 +394,8 @@ public class EmailService {
                 .inInbox(email.getInInbox())
                 .isDraft(email.getIsDraft())
                 .isArchived(email.getIsArchived())
+                .isTrash(email.getIsTrash())
+                .isSpam(email.getIsSpam())
                 .sizeEstimate(email.getSizeEstimate())
                 .category(email.getCategory())
                 .priority(email.getPriority())
@@ -310,6 +405,7 @@ public class EmailService {
                 .deadlineDetected(email.getDeadlineDetected())
                 .isDeadlineAddedToCalendar(email.getIsDeadlineAddedToCalendar())
                 .actions(actions)
+                .attachments(includeFullBody ? attachments : null)
                 .createdAt(email.getCreatedAt())
                 .build();
     }

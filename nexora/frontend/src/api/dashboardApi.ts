@@ -1,6 +1,19 @@
 import axiosInstance from './axiosInstance';
 import type { GmailLabelCount } from '../types/Email';
 
+export interface CortexScoreFactor {
+  key: string;
+  label: string;
+  points: number;
+  detail: string;
+}
+
+export interface CortexScore {
+  score: number;
+  band: string;
+  factors: CortexScoreFactor[];
+}
+
 export interface DashboardSummary {
   priorityEmails: any[];
   upcomingDeadlines: any[];
@@ -9,6 +22,7 @@ export interface DashboardSummary {
   categoryCounts: Record<string, number>;
   gmailLabelCounts?: Record<string, GmailLabelCount>;
   todaysMeetings: any[];
+  cortexScore?: CortexScore;
 }
 
 export interface VolumeDataPoint {

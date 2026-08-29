@@ -60,7 +60,6 @@ export const DashboardPageNew: React.FC = () => {
   const deadlines = useMemo(() => data?.upcomingDeadlines ?? [], [data]);
   const actions = useMemo(() => data?.pendingActions ?? [], [data]);
 
-  /** Overdue deadlines drag the score hardest — they are the real friction. */
   const overdue = useMemo(
     () =>
       deadlines.filter((d: any) => {
@@ -70,28 +69,37 @@ export const DashboardPageNew: React.FC = () => {
     [deadlines],
   );
 
-  /**
-   * Cortex Score — extracted from your live Gmail account + mail content.
-   * Starts at 100 and is debited by:
-   *  - Gmail INBOX unread (Backlog)
-   *  - Gmail IMPORTANT unread
-   *  - Action items extracted from mail content
-   *  - Overdue deadlines found in mail text
-   */
-  const score = useMemo(() => {
-    const raw =
-      100 -
-      Math.min(40, unread * 1.2) -
-      Math.min(15, importantUnread * 2) -
-      Math.min(25, actions.length * 3) -
-      Math.min(20, overdue * 5);
-    return Math.max(0, Math.round(raw));
-  }, [unread, importantUnread, actions.length, overdue]);
-
+  const cortex = data?.cortexScore;
+  const score = cortex?.score ?? Math.max(0, Math.round(
+    100 - Math.min(40, unread * 1.2) - Math.min(15, importantUnread * 2)
+    - Math.min(25, actions.length * 3) - Math.min(20, overdue * 5),
+  ));
+  const scoreBand = cortex?.band;
   const scoreTone =
     score >= 75 ? 'var(--v-green)' : score >= 45 ? 'var(--v-orange)' : 'var(--v-red)';
   const scoreVerdict =
-    score >= 75 ? 'Running clear' : score >= 45 ? 'Some drag' : 'Backlog building';
+    scoreBand
+      ?? (score >= 75 ? 'Running clear' : score >= 45 ? 'Some drag' : 'Backlog building');
+
+  const syncChip =
+    phase === 'error' ? 'error'
+      : isPipelineRunning || phase === 'syncing' || phase === 'extracting' || phase === 'scoring'
+        ? 'syncing'
+        : phase === 'grouped' || user?.lastSyncedAt
+          ? 'synced'
+          : 'idle';
+
+  const lastSyncedLabel = (() => {
+    const raw = syncStatus?.lastSyncedAt || user?.lastSyncedAt;
+    if (!raw) return null;
+    try {
+      return new Date(raw).toLocaleString();
+    } catch {
+      return String(raw);
+    }
+  })();
+
+  const [showWhyScore, setShowWhyScore] = React.useState(false);
 
   const scoreSource = useMemo(() => {
     const parts = [
@@ -156,6 +164,34 @@ export const DashboardPageNew: React.FC = () => {
 
   return (
     <AppShell title={`${greeting}, ${firstName}`} subtitle={`${scoreVerdict} · ${weekTotal} messages this week`}>
+      <div
+        style={{
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          fontSize: 12.5,
+          color: 'var(--v-ink-2)',
+        }}
+      >
+        <span>
+          Sync:{' '}
+          <strong style={{
+            color: syncChip === 'error' ? 'var(--v-red)'
+              : syncChip === 'syncing' ? 'var(--v-orange)'
+                : 'var(--v-ink)',
+          }}>
+            {syncChip}
+          </strong>
+          {lastSyncedLabel ? ` · last synced ${lastSyncedLabel}` : ''}
+        </span>
+        <button type="button" className="vbtn vbtn-bare" style={{ height: 28 }} onClick={() => runPipeline(true)}>
+          Sync now
+        </button>
+      </div>
+
       {(isPipelineRunning || phase === 'grouped' || phase === 'error') && status && (
         <div
           style={{
@@ -256,8 +292,34 @@ export const DashboardPageNew: React.FC = () => {
             <Gauge value={score} tone={scoreTone} label="of 100" />
 
             <p className="v-meta" style={{ textAlign: 'center', maxWidth: 340, lineHeight: 1.45 }}>
-              {scoreSource}
+              {scoreBand ? `${scoreBand} · ` : ''}{scoreSource}
             </p>
+
+            <button
+              type="button"
+              className="vbtn vbtn-bare"
+              style={{ height: 30 }}
+              onClick={() => setShowWhyScore((v) => !v)}
+            >
+              {showWhyScore ? 'Hide score factors' : 'Why this score'}
+            </button>
+
+            {showWhyScore && (
+              <div style={{ width: '100%', fontSize: 12.5, color: 'var(--v-ink-2)', lineHeight: 1.45 }}>
+                {(cortex?.factors?.length
+                  ? cortex.factors
+                  : [
+                      { key: 'unread', label: 'Gmail INBOX unread', points: -Math.round(Math.min(40, unread * 1.2)), detail: `${unread} unread` },
+                      { key: 'actions', label: 'Unresolved actions', points: -Math.round(Math.min(25, actions.length * 3)), detail: `${actions.length} actions` },
+                    ]
+                ).map((f) => (
+                  <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                    <span>{f.label}: {f.detail}</span>
+                    <strong style={{ color: 'var(--v-ink)' }}>{f.points}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 8, width: '100%' }}>
               {[

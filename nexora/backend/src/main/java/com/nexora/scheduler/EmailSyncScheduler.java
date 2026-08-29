@@ -26,14 +26,15 @@ public class EmailSyncScheduler {
 
     /**
      * Sync inbox every 5 minutes for all users whose last sync was > 5 min ago.
-     * After syncing, run thread summarization for each user.
+     * Uses unified syncInbox which prefers incremental (history.list) when a
+     * historyId is stored, and falls back to full sync on first sync / recovery.
      */
     @Scheduled(fixedDelay = 300_000)
     public void syncAllUsers() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(5);
         List<User> users = userRepository.findAllByLastSyncedAtBeforeOrLastSyncedAtIsNull(threshold);
 
-        log.info("Email sync triggered for {} users", users.size());
+        log.info("Email sync triggered for {} users (incremental preferred)", users.size());
 
         for (User user : users) {
             try {

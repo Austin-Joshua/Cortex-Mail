@@ -94,9 +94,19 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
 
   const rawBodyText = email.bodyFull || email.bodySnippet || '';
   const cleanedBody = cleanEmailBody(rawBodyText);
-  const isLong = cleanedBody.length > 900;
+  const hasHtml = Boolean(email.bodyHtml && String(email.bodyHtml).trim());
+  const isLong = !hasHtml && cleanedBody.length > 900;
   const displayBody = isLong && !showFullBody ? cleanedBody.slice(0, 900) + '...' : cleanedBody;
   const senderInitial = (email.senderName || email.senderEmail)[0]?.toUpperCase() ?? '?';
+  const attachments = (email.attachments || []).filter((a: any) => !a.isInline);
+
+  const invalidateMail = () => {
+    queryClient.invalidateQueries({ queryKey: ['emails'] });
+    queryClient.invalidateQueries({ queryKey: ['email', emailId] });
+    queryClient.invalidateQueries({ queryKey: ['email-archived'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+  };
 
   const handleDraftReply = async () => {
     setIsDraftLoading(true);
@@ -222,35 +232,89 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
 
       {/* Main Content Area */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* Email Body */}
-        <div
-          style={{
-            fontSize: 14,
-            color: 'var(--text-1)',
-            lineHeight: 1.6,
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'Roboto, sans-serif',
-          }}
-        >
-          {displayBody || '(No content)'}
-          {isLong && (
-            <button
-              onClick={() => setShowFullBody(f => !f)}
-              style={{
-                marginTop: 12,
-                display: 'block',
-                fontSize: 13,
-                color: 'var(--accent)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              {showFullBody ? 'Show less' : 'Read full email'}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
+            onClick={() => emailApi.setStarred(email.id, !email.isStarred).then(invalidateMail)}>
+            {email.isStarred ? 'Unstar' : 'Star'}
+          </button>
+          {email.inInbox !== false && (
+            <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
+              onClick={() => emailApi.archive(email.id).then(invalidateMail)}>
+              Archive
             </button>
           )}
+          {email.isArchived && (
+            <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
+              onClick={() => emailApi.moveToInbox(email.id).then(invalidateMail)}>
+              Move to inbox
+            </button>
+          )}
+          <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
+            onClick={() => emailApi.trash(email.id).then(() => { invalidateMail(); onClose?.(); })}>
+            Trash
+          </button>
+          {email.isRead ? (
+            <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
+              onClick={() => emailApi.markUnread(email.id).then(invalidateMail)}>
+              Mark unread
+            </button>
+          ) : null}
         </div>
+
+        {/* Email Body — sanitized HTML from server, or plain text fallback */}
+        {hasHtml ? (
+          <div
+            className="email-html-body"
+            style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.6, overflowX: 'auto' }}
+            dangerouslySetInnerHTML={{ __html: email.bodyHtml as string }}
+          />
+        ) : (
+          <div
+            style={{
+              fontSize: 14,
+              color: 'var(--text-1)',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              fontFamily: 'Roboto, sans-serif',
+            }}
+          >
+            {displayBody || '(No content)'}
+            {isLong && (
+              <button
+                onClick={() => setShowFullBody(f => !f)}
+                style={{
+                  marginTop: 12,
+                  display: 'block',
+                  fontSize: 13,
+                  color: 'var(--accent)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                {showFullBody ? 'Show less' : 'Read full email'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {attachments.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--text-2)' }}>
+              Attachments ({attachments.length})
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--text-1)' }}>
+              {attachments.map((a: any, i: number) => (
+                <li key={a.id ?? `${a.filename}-${i}`}>
+                  {a.filename || 'attachment'}
+                  {a.mimeType ? ` · ${a.mimeType}` : ''}
+                  {a.sizeBytes ? ` · ${Math.round(a.sizeBytes / 1024)} KB` : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* AI Summary Card */}
         {email.aiSummary && (
