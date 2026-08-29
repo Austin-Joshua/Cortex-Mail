@@ -64,6 +64,50 @@ public class Email {
     @Builder.Default
     private Boolean hasAttachments = false;
 
+    /** Gmail label IDs as JSON array, e.g. ["INBOX","UNREAD","CATEGORY_PERSONAL"] */
+    @Column(name = "gmail_label_ids", columnDefinition = "TEXT")
+    private String gmailLabelIds;
+
+    @Column(name = "recipient_to", columnDefinition = "TEXT")
+    private String recipientTo;
+
+    @Column(name = "recipient_cc", columnDefinition = "TEXT")
+    private String recipientCc;
+
+    @Column(name = "recipient_bcc", columnDefinition = "TEXT")
+    private String recipientBcc;
+
+    @Column(name = "reply_to")
+    private String replyTo;
+
+    @Column(name = "size_estimate")
+    private Long sizeEstimate;
+
+    @Column(name = "is_starred")
+    @Builder.Default
+    private Boolean isStarred = false;
+
+    @Column(name = "is_important")
+    @Builder.Default
+    private Boolean isImportant = false;
+
+    /** True when the message currently has the INBOX label in Gmail. */
+    @Column(name = "in_inbox")
+    @Builder.Default
+    private Boolean inInbox = true;
+
+    /** True when the message has the Gmail DRAFT label. */
+    @Column(name = "is_draft")
+    @Builder.Default
+    private Boolean isDraft = false;
+
+    /**
+     * True when mail is archived in Gmail: not in INBOX, not DRAFT, not TRASH, not SPAM.
+     */
+    @Column(name = "is_archived")
+    @Builder.Default
+    private Boolean isArchived = false;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private EmailCategory category = EmailCategory.UNCATEGORIZED;

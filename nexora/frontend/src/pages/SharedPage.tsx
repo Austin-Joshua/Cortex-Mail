@@ -7,7 +7,7 @@ export const SharedPage: React.FC = () => (
   <AppShell title="Shared" subtitle="Threads you and your team are working on together">
     <Placeholder
       icon={<Share2 size={26} />}
-      tone="var(--v-pulse)"
+      tone="var(--v-ink)"
       headline="Nothing shared yet"
       body="Share a thread to give teammates the full context — the messages, the extracted deadlines and the open actions — without forwarding anything."
       points={['Shared context', 'Comments in thread', 'Assigned actions']}

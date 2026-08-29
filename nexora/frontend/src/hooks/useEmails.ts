@@ -4,7 +4,7 @@ import { authApi } from '../api/authApi';
 import { useEmailStore } from '../store/emailStore';
 import { useAuthStore } from '../store/authStore';
 
-export function useEmails(page = 0, size = 20) {
+export function useEmails(page = 0, size = 100) {
   const { activeCategory, activePriority, searchQuery } = useEmailStore();
   const { setLastSyncedAt, setUser } = useAuthStore();
   const queryClient = useQueryClient();
@@ -29,13 +29,25 @@ export function useEmails(page = 0, size = 20) {
     staleTime: 120_000,
   });
 
+  const labelCountsQuery = useQuery({
+    queryKey: ['gmail-label-counts'],
+    queryFn: emailApi.getGmailLabelCounts,
+    staleTime: 120_000,
+  });
+
   const syncMutation = useMutation({
     mutationFn: emailApi.syncEmails,
-    onSuccess: () => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['emails'] });
       queryClient.invalidateQueries({ queryKey: ['email-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['email-drafts'] });
+      queryClient.invalidateQueries({ queryKey: ['email-archived'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
       queryClient.invalidateQueries({ queryKey: ['analytics-emails'] });
+      if (result.labelCounts) {
+        queryClient.setQueryData(['gmail-label-counts'], result.labelCounts);
+      }
       setLastSyncedAt(new Date().toISOString());
       authApi.getCurrentUser().then((updatedUser) => {
         setUser({
@@ -49,6 +61,16 @@ export function useEmails(page = 0, size = 20) {
           lastSyncedAt: updatedUser.lastSyncedAt,
         });
       }).catch((err) => console.error("Failed to fetch updated user role:", err));
+
+      // After inbox is extracted: separate + group by source/content
+      try {
+        await emailApi.classifyInbox();
+        queryClient.invalidateQueries({ queryKey: ['emails'] });
+        queryClient.invalidateQueries({ queryKey: ['email-categories'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      } catch (err) {
+        console.error('Post-sync classification failed', err);
+      }
     },
     onError: (error: any) => {
       const errorMsg = error.response?.data?.message || error.message || "Sync failed. Please check your Google permissions.";
@@ -71,6 +93,8 @@ export function useEmails(page = 0, size = 20) {
     isLoading: emailsQuery.isLoading,
     isError: emailsQuery.isError,
     categoryCounts: categoryCountsQuery.data ?? {},
+    labelCounts: labelCountsQuery.data ?? {},
+    inboxUnread: labelCountsQuery.data?.INBOX?.messagesUnread ?? 0,
     sync: syncMutation.mutate,
     isSyncing: syncMutation.isPending,
     markRead: markReadMutation.mutate,

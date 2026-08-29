@@ -1,6 +1,7 @@
 package com.nexora.service;
 
 import com.nexora.dto.response.DashboardSummaryResponse;
+import com.nexora.dto.response.GmailLabelCountResponse;
 import com.nexora.model.Email;
 import com.nexora.model.EmailAction;
 import com.nexora.repository.EmailActionRepository;
@@ -23,6 +24,7 @@ public class DashboardService {
     private final EmailRepository emailRepository;
     private final EmailActionRepository actionRepository;
     private final EmailService emailService;
+    private final GmailSyncService gmailSyncService;
 
     public DashboardSummaryResponse getSummary(Long userId) {
         // Priority emails (top 5 HIGH unread)
@@ -39,8 +41,9 @@ public class DashboardService {
         List<EmailAction> pendingActions = actionRepository
                 .findByUserIdAndIsCompletedFalseOrderByDeadlineAsc(userId);
 
-        // Unread count
-        long unreadCount = emailRepository.countByUserIdAndIsReadFalse(userId);
+        // Unread count from Gmail INBOX label (matches real Gmail account)
+        long unreadCount = gmailSyncService.getInboxUnreadCount(userId);
+        Map<String, GmailLabelCountResponse> gmailLabelCounts = gmailSyncService.getLabelCounts(userId);
 
         // Category counts
         Map<String, Long> categoryCounts = emailService.getCategoryCounts(userId);
@@ -62,6 +65,7 @@ public class DashboardService {
                         .collect(Collectors.toList()))
                 .unreadCount(unreadCount)
                 .categoryCounts(categoryCounts)
+                .gmailLabelCounts(gmailLabelCounts)
                 .todaysMeetings(todaysMeetings.stream()
                         .map(e -> emailService.toResponse(e, false))
                         .collect(Collectors.toList()))

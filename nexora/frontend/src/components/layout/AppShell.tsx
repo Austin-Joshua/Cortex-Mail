@@ -5,8 +5,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { BottomSheet } from '../common/BottomSheet';
 import { useViewport } from '../../hooks/useViewport';
 import { useUIStore } from '../../store/uiStore';
-import { Plus, RefreshCw, Sparkles, Clock } from 'lucide-react';
-import { useEmails } from '../../hooks/useEmails';
+import { Plus, Sparkles, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface AppShellProps {
@@ -24,9 +23,8 @@ export const AppShell: React.FC<AppShellProps> = ({
   actions,
   noScroll = false,
 }) => {
-  const { isMobile, isTablet } = useViewport();
-  const { sidebarCollapsed, toggleSidebar, bottomSheet, closeBottomSheet, openBottomSheet } = useUIStore();
-  const { sync, isSyncing } = useEmails();
+  const { isMobile } = useViewport();
+  const { bottomSheet, closeBottomSheet, openBottomSheet } = useUIStore();
   const navigate = useNavigate();
 
   return (
@@ -36,19 +34,15 @@ export const AppShell: React.FC<AppShellProps> = ({
         flexDirection: 'column',
         height: '100dvh',
         width: '100%',
-        background: 'var(--v-ground)',
+        background: 'var(--v-ground-2)',
         color: 'var(--v-ink)',
         overflow: 'hidden',
       }}
     >
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {isSyncing ? 'Syncing Gmail inbox' : 'Gmail synced'}
-      </div>
-
-      <TopBar onToggleSidebar={toggleSidebar} />
+      <TopBar />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {!isMobile && <Sidebar collapsed={isTablet || sidebarCollapsed} />}
+        {!isMobile && <Sidebar />}
 
         <main
           role="main"
@@ -65,7 +59,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               maxWidth: 1560,
               margin: '0 auto',
               width: '100%',
-              padding: isMobile ? '16px 14px 96px' : isTablet ? '22px 22px 32px' : '26px 28px 40px',
+              padding: isMobile ? '16px 14px 96px' : '24px 28px 32px',
             }}
           >
             {(title || subtitle || actions) && (
@@ -146,18 +140,11 @@ export const AppShell: React.FC<AppShellProps> = ({
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button
-            onClick={() => { closeBottomSheet(); sync(); }}
-            className="vbtn vbtn-quiet"
-            style={{ width: '100%', justifyContent: 'flex-start', height: 48 }}
-          >
-            <RefreshCw size={17} style={{ color: 'var(--v-signal)' }} /> Sync Gmail inbox
-          </button>
-          <button
             onClick={() => { closeBottomSheet(); navigate('/brain'); }}
             className="vbtn vbtn-quiet"
             style={{ width: '100%', justifyContent: 'flex-start', height: 48 }}
           >
-            <Sparkles size={17} style={{ color: 'var(--v-signal)' }} /> Ask Velocity Brain
+            <Sparkles size={17} style={{ color: 'var(--v-signal)' }} /> Ask Cortex Brain
           </button>
           <button
             onClick={() => { closeBottomSheet(); navigate('/priority'); }}

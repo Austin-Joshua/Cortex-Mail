@@ -197,11 +197,7 @@ public class AuthService {
             user.setTokenExpiry(LocalDateTime.now().plusHours(24));
             user.setGoogleId(googleId);
         }
-        boolean isNew = (user.getId() == null);
         user = userRepository.save(user);
-
-        // Always seed/reset mock emails so they have clean data for testing
-        seedMockEmails(user);
 
         String jwt = jwtTokenProvider.generateToken(user);
         return AuthResponse.builder()
@@ -212,7 +208,7 @@ public class AuthService {
                 .name(user.getName())
                 .profilePictureUrl(user.getProfilePictureUrl())
                 .userRole(user.getUserRole())
-                .onboardingComplete(!isNew)
+                .onboardingComplete(true)
                 .calendarSyncEnabled(user.getCalendarSyncEnabled())
                 .lastSyncedAt(user.getLastSyncedAt())
                 .build();

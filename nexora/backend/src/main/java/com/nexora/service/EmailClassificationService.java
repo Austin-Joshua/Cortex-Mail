@@ -72,9 +72,10 @@ public class EmailClassificationService {
 
                 String deadlineStr = getText(result, "deadline");
                 if (deadlineStr != null && !deadlineStr.equalsIgnoreCase("null")) {
-                    try {
-                        email.setDeadlineDetected(LocalDateTime.parse(deadlineStr, DateTimeFormatter.ISO_DATE_TIME));
-                    } catch (Exception ignored) {}
+                    LocalDateTime parsed = parseDeadlineFlexible(deadlineStr);
+                    if (parsed != null) {
+                        email.setDeadlineDetected(parsed);
+                    }
                 }
 
                 emailRepository.save(email);
@@ -104,7 +105,7 @@ public class EmailClassificationService {
 
     private String buildSystemPrompt(User user) {
         return """
-You are Nexora's email intelligence engine. Analyze the email below and respond ONLY with a valid JSON object — no explanation, no markdown, no extra text.
+You are Cortex Mail's email intelligence engine. Analyze the email below and respond ONLY with a valid JSON object — no explanation, no markdown, no extra text.
 
 User profile: %s
 
@@ -124,6 +125,12 @@ Respond with this exact JSON structure:
   ],
   "deadline": "ISO 8601 datetime of the most important deadline or null"
 }
+
+CRITICAL date rules:
+- Set "deadline" ONLY if the email text explicitly states a date/time (due date, meeting time, RSVP by, interview slot, etc.).
+- Use the exact date and time from the email. Never invent, guess, or invent relative deadlines like "in 3 days".
+- If no explicit date/time appears in the email, set deadline to null for both the top-level field and each action_item.
+- Prefer ISO-8601 local datetime when a time is given (e.g. 2026-09-15T15:00:00). If only a date is given, use T00:00:00.
 
 Priority rules for %s profile:
 - HIGH: professor emails, placement notices, assignment deadlines within 3 days, hackathon registrations
@@ -227,63 +234,194 @@ Body:
         }
     }
 
+    /**
+     * Synchronous group-by-source-and-content. Used after inbox sync so mail
+     * appears first, then is separated into groups. Does not invent data.
+     */
+    public int classifyInboxBySourceAndContent(Long userId) {
+        List<Email> toClassify = new ArrayList<>();
+        toClassify.addAll(emailRepository.findByUserIdAndInInboxTrue(userId));
+        // Also classify archived mail so Archive page shows groups/details
+        toClassify.addAll(
+                emailRepository.findByUserIdAndIsArchivedTrueOrderByReceivedAtDesc(
+                        userId, org.springframework.data.domain.PageRequest.of(0, 300)).getContent());
+
+        int classified = 0;
+        Set<Long> seen = new HashSet<>();
+        for (Email email : toClassify) {
+            if (email.getId() != null && !seen.add(email.getId())) continue;
+            if (Boolean.TRUE.equals(email.getIsDraft())) continue;
+            if (email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED) {
+                continue;
+            }
+            try {
+                applySourceContentClassification(email, userId);
+                classified++;
+            } catch (Exception e) {
+                log.warn("Local classify failed for email {}: {}", email.getId(), e.getMessage());
+            }
+        }
+        return classified;
+    }
+
+    private void applySourceContentClassification(Email email, Long userId) {
+        String raw = getLocalFallbackResponse(email);
+        JsonNode result = parseJson(raw);
+        if (result == null) return;
+
+        email.setCategory(parseCategory(result));
+        email.setPriority(parsePriority(result));
+        email.setAiSummary(getText(result, "summary"));
+        email.setAiActionItems(result.has("action_items") ? result.get("action_items").toString() : null);
+
+        String deadlineStr = getText(result, "deadline");
+        if (deadlineStr != null && !deadlineStr.equalsIgnoreCase("null")) {
+            LocalDateTime parsed = parseDeadlineFlexible(deadlineStr);
+            if (parsed != null) email.setDeadlineDetected(parsed);
+        }
+
+        emailRepository.save(email);
+
+        if (result.has("action_items") && result.get("action_items").isArray()) {
+            saveActionItems(result.get("action_items"), email, userId);
+        }
+    }
+
     private String getLocalFallbackResponse(Email email) {
         String subject = (email.getSubject() != null ? email.getSubject() : "").toLowerCase();
-        String body = (email.getBodyFull() != null ? email.getBodyFull() : (email.getBodySnippet() != null ? email.getBodySnippet() : "")).toLowerCase();
-        
-        String category = "UNCATEGORIZED";
-        String priority = "MEDIUM";
-        String summary = "This email was parsed locally. Add a free Google Gemini API key to enable premium AI-powered summaries and descriptions.";
-        String actionType = "REVIEW";
-        String actionDesc = "Review this email for details";
-        String deadline = "null";
+        String body = (email.getBodyFull() != null ? email.getBodyFull()
+                : (email.getBodySnippet() != null ? email.getBodySnippet() : "")).toLowerCase();
+        String sender = (email.getSenderEmail() != null ? email.getSenderEmail() : "").toLowerCase();
+        String labels = (email.getGmailLabelIds() != null ? email.getGmailLabelIds() : "").toUpperCase();
+        String rawText = (email.getSubject() != null ? email.getSubject() : "") + "\n"
+                + (email.getBodyFull() != null ? email.getBodyFull()
+                : (email.getBodySnippet() != null ? email.getBodySnippet() : ""));
 
-        if (subject.contains("assignment") || body.contains("assignment") || subject.contains("submit") || body.contains("submission")) {
+        String category = "UNCATEGORIZED";
+        String priority = Boolean.TRUE.equals(email.getIsImportant()) ? "HIGH" : "MEDIUM";
+        String summary = "Email from "
+                + (email.getSenderName() != null ? email.getSenderName() : email.getSenderEmail())
+                + (email.getSubject() != null ? (": " + email.getSubject()) : "") + ".";
+        String actionType = "REVIEW";
+        String actionDesc = "Review this email";
+        String deadline = extractExplicitDeadlineIso(rawText);
+
+        // 1) Gmail label source (matches the account's own tabs)
+        if (labels.contains("SPAM")) {
+            category = "SPAM";
+            priority = "LOW";
+            actionDesc = "Ignore or delete spam";
+        } else if (labels.contains("CATEGORY_PROMOTIONS")) {
+            category = "PROMOTIONAL";
+            priority = "LOW";
+            actionDesc = "Optional promo — review if relevant";
+        } else if (labels.contains("CATEGORY_PURCHASES")
+                || (labels.contains("CATEGORY_UPDATES")
+                && (subject.contains("order") || subject.contains("receipt") || subject.contains("shipped")))) {
+            category = "FINANCE";
+            priority = "MEDIUM";
+            actionDesc = "Review purchase or order update";
+        } else if (labels.contains("CATEGORY_SOCIAL")) {
+            category = "PERSONAL";
+            priority = "LOW";
+            actionDesc = "Social update — skim when free";
+        } else if (labels.contains("CATEGORY_FORUMS")) {
+            category = "ANNOUNCEMENT";
+            priority = "LOW";
+            actionDesc = "Forum / list update";
+        }
+        // 2) Sender domain / source
+        else if (sender.contains("linkedin.") || sender.contains("github.") || sender.contains("twitter.")
+                || sender.contains("facebook.") || sender.contains("instagram.")) {
+            category = "PERSONAL";
+            priority = "LOW";
+        } else if (sender.contains("noreply") && (sender.contains("amazon.") || sender.contains("flipkart.")
+                || sender.contains("ebay.") || sender.contains("shopify.") || sender.contains("paypal."))) {
+            category = "FINANCE";
+            priority = "MEDIUM";
+            actionDesc = "Review purchase notification";
+        } else if (sender.endsWith(".edu") || sender.contains("university") || sender.contains("college")
+                || sender.contains("placement@") || sender.contains("careers@")) {
+            if (subject.contains("placement") || subject.contains("interview") || body.contains("placement")) {
+                category = "PLACEMENT";
+                priority = "HIGH";
+                actionType = "REPLY";
+                actionDesc = "Reply to placement / careers";
+            } else if (subject.contains("assignment") || body.contains("assignment") || body.contains("submission")) {
+                category = "ASSIGNMENT";
+                priority = "HIGH";
+                actionType = "SUBMIT";
+                actionDesc = "Complete and submit your assignment";
+            } else if (subject.contains("attendance") || body.contains("attendance")) {
+                category = "ATTENDANCE";
+                priority = "MEDIUM";
+                actionDesc = "Check attendance notice";
+            } else {
+                category = "ANNOUNCEMENT";
+                priority = "MEDIUM";
+                actionDesc = "Review academic notice";
+            }
+        }
+        // 3) Content keywords
+        else if (subject.contains("assignment") || body.contains("assignment") || subject.contains("submit") || body.contains("submission")) {
             category = "ASSIGNMENT";
             priority = "HIGH";
             actionType = "SUBMIT";
             actionDesc = "Complete and submit your assignment";
-            deadline = LocalDateTime.now().plusDays(3).toString() + "Z";
-        } else if (subject.contains("hackathon") || body.contains("hackathon") || subject.contains("register") || body.contains("registration")) {
+        } else if (subject.contains("hackathon") || body.contains("hackathon")) {
             category = "HACKATHON";
             priority = "HIGH";
             actionType = "REGISTER";
-            actionDesc = "Register for the hackathon event";
-            deadline = LocalDateTime.now().plusDays(5).toString() + "Z";
+            actionDesc = "Register for the event";
         } else if (subject.contains("interview") || subject.contains("placement") || body.contains("placement") || body.contains("job offer")) {
             category = "PLACEMENT";
             priority = "HIGH";
             actionType = "REPLY";
-            actionDesc = "Reply to the placement officer or recruiter";
-            deadline = LocalDateTime.now().plusDays(2).toString() + "Z";
-        } else if (subject.contains("meeting") || body.contains("meeting") || subject.contains("zoom") || body.contains("google meet")) {
+            actionDesc = "Reply to the recruiter or placement office";
+        } else if (subject.contains("meeting") || body.contains("meeting") || subject.contains("zoom")
+                || body.contains("google meet") || subject.contains("invite:") || labels.contains("IMPORTANT")
+                && (body.contains("calendar") || subject.contains("rsvp"))) {
             category = "MEETING";
             priority = "MEDIUM";
             actionType = "ATTEND";
             actionDesc = "Attend the scheduled meeting";
-            deadline = LocalDateTime.now().plusHours(4).toString() + "Z";
         } else if (subject.contains("internship") || body.contains("internship")) {
             category = "INTERNSHIP";
             priority = "MEDIUM";
-            actionType = "REVIEW";
-            actionDesc = "Apply or review the internship opportunity";
+            actionDesc = "Review the internship opportunity";
+        } else if (subject.contains("research") || body.contains("research paper") || body.contains("journal")) {
+            category = "RESEARCH";
+            priority = "MEDIUM";
+            actionDesc = "Review research note";
         } else if (subject.contains("alert") || subject.contains("announcement") || body.contains("important announcement")) {
             category = "ANNOUNCEMENT";
             priority = "MEDIUM";
-            actionType = "REVIEW";
-            actionDesc = "Review the official announcement";
-        } else if (subject.contains("bill") || subject.contains("invoice") || body.contains("payment due") || subject.contains("fee")) {
+            actionDesc = "Review the announcement";
+        } else if (subject.contains("bill") || subject.contains("invoice") || body.contains("payment due")
+                || subject.contains("fee") || subject.contains("receipt") || subject.contains("order #")) {
             category = "FINANCE";
             priority = "HIGH";
-            actionType = "REVIEW";
-            actionDesc = "Verify invoice details and make payment";
+            actionDesc = "Verify payment details";
+        } else if (subject.contains("unsubscribe") || body.contains("view in browser") || body.contains("% off")) {
+            category = "PROMOTIONAL";
+            priority = "LOW";
+            actionDesc = "Promo — archive if not needed";
+        } else if (labels.contains("CATEGORY_PERSONAL") || labels.contains("CATEGORY_UPDATES")) {
+            category = "PERSONAL";
+            priority = "MEDIUM";
+            actionDesc = "Personal / update — review when ready";
         }
 
-        return """
-        {
-          "category": "%s",
-          "priority": "%s",
-          "summary": "%s",
+        if (Boolean.TRUE.equals(email.getIsImportant()) && "LOW".equals(priority)) {
+            priority = "MEDIUM";
+        }
+
+        String deadlineJson = deadline == null ? "null" : "\"" + deadline + "\"";
+        boolean actionable = !"PROMOTIONAL".equals(category) && !"SPAM".equals(category)
+                && !"UNCATEGORIZED".equals(category);
+
+        String actionItemsJson = actionable
+                ? """
           "action_items": [
             {
               "action_type": "%s",
@@ -291,11 +429,123 @@ Body:
               "deadline": %s
             }
           ],
+        """.formatted(actionType, actionDesc.replace("\"", "'"), deadlineJson)
+                : "\"action_items\": [],\n";
+
+        return """
+        {
+          "category": "%s",
+          "priority": "%s",
+          "summary": "%s",
+          %s
           "deadline": %s
         }
-        """.formatted(category, priority, summary, actionType, actionDesc, 
-                      deadline.equals("null") ? "null" : "\"" + deadline + "\"",
-                      deadline.equals("null") ? "null" : "\"" + deadline + "\"");
+        """.formatted(
+                category,
+                priority,
+                summary.replace("\"", "'"),
+                actionItemsJson,
+                deadlineJson);
+    }
+
+    /**
+     * Extract an explicit date/time from email text. Returns ISO-8601 local datetime or null.
+     * Never invents a date that is not present in the text.
+     */
+    private String extractExplicitDeadlineIso(String text) {
+        if (text == null || text.isBlank()) return null;
+
+        // ISO-like: 2026-09-15 or 2026-09-15T15:00
+        java.util.regex.Matcher iso = java.util.regex.Pattern
+                .compile("\\b(20\\d{2})-(\\d{2})-(\\d{2})(?:[T ](\\d{1,2}):(\\d{2}))?\\b")
+                .matcher(text);
+        if (iso.find()) {
+            return formatCapturedDateTime(iso.group(1), iso.group(2), iso.group(3), iso.group(4), iso.group(5));
+        }
+
+        // e.g. September 15, 2026 3:00 PM  /  Sep 15 2026
+        java.util.regex.Matcher named = java.util.regex.Pattern
+                .compile("(?i)\\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,)?\\s+(20\\d{2})(?:\\s+(?:at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm))?\\b")
+                .matcher(text);
+        if (named.find()) {
+            Integer month = monthNumber(named.group(1));
+            if (month != null) {
+                String hour = named.group(4);
+                String minute = named.group(5);
+                String ampm = named.group(6);
+                if (hour != null && ampm != null) {
+                    int h = Integer.parseInt(hour);
+                    if (ampm.equalsIgnoreCase("pm") && h < 12) h += 12;
+                    if (ampm.equalsIgnoreCase("am") && h == 12) h = 0;
+                    hour = String.format("%02d", h);
+                }
+                return formatCapturedDateTime(
+                        named.group(3),
+                        String.format("%02d", month),
+                        String.format("%02d", Integer.parseInt(named.group(2))),
+                        hour,
+                        minute != null ? minute : (hour != null ? "00" : null));
+            }
+        }
+
+        // e.g. 15/09/2026 or 15-09-2026 (day-month-year)
+        java.util.regex.Matcher dmy = java.util.regex.Pattern
+                .compile("\\b(\\d{1,2})[/-](\\d{1,2})[/-](20\\d{2})(?:\\s+(?:at\\s+)?(\\d{1,2}):(\\d{2}))?\\b")
+                .matcher(text);
+        if (dmy.find()) {
+            int a = Integer.parseInt(dmy.group(1));
+            int b = Integer.parseInt(dmy.group(2));
+            // Prefer day-month when first number > 12
+            String day;
+            String month;
+            if (a > 12) {
+                day = String.format("%02d", a);
+                month = String.format("%02d", b);
+            } else if (b > 12) {
+                month = String.format("%02d", a);
+                day = String.format("%02d", b);
+            } else {
+                // Ambiguous — treat as day/month (common outside US)
+                day = String.format("%02d", a);
+                month = String.format("%02d", b);
+            }
+            return formatCapturedDateTime(dmy.group(3), month, day, dmy.group(4), dmy.group(5));
+        }
+
+        return null;
+    }
+
+    private String formatCapturedDateTime(String year, String month, String day, String hour, String minute) {
+        try {
+            int y = Integer.parseInt(year);
+            int m = Integer.parseInt(month);
+            int d = Integer.parseInt(day);
+            int h = hour != null ? Integer.parseInt(hour) : 0;
+            int min = minute != null ? Integer.parseInt(minute) : 0;
+            LocalDateTime dt = LocalDateTime.of(y, m, d, h, min);
+            return dt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Integer monthNumber(String name) {
+        if (name == null) return null;
+        return switch (name.toLowerCase().replace(".", "")) {
+            case "january", "jan" -> 1;
+            case "february", "feb" -> 2;
+            case "march", "mar" -> 3;
+            case "april", "apr" -> 4;
+            case "may" -> 5;
+            case "june", "jun" -> 6;
+            case "july", "jul" -> 7;
+            case "august", "aug" -> 8;
+            case "september", "sep", "sept" -> 9;
+            case "october", "oct" -> 10;
+            case "november", "nov" -> 11;
+            case "december", "dec" -> 12;
+            default -> null;
+        };
     }
 
     private JsonNode parseJson(String rawResponse) {
@@ -335,6 +585,27 @@ Body:
         return null;
     }
 
+    private LocalDateTime parseDeadlineFlexible(String deadlineStr) {
+        if (deadlineStr == null || deadlineStr.isBlank() || deadlineStr.equalsIgnoreCase("null")) {
+            return null;
+        }
+        String cleaned = deadlineStr.trim().replace("Z", "");
+        if (cleaned.length() > 19) {
+            cleaned = cleaned.substring(0, 19);
+        }
+        try {
+            return LocalDateTime.parse(cleaned, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } catch (Exception ignored) {}
+        try {
+            return LocalDateTime.parse(cleaned, DateTimeFormatter.ISO_DATE_TIME);
+        } catch (Exception ignored) {}
+        try {
+            return java.time.LocalDate.parse(cleaned.substring(0, Math.min(10, cleaned.length())))
+                    .atStartOfDay();
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     private void saveActionItems(JsonNode items, Email email, Long userId) {
         for (JsonNode item : items) {
             try {
@@ -347,9 +618,10 @@ Body:
 
                 String deadline = getText(item, "deadline");
                 if (deadline != null && !deadline.equalsIgnoreCase("null")) {
-                    try {
-                        action.setDeadline(LocalDateTime.parse(deadline, DateTimeFormatter.ISO_DATE_TIME));
-                    } catch (Exception ignored) {}
+                    LocalDateTime parsed = parseDeadlineFlexible(deadline);
+                    if (parsed != null) {
+                        action.setDeadline(parsed);
+                    }
                 }
                 actionRepository.save(action);
             } catch (Exception e) {

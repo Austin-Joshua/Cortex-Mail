@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { Shield, User, Zap, LogOut } from 'lucide-react';
 
 const SECURITY_POINTS = [
-  'Gmail access is read-only — Velocity never sends or modifies emails',
+  'Gmail access is read-only — Cortex Mail never sends or modifies emails',
   'Gmail tokens encrypted at rest with AES-256',
   'JWT sessions expire automatically after 24 hours',
   'No emails stored in plain text — only AI-processed metadata',
@@ -23,7 +23,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <AppShell title="Settings" subtitle="Manage your Velocity preferences">
+    <AppShell title="Settings" subtitle="Manage your Cortex Mail preferences">
       <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--bg)' }}>
         <div
           style={{
@@ -111,7 +111,7 @@ export const SettingsPage: React.FC = () => {
                     Auto-add deadlines to Google Calendar
                   </label>
                   <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '2px 0 0' }}>
-                    Velocity automatically exports detected email deadlines into Google Calendar.
+                    Cortex Mail automatically exports detected email deadlines into Google Calendar.
                   </p>
                 </div>
               </div>

@@ -17,6 +17,24 @@ export interface ActionItem {
   isCompleted: boolean;
 }
 
+export interface GmailLabelCount {
+  id: string;
+  name: string;
+  type?: string;
+  messagesTotal?: number;
+  messagesUnread?: number;
+  threadsTotal?: number;
+  threadsUnread?: number;
+}
+
+export interface GmailSyncResult {
+  message: string;
+  newCount: number;
+  updatedCount: number;
+  inboxMessagesProcessed: number;
+  labelCounts: Record<string, GmailLabelCount>;
+}
+
 export interface Email {
   id: number;
   gmailMessageId: string;
@@ -29,6 +47,15 @@ export interface Email {
   receivedAt?: string;
   isRead: boolean;
   hasAttachments: boolean;
+  gmailLabelIds?: string;
+  recipientTo?: string;
+  recipientCc?: string;
+  isStarred?: boolean;
+  isImportant?: boolean;
+  inInbox?: boolean;
+  isDraft?: boolean;
+  isArchived?: boolean;
+  sizeEstimate?: number;
   category: EmailCategory;
   priority: Priority;
   reaction?: EmailReaction;

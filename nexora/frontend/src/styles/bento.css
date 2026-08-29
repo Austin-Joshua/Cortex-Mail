@@ -1,94 +1,65 @@
 /* ==========================================================================
-   VELOCITY — "Instrument Cluster" design system
-   Bento tiles, telemetry typography, signal colors.
+   CORTEX MAIL — minimal palette
+   Sidebar: navy only. Main UI: white + black.
+   Accents: red, green, orange — mail & calendar indicators only.
    ========================================================================== */
 
-/* Palette: antique gold as the primary instrument light, ember red for
-   urgency, on warm oxblood-tinted grounds. Gold inverts between themes —
-   deep enough to carry white text on light, pale enough to carry dark text
-   on dark — so --v-on-signal flips with it. */
-
 :root {
-  /* --- Ground & panels (light) --- */
-  --v-ground:      #FAF7F3;
-  --v-ground-2:    #F1EBE2;
+  /* --- Main UI: white + black --- */
+  --v-ground:      #FFFFFF;
+  --v-ground-2:    #F9FAFB;
   --v-panel:       #FFFFFF;
-  --v-panel-2:     #FBF8F4;
-  --v-hairline:    #E8DFD2;
-  --v-hairline-2:  #D3C6B4;
+  --v-panel-2:     #F3F4F6;
+  --v-hairline:    #E5E7EB;
+  --v-hairline-2:  #D1D5DB;
 
-  /* --- Ink (warm) --- */
-  --v-ink:         #1C1310;
-  --v-ink-2:       #5A4A42;
-  --v-ink-3:       #8B7A70;
-  --v-ink-4:       #B5A69C;
+  --v-ink:         #0B1220;
+  --v-ink-2:       #374151;
+  --v-ink-3:       #6B7280;
+  --v-ink-4:       #9CA3AF;
   --v-on-signal:   #FFFFFF;
 
-  /* --- Signal: antique gold, the primary --- */
-  --v-signal:      #A8761A;
-  --v-signal-dim:  #8A5F10;
-  --v-signal-wash: rgba(168, 118, 26, 0.11);
+  /* Main chrome uses black — NOT navy */
+  --v-signal:      #0B1220;
+  --v-signal-dim:  #1F2937;
+  --v-signal-wash: rgba(11, 18, 32, 0.06);
 
-  /* --- Ember: red, for urgency and heat --- */
-  --v-ember:       #C1272D;
-  --v-ember-wash:  rgba(193, 39, 45, 0.10);
+  /* Sidebar-only navy (scoped via .app-sidebar) */
+  --v-navy:        #1E3A8A;
+  --v-navy-dim:    #172554;
+  --v-navy-wash:   rgba(255, 255, 255, 0.12);
 
-  /* --- Pulse: jade, for live and positive --- */
-  --v-pulse:       #1F7A5C;
-  --v-pulse-wash:  rgba(31, 122, 92, 0.12);
+  /* Mail & calendar indicators only */
+  --v-red:         #DC2626;
+  --v-red-wash:    rgba(220, 38, 38, 0.08);
+  --v-green:       #16A34A;
+  --v-green-wash:  rgba(22, 163, 74, 0.08);
+  --v-orange:      #EA580C;
+  --v-orange-wash: rgba(234, 88, 12, 0.08);
 
-  --v-critical:    #C1272D;
-  --v-critical-wash: rgba(193, 39, 45, 0.10);
+  /* Legacy aliases → semantic trio */
+  --v-ember:       var(--v-red);
+  --v-ember-wash:  var(--v-red-wash);
+  --v-pulse:       var(--v-green);
+  --v-pulse-wash:  var(--v-green-wash);
+  --v-critical:    var(--v-red);
+  --v-critical-wash: var(--v-red-wash);
 
   /* --- Depth --- */
-  --v-lift-1: 0 1px 2px rgba(28, 19, 16, 0.05);
-  --v-lift-2: 0 4px 16px rgba(28, 19, 16, 0.08);
-  --v-lift-3: 0 16px 40px rgba(28, 19, 16, 0.13);
-  --v-glow:   0 0 0 1px rgba(168, 118, 26, 0.4), 0 8px 32px rgba(168, 118, 26, 0.16);
+  --v-lift-1: 0 1px 2px rgba(11, 18, 32, 0.05);
+  --v-lift-2: 0 4px 14px rgba(11, 18, 32, 0.07);
+  --v-lift-3: 0 12px 32px rgba(11, 18, 32, 0.10);
+  --v-glow:   0 0 0 1px rgba(11, 18, 32, 0.18), 0 4px 16px rgba(11, 18, 32, 0.06);
 
   /* --- Geometry --- */
-  --v-r-tile: 20px;
-  --v-r-chip: 12px;
+  --v-r-tile: 24px;
+  --v-r-chip: 999px;
   --v-r-pill: 999px;
   --v-gap: 16px;
 
-  /* --- Motion --- */
   --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --v-fast: 140ms var(--v-ease);
   --v-base: 240ms var(--v-ease);
-}
-
-html.dark {
-  --v-ground:      #0E0709;
-  --v-ground-2:    #170C10;
-  --v-panel:       #1A0F13;
-  --v-panel-2:     #241519;
-  --v-hairline:    #38222A;
-  --v-hairline-2:  #52323C;
-
-  --v-ink:         #F8F0EE;
-  --v-ink-2:       #CBB6B4;
-  --v-ink-3:       #9C8683;
-  --v-ink-4:       #705E5C;
-  --v-on-signal:   #241505;
-
-  --v-signal:      #E8C06A;
-  --v-signal-dim:  #F2D089;
-  --v-signal-wash: rgba(232, 192, 106, 0.13);
-
-  --v-ember:       #F0555F;
-  --v-ember-wash:  rgba(240, 85, 95, 0.15);
-
-  --v-pulse:       #35C99A;
-  --v-pulse-wash:  rgba(53, 201, 154, 0.14);
-
-  --v-critical:    #F0555F;
-  --v-critical-wash: rgba(240, 85, 95, 0.15);
-
-  --v-lift-1: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --v-lift-2: 0 4px 18px rgba(0, 0, 0, 0.5);
-  --v-lift-3: 0 18px 44px rgba(0, 0, 0, 0.6);
-  --v-glow:   0 0 0 1px rgba(232, 192, 106, 0.42), 0 8px 34px rgba(232, 192, 106, 0.18);
 }
 
 /* ==========================================================================
@@ -252,11 +223,8 @@ html.dark {
 /* Featured tile — the hero readout. Gold falls from the top right, ember
    rises from the bottom left; the two washes meet across the panel. */
 .tile-feature {
-  background:
-    radial-gradient(120% 100% at 100% 0%, var(--v-signal-wash) 0%, transparent 62%),
-    radial-gradient(95% 85% at 0% 100%, var(--v-ember-wash) 0%, transparent 58%),
-    var(--v-panel);
-  border-color: var(--v-hairline-2);
+  background: var(--v-panel);
+  border-color: var(--v-hairline);
 }
 
 /* A thin colored rule pinned to the tile's top edge, used to encode state. */
@@ -295,12 +263,12 @@ html.dark {
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 50%;
   background: var(--glyph-wash, var(--v-signal-wash));
   color: var(--glyph-fg, var(--v-signal));
 }
 
-.glyph-lg { width: 44px; height: 44px; border-radius: 13px; }
+.glyph-lg { width: 44px; height: 44px; border-radius: 50%; }
 
 /* ==========================================================================
    DELTA — trend indicator
@@ -584,4 +552,109 @@ html.dark {
 .v-scroll::-webkit-scrollbar-thumb:hover { background: var(--v-ink-4); background-clip: padding-box; }
 
 /* Any wide content inside a tile scrolls itself, never the page. */
+
+/* ==========================================================================
+   SIDEBAR — navy blue only here
+   ========================================================================== */
+
+.app-sidebar {
+  --v-signal: var(--v-navy);
+  --v-signal-dim: var(--v-navy-dim);
+  --v-signal-wash: var(--v-navy-wash);
+
+  background: var(--v-navy);
+  border-right: 1px solid var(--v-navy-dim);
+  color: rgba(255, 255, 255, 0.88);
+}
+.app-sidebar .rail-item {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.app-sidebar .rail-item:hover {
+  background: var(--v-navy-wash);
+  color: #FFFFFF;
+}
+
+.app-sidebar .rail-item-on {
+  background: var(--v-navy-wash);
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.app-sidebar .rail-item-on::before {
+  background: #FFFFFF;
+}
+
+.app-sidebar .rail-badge {
+  background: rgba(255, 255, 255, 0.14);
+  color: #FFFFFF;
+}
+
+.app-sidebar .rail-badge-hot {
+  background: var(--v-red);
+  color: #FFFFFF;
+}
+
+.app-sidebar .vbtn-signal {
+  background: #FFFFFF;
+  color: var(--v-navy);
+  box-shadow: none;
+}
+
+.app-sidebar .vbtn-signal:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.app-sidebar .sidebar-cat-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background var(--v-fast), color var(--v-fast);
+}
+
+.app-sidebar .sidebar-cat-btn:hover {
+  background: var(--v-navy-wash);
+  color: #FFFFFF;
+}
+
+.app-sidebar .sidebar-cat-btn-on {
+  background: var(--v-navy-wash);
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.app-sidebar .sidebar-cat-btn .v-num,
+.app-sidebar .sidebar-cat-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.app-sidebar > div:last-child {
+  border-top-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Mail / calendar indicator chips */
+.ind-red    { background: var(--v-red-wash);    color: var(--v-red); }
+.ind-green  { background: var(--v-green-wash);  color: var(--v-green); }
+.ind-orange { background: var(--v-orange-wash); color: var(--v-orange); }
+
+.priority-high   { color: var(--v-red); }
+.priority-medium { color: var(--v-orange); }
+.priority-low    { color: var(--v-green); }
+
+.badge-assignment, .badge-attendance, .badge-spam { background: var(--v-red-wash); color: var(--v-red); }
+.badge-hackathon, .badge-meeting, .badge-internship, .badge-announcement { background: var(--v-orange-wash); color: var(--v-orange); }
+.badge-placement, .badge-finance, .badge-research { background: var(--v-green-wash); color: var(--v-green); }
+.badge-personal, .badge-promotional, .badge-uncategorized { background: var(--v-panel-2); color: var(--v-ink-3); }
 .v-xscroll { overflow-x: auto; overscroll-behavior-x: contain; }

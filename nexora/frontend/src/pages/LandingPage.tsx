@@ -8,92 +8,58 @@ import { useAuth } from '../hooks/useAuth';
 import { useReveal, useScrollProgress } from '../hooks/useReveal';
 import { Odometer } from '../components/landing/Odometer';
 import { Gauge } from '../components/bento/Gauge';
+import { BrandLogo } from '../components/common/BrandLogo';
 import '../styles/landing.css';
 
 /* ------------------------------------------------------------------ data */
 
 const LEDGER = [
-  { label: 'Unread backlog',   debit: 27, tone: 'var(--v-ember)',  note: '23 sitting unopened' },
-  { label: 'Open actions',     debit: 12, tone: 'var(--v-signal)', note: '4 asks with no reply' },
-  { label: 'Overdue deadlines', debit: 6, tone: 'var(--v-critical)', note: '1 already past' },
+  { label: 'Unread backlog',   debit: 27, tone: 'var(--v-red)',    note: '23 sitting unopened' },
+  { label: 'Open actions',     debit: 12, tone: 'var(--v-orange)', note: '4 asks with no reply' },
+  { label: 'Overdue deadlines', debit: 6, tone: 'var(--v-red)',   note: '1 already past' },
 ];
 
 const ZONES = [
-  { name: 'Deep Focus',    hours: '9 — 12', note: 'Notifications muted',  tone: 'var(--v-signal)' },
-  { name: 'Collaboration', hours: '12 — 3', note: 'Notifications live',   tone: 'var(--v-pulse)' },
-  { name: 'Rapid Fire',    hours: '3 — 5',  note: 'Batch the quick ones', tone: 'var(--v-ember)' },
+  { name: 'Deep Focus',    hours: '9 — 12', note: 'Notifications muted',  tone: 'var(--v-ink)' },
+  { name: 'Collaboration', hours: '12 — 3', note: 'Notifications live',   tone: 'var(--v-orange)' },
+  { name: 'Rapid Fire',    hours: '3 — 5',  note: 'Batch the quick ones', tone: 'var(--v-red)' },
   { name: 'Reflection',    hours: '5 — 7',  note: 'Notifications muted',  tone: 'var(--v-ink-3)' },
 ];
 
 const CAPABILITIES = [
   {
     icon: Flame,
-    tone: 'var(--v-ember)',
+    tone: 'var(--v-red)',
     title: 'It ranks before you read',
     body: 'Every message lands in one of three bands — act now, today, when clear. The top of the list is always the next thing to do.',
   },
   {
     icon: Timer,
-    tone: 'var(--v-signal)',
+    tone: 'var(--v-orange)',
     title: 'It finds the dates you missed',
     body: 'Deadlines buried in the fourth paragraph get pulled out, counted down, and pushed to your calendar before they turn red.',
   },
   {
     icon: CalendarClock,
-    tone: 'var(--v-pulse)',
+    tone: 'var(--v-green)',
     title: 'It defends your focus',
     body: 'Flow zones split the day into bands. During Deep Focus nothing interrupts you; the backlog waits until you are ready for it.',
   },
   {
     icon: Brain,
-    tone: 'var(--v-signal)',
+    tone: 'var(--v-ink)',
     title: 'It answers in your own words',
     body: 'Ask what the placement cell sent last week, or which deadlines land before Friday. Answers link straight back to the mail.',
   },
 ];
 
 const TRUST = [
-  { icon: EyeOff,   title: 'Read-only, always',   body: 'Velocity can read your mail. It cannot send, delete or alter anything.' },
+  { icon: EyeOff,   title: 'Read-only, always',   body: 'Cortex Mail can read your mail. It cannot send, delete or alter anything.' },
   { icon: KeyRound, title: 'Encrypted at rest',   body: 'Google tokens are sealed with AES-256 and never leave your workspace.' },
   { icon: Lock,     title: 'Not training data',   body: 'Your messages are yours. They are never used to train any model.' },
 ];
 
 /* ------------------------------------------------------------ components */
-
-const Wordmark: React.FC<{ size?: number }> = ({ size = 32 }) => (
-  <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <defs>
-        <linearGradient id="lp-gold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="var(--v-signal-dim)" />
-          <stop offset="100%" stopColor="var(--v-signal)" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M 7.51 24.49 A 12 12 0 1 1 24.49 24.49"
-        fill="none" stroke="url(#lp-gold)" strokeWidth="1.6" strokeLinecap="round" opacity="0.5"
-      />
-      <path
-        d="M 10.4 11.2 L 16 20.6 L 21.6 11.2"
-        fill="none" stroke="url(#lp-gold)" strokeWidth="3"
-        strokeLinecap="round" strokeLinejoin="round"
-      />
-      <circle cx="16" cy="26.2" r="2" fill="var(--v-ember)" />
-    </svg>
-    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3, lineHeight: 1 }}>
-      <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.26em', textIndent: '0.26em' }}>
-        VELOCITY
-      </span>
-      <span
-        aria-hidden="true"
-        style={{
-          width: '100%', height: 1, opacity: 0.65,
-          background: 'linear-gradient(90deg, var(--v-signal) 0%, var(--v-ember) 65%, transparent 100%)',
-        }}
-      />
-    </span>
-  </span>
-);
 
 /** Wraps children in a scroll-revealed block. */
 const Reveal: React.FC<{
@@ -137,8 +103,25 @@ export const LandingPage: React.FC = () => {
   const dismissError = () => {
     setShowError(false);
     searchParams.delete('auth_error');
+    searchParams.delete('error_description');
     setSearchParams(searchParams, { replace: true });
   };
+
+  const authErrorMessage = (() => {
+    switch (authError) {
+      case 'access_denied':
+        return 'Sign-in was cancelled. Nothing was connected.';
+      case 'oauth_not_configured':
+      case 'invalid_client':
+        return 'Google OAuth is not configured. Add your Client ID and Secret, then try Connect Gmail again.';
+      case 'missing_code':
+        return 'Sign-in did not return an authorization code. Try Connect Gmail again.';
+      case 'oauth_failed':
+        return 'Google sign-in failed. Check your Client ID, Secret, and redirect URI.';
+      default:
+        return 'Sign-in did not complete. Please try Connect Gmail again.';
+    }
+  })();
 
   const scrollOn = () =>
     window.scrollTo({
@@ -151,8 +134,12 @@ export const LandingPage: React.FC = () => {
       <div className="lp-rail" style={{ ['--p' as string]: progress } as React.CSSProperties} />
 
       <nav className="lp-nav" data-stuck={stuck ? '1' : '0'}>
-        <Wordmark />
-        <button className="lp-btn lp-btn-primary" onClick={handleGoogleLogin} style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}>
+        <BrandLogo size={32} textSize={14} />
+        <button
+          className="lp-btn lp-btn-primary"
+          onClick={handleGoogleLogin}
+          style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}
+        >
           Sign in
         </button>
       </nav>
@@ -176,11 +163,7 @@ export const LandingPage: React.FC = () => {
           }}
         >
           <AlertTriangle size={16} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1 }}>
-            {authError === 'access_denied'
-              ? 'Sign-in was cancelled. Nothing was connected.'
-              : 'Sign-in did not complete. Please try again.'}
-          </span>
+          <span style={{ flex: 1 }}>{authErrorMessage}</span>
           <button
             onClick={dismissError}
             aria-label="Dismiss"
@@ -197,21 +180,21 @@ export const LandingPage: React.FC = () => {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
           <Reveal i={0}>
-            <span className="lp-eyebrow">Communication acceleration</span>
+            <span className="lp-eyebrow">AI email intelligence</span>
           </Reveal>
 
           <Reveal i={1}>
             {/* No hand-placed breaks: text-wrap:balance plus a ch-based
                 measure gives even lines at every width. */}
             <h1 className="lp-display" style={{ maxWidth: '11ch' }}>
-              Your inbox has a speed.{' '}
-              <span className="lp-gold">You have never seen it.</span>
+              Your inbox, understood.{' '}
+              <span className="lp-gold">Powered by Cortex Mail.</span>
             </h1>
           </Reveal>
 
           <Reveal i={2}>
             <p className="lp-lead">
-              Velocity puts an instrument on your Gmail. It measures the drag your
+              Cortex Mail puts an instrument on your Gmail. It measures the drag your
               backlog is creating, surfaces the deadlines hiding inside it, and gives
               you back the hours you were spending deciding what to read.
             </p>
@@ -238,11 +221,11 @@ export const LandingPage: React.FC = () => {
         <Reveal variant="scale" i={2} className="lp-hero-art">
           <div className="lp-panel" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <span className="v-label">Velocity Score</span>
+              <span className="v-label">Cortex Score</span>
               <span
                 style={{
                   fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
-                  background: 'var(--v-ember-wash)', color: 'var(--v-ember)',
+                  background: 'var(--v-red-wash)', color: 'var(--v-red)',
                 }}
               >
                 Backlog building
@@ -250,14 +233,14 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', paddingBlock: 4 }}>
-              <Gauge value={55} tone="var(--v-signal)" label="of 100" size={186} />
+              <Gauge value={55} tone="var(--v-orange)" label="of 100" size={186} />
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
               {[
-                { k: 'Backlog', v: 23, tone: 'var(--v-ember)' },
-                { k: 'Actions', v: 4, tone: 'var(--v-signal)' },
-                { k: 'Overdue', v: 1, tone: 'var(--v-critical)' },
+                { k: 'Backlog', v: 23, tone: 'var(--v-red)' },
+                { k: 'Actions', v: 4, tone: 'var(--v-orange)' },
+                { k: 'Overdue', v: 1, tone: 'var(--v-red)' },
               ].map((s) => (
                 <div
                   key={s.k}
@@ -317,7 +300,7 @@ export const LandingPage: React.FC = () => {
                     fontWeight: 800,
                     letterSpacing: '-0.045em',
                     lineHeight: 1,
-                    color: 'var(--v-signal)',
+                    color: 'var(--v-ink)',
                   }}
                 />
                 <p style={{ margin: '12px 0 0', fontSize: 13.5, color: 'var(--v-ink-2)', maxWidth: '26ch' }}>
@@ -419,7 +402,7 @@ export const LandingPage: React.FC = () => {
           </Reveal>
           <Reveal i={2}>
             <p className="lp-lead">
-              Velocity splits your working hours into bands and holds the noise back
+              Cortex Mail splits your working hours into bands and holds the noise back
               during the ones that matter. Deep work stays deep; the quick replies get
               batched into the window built for them.
             </p>
@@ -505,7 +488,7 @@ export const LandingPage: React.FC = () => {
               const Icon = t.icon;
               return (
                 <div key={t.title}>
-                  <Icon size={19} style={{ color: 'var(--v-signal)' }} />
+                  <Icon size={19} style={{ color: 'var(--v-ink)' }} />
                   <h3 style={{ fontSize: 15, fontWeight: 700, margin: '13px 0 0', letterSpacing: '-0.015em' }}>
                     {t.title}
                   </h3>
@@ -528,7 +511,7 @@ export const LandingPage: React.FC = () => {
         </Reveal>
         <Reveal i={1}>
           <p className="lp-lead" style={{ margin: '22px auto 0', textAlign: 'center' }}>
-            Connect Gmail and Velocity reads your last few hundred messages. Most
+            Connect Gmail and Cortex Mail reads your last few hundred messages. Most
             people are surprised by the number.
           </p>
         </Reveal>
@@ -554,7 +537,7 @@ export const LandingPage: React.FC = () => {
             gap: 16, flexWrap: 'wrap',
           }}
         >
-          <Wordmark size={26} />
+          <BrandLogo size={26} textSize={13} showText />
           <span style={{ fontSize: 12, color: 'var(--v-ink-3)' }}>
             Read-only Gmail access · AES-256 at rest
           </span>

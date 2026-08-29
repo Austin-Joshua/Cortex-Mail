@@ -1,5 +1,5 @@
 import axiosInstance from './axiosInstance';
-import type { EmailPage, EmailReaction } from '../types/Email';
+import type { EmailPage, EmailReaction, GmailLabelCount, GmailSyncResult } from '../types/Email';
 
 export interface SenderSummary {
   senderEmail: string;
@@ -21,13 +21,53 @@ export const emailApi = {
     return data;
   },
 
+  getDrafts: async (params?: { search?: string; page?: number; size?: number }): Promise<EmailPage> => {
+    const { data } = await axiosInstance.get<EmailPage>('/api/emails/drafts', { params });
+    return data;
+  },
+
+  getArchived: async (params?: { search?: string; page?: number; size?: number }): Promise<EmailPage> => {
+    const { data } = await axiosInstance.get<EmailPage>('/api/emails/archived', { params });
+    return data;
+  },
+
+  getSyncStatus: async (): Promise<{
+    connected: boolean;
+    lastSyncedAt?: string;
+    gmailCounts: Record<string, number>;
+    localCounts: Record<string, number>;
+    categoryGroups: Record<string, number>;
+    unclassifiedInbox: number;
+    inboxAligned: boolean;
+    draftsAligned: boolean;
+    notes: string[];
+    sampleInbox: Array<Record<string, unknown>>;
+  }> => {
+    const { data } = await axiosInstance.get('/api/emails/sync-status');
+    return data;
+  },
+
   getEmail: async (id: number) => {
     const { data } = await axiosInstance.get(`/api/emails/${id}`);
     return data;
   },
 
-  syncEmails: async (): Promise<{ message: string }> => {
-    const { data } = await axiosInstance.post('/api/emails/sync');
+  syncEmails: async (): Promise<GmailSyncResult> => {
+    const { data } = await axiosInstance.post<GmailSyncResult>('/api/emails/sync');
+    return data;
+  },
+
+  getGmailLabelCounts: async (): Promise<Record<string, GmailLabelCount>> => {
+    const { data } = await axiosInstance.get<Record<string, GmailLabelCount>>('/api/emails/labels/counts');
+    return data;
+  },
+
+  classifyInbox: async (): Promise<{
+    message: string;
+    classified: number;
+    groups?: Record<string, number>;
+  }> => {
+    const { data } = await axiosInstance.post('/api/emails/classify');
     return data;
   },
 

@@ -14,10 +14,11 @@
 
 ```
 nexora/
-├── frontend/   React + TypeScript web client (Vite)
-├── backend/    Spring Boot 3 API (Java 17)
-└── mobile/     Flutter native client — see mobile/README.md
+├── frontend/   React + TypeScript responsive web app (Vite)
+└── backend/    Spring Boot 3 API (Java 17)
 ```
+
+Velocity is a **web-only** product. The same UI adapts to phone, tablet, and desktop viewports — no separate native mobile client.
 
 **Verified state**, so you know what you are picking up:
 
@@ -25,8 +26,6 @@ nexora/
 |---|---|
 | `frontend` — `npm run build` | builds clean |
 | `backend` — `mvn compile` | compiles clean (77 classes) |
-| `mobile` — `flutter analyze` / `flutter test` | clean / 17 passing |
-| `mobile` — `flutter build apk` | **not yet verified on a machine with the Android SDK** |
 
 ## 📋 Table of Contents
 
@@ -78,7 +77,8 @@ nexora/
 - **Calendar Sync** — Auto-create Google Calendar events for detected deadlines
 - **Dark Mode** — System-aware dark/light theme toggle
 - **Keyboard Shortcuts** — `/` search, `j/k` navigate, `e` archive, `r` reply, and more
-- **PWA Support** — Install as native app on mobile/desktop, offline capability
+- **Responsive Web** — Works in the browser on phone, tablet, and desktop
+- **PWA Support** — Optional “Add to Home Screen” install + offline capability
 
 ### 🔒 Security & Privacy
 - **Read-only Gmail Access** — Never modifies or sends emails
@@ -646,8 +646,8 @@ DB_URL=jdbc:mysql://your-host:3306/nexora_db?useSSL=true
 - [ ] Theme persists on reload
 - [ ] Search bar focusable with `/`
 - [ ] Keyboard shortcuts work (j, k, e, r)
-- [ ] Mobile responsive
-- [ ] PWA installable
+- [ ] Responsive on phone, tablet, and desktop
+- [ ] PWA installable (optional Add to Home Screen)
 
 ### Automated Testing
 

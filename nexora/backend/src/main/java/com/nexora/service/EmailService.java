@@ -1,13 +1,17 @@
 package com.nexora.service;
 
+import com.nexora.dto.response.EmailResponse;
+import com.nexora.dto.response.GmailLabelCountResponse;
+import com.nexora.dto.response.GmailSyncResponse;
 import com.nexora.dto.response.SenderSummaryResponse;
+import com.nexora.dto.response.SyncIntegrityResponse;
 import com.nexora.exception.NexoraException;
 import com.nexora.model.Email;
 import com.nexora.model.Email.EmailCategory;
 import com.nexora.model.Email.Priority;
 import com.nexora.model.Email.Reaction;
+import com.nexora.model.User;
 import com.nexora.repository.EmailRepository;
-import com.nexora.dto.response.EmailResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -34,20 +38,36 @@ public class EmailService {
         Page<Email> emailPage;
 
         if (search != null && !search.isBlank()) {
-            emailPage = emailRepository.searchByUserId(userId, search, pageable);
+            emailPage = emailRepository.searchInboxByUserId(userId, search, pageable);
         } else if (category != null && priority != null) {
-            emailPage = emailRepository.findByUserIdAndCategoryAndPriorityOrderByReceivedAtDesc(
+            emailPage = emailRepository.findByUserIdAndInInboxTrueAndCategoryAndPriorityOrderByReceivedAtDesc(
                     userId, EmailCategory.valueOf(category), Priority.valueOf(priority), pageable);
         } else if (category != null) {
-            emailPage = emailRepository.findByUserIdAndCategoryOrderByReceivedAtDesc(
+            emailPage = emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
                     userId, EmailCategory.valueOf(category), pageable);
         } else if (priority != null) {
-            emailPage = emailRepository.findByUserIdAndPriorityOrderByReceivedAtDesc(
+            emailPage = emailRepository.findByUserIdAndInInboxTrueAndPriorityOrderByReceivedAtDesc(
                     userId, Priority.valueOf(priority), pageable);
         } else {
-            emailPage = emailRepository.findByUserIdOrderByReceivedAtDesc(userId, pageable);
+            emailPage = emailRepository.findByUserIdAndInInboxTrueOrderByReceivedAtDesc(userId, pageable);
         }
 
+        return emailPage.map(e -> toResponse(e, false));
+    }
+
+    public Page<EmailResponse> getDraftEmails(Long userId, String search, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("receivedAt").descending());
+        Page<Email> emailPage = (search != null && !search.isBlank())
+                ? emailRepository.searchDraftsByUserId(userId, search, pageable)
+                : emailRepository.findByUserIdAndIsDraftTrueOrderByReceivedAtDesc(userId, pageable);
+        return emailPage.map(e -> toResponse(e, false));
+    }
+
+    public Page<EmailResponse> getArchivedEmails(Long userId, String search, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("receivedAt").descending());
+        Page<Email> emailPage = (search != null && !search.isBlank())
+                ? emailRepository.searchArchivedByUserId(userId, search, pageable)
+                : emailRepository.findByUserIdAndIsArchivedTrueOrderByReceivedAtDesc(userId, pageable);
         return emailPage.map(e -> toResponse(e, false));
     }
 
@@ -87,8 +107,132 @@ public class EmailService {
         gmailSyncService.syncInbox(userId);
     }
 
-    public void syncInbox(Long userId) {
-        gmailSyncService.syncInbox(userId);
+    public GmailSyncResponse syncInbox(Long userId) {
+        return gmailSyncService.syncInbox(userId);
+    }
+
+    public Map<String, GmailLabelCountResponse> getGmailLabelCounts(Long userId) {
+        return gmailSyncService.getLabelCounts(userId);
+    }
+
+    /**
+     * After inbox sync: separate mail by Gmail label source + content, then group.
+     * Runs synchronously so groups appear immediately in the UI.
+     */
+    public Map<String, Object> classifyInbox(Long userId, User user) {
+        int classified = classificationService.classifyInboxBySourceAndContent(userId);
+        Map<String, Long> groups = getCategoryCounts(userId);
+        return Map.of(
+                "message", "Mails separated and grouped by source and content",
+                "classified", classified,
+                "groups", groups
+        );
+    }
+
+    /**
+     * Compares Gmail Labels API totals with local DB + classification groups.
+     */
+    public SyncIntegrityResponse getSyncIntegrity(User user) {
+        Long userId = user.getId();
+        Map<String, GmailLabelCountResponse> labels = gmailSyncService.getLabelCounts(userId);
+
+        long gmailInbox = labels.get("INBOX") != null && labels.get("INBOX").getMessagesTotal() != null
+                ? labels.get("INBOX").getMessagesTotal() : -1;
+        long gmailUnread = labels.get("INBOX") != null && labels.get("INBOX").getMessagesUnread() != null
+                ? labels.get("INBOX").getMessagesUnread() : -1;
+        long gmailDrafts = labels.get("DRAFT") != null && labels.get("DRAFT").getMessagesTotal() != null
+                ? labels.get("DRAFT").getMessagesTotal() : -1;
+
+        long localInbox = emailRepository.countByUserIdAndInInboxTrue(userId);
+        long localDrafts = emailRepository.countByUserIdAndIsDraftTrue(userId);
+        long localArchived = emailRepository.countByUserIdAndIsArchivedTrue(userId);
+        long localTotal = emailRepository.countByUserId(userId);
+        long localUnread = emailRepository.countInboxUnreadByUserId(userId);
+        long unclassified = emailRepository.countByUserIdAndCategoryAndInInboxTrue(
+                userId, EmailCategory.UNCATEGORIZED);
+
+        Map<String, Long> gmailCounts = new LinkedHashMap<>();
+        gmailCounts.put("inboxTotal", gmailInbox);
+        gmailCounts.put("inboxUnread", gmailUnread);
+        gmailCounts.put("drafts", gmailDrafts);
+        if (labels.get("IMPORTANT") != null && labels.get("IMPORTANT").getMessagesTotal() != null) {
+            gmailCounts.put("important", labels.get("IMPORTANT").getMessagesTotal());
+        }
+        if (labels.get("SPAM") != null && labels.get("SPAM").getMessagesTotal() != null) {
+            gmailCounts.put("spam", labels.get("SPAM").getMessagesTotal());
+        }
+
+        Map<String, Long> localCounts = new LinkedHashMap<>();
+        localCounts.put("inboxTotal", localInbox);
+        localCounts.put("inboxUnread", localUnread);
+        localCounts.put("drafts", localDrafts);
+        localCounts.put("archived", localArchived);
+        localCounts.put("allStored", localTotal);
+
+        List<String> notes = new ArrayList<>();
+        boolean inboxAligned = gmailInbox < 0 || localInbox == gmailInbox;
+        boolean draftsAligned = gmailDrafts < 0 || localDrafts == gmailDrafts;
+
+        if (user.getGmailAccessToken() == null) {
+            notes.add("Gmail is not connected — no token on user.");
+        }
+        if (labels.isEmpty()) {
+            notes.add("No cached Gmail label counts yet — run Sync so Labels API data is stored.");
+        }
+        if (gmailInbox >= 0 && localInbox < gmailInbox) {
+            notes.add("Local inbox (" + localInbox + ") is below Gmail INBOX total (" + gmailInbox + "). Sync may still be incomplete.");
+        }
+        if (gmailInbox >= 0 && localInbox > gmailInbox) {
+            notes.add("Local inbox (" + localInbox + ") is above Gmail INBOX (" + gmailInbox + "). Stale rows may remain.");
+        }
+        if (gmailDrafts >= 0 && localDrafts != gmailDrafts) {
+            notes.add("Drafts: Gmail=" + gmailDrafts + ", local=" + localDrafts + ".");
+        }
+        if (unclassified > 0) {
+            notes.add(unclassified + " inbox mails are still UNCATEGORIZED — classification may not have finished.");
+        } else if (localInbox > 0) {
+            notes.add("All synced inbox mails have a category group.");
+        }
+        if (localInbox == 0 && (gmailInbox > 0 || labels.isEmpty())) {
+            notes.add("No inbox mail stored locally. Open Dashboard to trigger extract → score → classify.");
+        }
+
+        List<Map<String, Object>> sample = emailRepository
+                .findByUserIdAndInInboxTrueOrderByReceivedAtDesc(userId, PageRequest.of(0, 5))
+                .getContent()
+                .stream()
+                .map(e -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", e.getId());
+                    row.put("subject", e.getSubject());
+                    row.put("from", e.getSenderEmail());
+                    row.put("category", e.getCategory() != null ? e.getCategory().name() : null);
+                    row.put("priority", e.getPriority() != null ? e.getPriority().name() : null);
+                    row.put("isRead", e.getIsRead());
+                    row.put("summary", e.getAiSummary());
+                    row.put("labels", e.getGmailLabelIds());
+                    return row;
+                })
+                .collect(Collectors.toList());
+
+        SyncIntegrityResponse out = new SyncIntegrityResponse();
+        out.setConnected(user.getGmailAccessToken() != null);
+        out.setLastSyncedAt(user.getLastSyncedAt() != null ? user.getLastSyncedAt().toString() : null);
+        out.setGmailCounts(gmailCounts);
+        out.setLocalCounts(localCounts);
+        out.setCategoryGroups(getCategoryCounts(userId));
+        out.setUnclassifiedInbox(unclassified);
+        out.setInboxAligned(inboxAligned);
+        out.setDraftsAligned(draftsAligned);
+        out.setNotes(notes);
+        out.setSampleInbox(sample);
+        return out;
+    }
+
+    public void classifyEmail(Long userId, Long emailId, User user) {
+        Email email = emailRepository.findByIdAndUserId(emailId, userId)
+                .orElseThrow(() -> new NexoraException("Email not found", 404));
+        classificationService.classifyEmail(email.getId(), user);
     }
 
     public Map<String, Long> getCategoryCounts(Long userId) {
@@ -149,6 +293,15 @@ public class EmailService {
                 .receivedAt(email.getReceivedAt())
                 .isRead(email.getIsRead())
                 .hasAttachments(email.getHasAttachments())
+                .gmailLabelIds(email.getGmailLabelIds())
+                .recipientTo(email.getRecipientTo())
+                .recipientCc(email.getRecipientCc())
+                .isStarred(email.getIsStarred())
+                .isImportant(email.getIsImportant())
+                .inInbox(email.getInInbox())
+                .isDraft(email.getIsDraft())
+                .isArchived(email.getIsArchived())
+                .sizeEstimate(email.getSizeEstimate())
                 .category(email.getCategory())
                 .priority(email.getPriority())
                 .reaction(email.getReaction() != null ? email.getReaction() : Reaction.NONE)

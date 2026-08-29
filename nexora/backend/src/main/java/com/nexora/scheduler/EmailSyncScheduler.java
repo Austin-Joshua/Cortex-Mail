@@ -5,7 +5,6 @@ import com.nexora.repository.BrainConversationRepository;
 import com.nexora.repository.UserRepository;
 import com.nexora.service.GmailSyncService;
 import com.nexora.service.NotificationService;
-import com.nexora.service.SummarizationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,7 +21,6 @@ public class EmailSyncScheduler {
 
     private final GmailSyncService gmailSyncService;
     private final NotificationService notificationService;
-    private final SummarizationService summarizationService;
     private final BrainConversationRepository brainConversationRepository;
     private final UserRepository userRepository;
 
@@ -42,13 +40,6 @@ public class EmailSyncScheduler {
                 gmailSyncService.syncInbox(user.getId());
             } catch (Exception e) {
                 log.error("Sync failed for user {}: {}", user.getId(), e.getMessage());
-            }
-
-            // Run thread summarization right after sync
-            try {
-                summarizationService.summarizeThreads(user.getId());
-            } catch (Exception e) {
-                log.error("Thread summarization failed for user {}: {}", user.getId(), e.getMessage());
             }
         }
     }

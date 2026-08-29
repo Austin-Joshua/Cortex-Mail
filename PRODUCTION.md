@@ -32,7 +32,7 @@ This guide covers deploying Nexora to production on Vercel (frontend) and Render
 - [ ] Dark mode toggle persists
 - [ ] PWA installs correctly
 - [ ] All keyboard shortcuts work
-- [ ] Mobile UI is responsive
+- [ ] Responsive UI on phone, tablet, and desktop
 
 ### Database
 - [ ] MySQL 8.0+ is available
@@ -448,7 +448,7 @@ To reduce costs:
 - [ ] PWA installable
 - [ ] Search filters work
 - [ ] Thread view groups emails
-- [ ] Mobile layout responsive
+- [ ] Responsive layout on phone, tablet, and desktop
 
 **Congratulations! Nexora is live! 🎉**
 

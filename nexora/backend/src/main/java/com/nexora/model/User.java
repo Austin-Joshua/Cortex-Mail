@@ -54,6 +54,15 @@ public class User {
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt;
 
+    /** Cached Gmail label counts (JSON) from the last sync — matches the real Gmail account. */
+    @JsonIgnore
+    @Column(name = "gmail_label_counts", columnDefinition = "TEXT")
+    private String gmailLabelCounts;
+
+    @JsonIgnore
+    @Column(name = "gmail_history_id")
+    private String gmailHistoryId;
+
     @Column(name = "calendar_sync_enabled")
     @Builder.Default
     private Boolean calendarSyncEnabled = true;

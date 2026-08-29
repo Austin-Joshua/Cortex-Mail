@@ -25,6 +25,59 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
 
     Page<Email> findByUserIdOrderByReceivedAtDesc(Long userId, Pageable pageable);
 
+    Page<Email> findByUserIdAndInInboxTrueOrderByReceivedAtDesc(Long userId, Pageable pageable);
+
+    List<Email> findByUserIdAndInInboxTrue(Long userId);
+
+    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox IS NULL")
+    List<Email> findByUserIdWithNullInInbox(@Param("userId") Long userId);
+
+    @Query("SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.isRead = false")
+    long countInboxUnreadByUserId(@Param("userId") Long userId);
+
+    long countByUserIdAndInInboxTrue(Long userId);
+
+    long countByUserIdAndIsDraftTrue(Long userId);
+
+    long countByUserIdAndIsArchivedTrue(Long userId);
+
+    long countByUserId(Long userId);
+
+    @Query("SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.category = :category AND e.inInbox = true")
+    long countByUserIdAndCategoryAndInInboxTrue(@Param("userId") Long userId, @Param("category") EmailCategory category);
+
+    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND " +
+           "(LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Email> searchInboxByUserId(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
+
+    Page<Email> findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
+            Long userId, EmailCategory category, Pageable pageable);
+
+    Page<Email> findByUserIdAndInInboxTrueAndPriorityOrderByReceivedAtDesc(
+            Long userId, Priority priority, Pageable pageable);
+
+    Page<Email> findByUserIdAndInInboxTrueAndCategoryAndPriorityOrderByReceivedAtDesc(
+            Long userId, EmailCategory category, Priority priority, Pageable pageable);
+
+    Page<Email> findByUserIdAndIsDraftTrueOrderByReceivedAtDesc(Long userId, Pageable pageable);
+
+    Page<Email> findByUserIdAndIsArchivedTrueOrderByReceivedAtDesc(Long userId, Pageable pageable);
+
+    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.isDraft = true AND " +
+           "(LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.recipientTo) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Email> searchDraftsByUserId(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
+
+    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.isArchived = true AND " +
+           "(LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Email> searchArchivedByUserId(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
+
     Page<Email> findByUserIdAndCategoryOrderByReceivedAtDesc(Long userId, EmailCategory category, Pageable pageable);
 
     Page<Email> findByUserIdAndPriorityOrderByReceivedAtDesc(Long userId, Priority priority, Pageable pageable);
@@ -38,7 +91,7 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
            "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Email> searchByUserId(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
 
-    @Query("SELECT e.category, COUNT(e) FROM Email e WHERE e.user.id = :userId GROUP BY e.category")
+    @Query("SELECT e.category, COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true GROUP BY e.category")
     List<Object[]> countByUserIdGroupByCategory(@Param("userId") Long userId);
 
     List<Email> findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(

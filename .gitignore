@@ -60,16 +60,3 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
-
-# ──────────────────────────────────────────────────
-# Flutter / Dart (mobile client)
-# ──────────────────────────────────────────────────
-**/.dart_tool/
-**/build/
-**/.flutter-plugins
-**/.flutter-plugins-dependencies
-**/*.iml
-nexora/mobile/android/local.properties
-nexora/mobile/android/.gradle/
-nexora/mobile/ios/Pods/
-nexora/mobile/ios/.symlinks/

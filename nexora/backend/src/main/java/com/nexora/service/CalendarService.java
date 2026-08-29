@@ -39,7 +39,7 @@ public class CalendarService {
     private final TokenEncryptor tokenEncryptor;
     private final EmailRepository emailRepository;
 
-    private static final String APPLICATION_NAME = "Nexora";
+    private static final String APPLICATION_NAME = "Cortex Mail";
     private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
     @Async
@@ -76,15 +76,15 @@ public class CalendarService {
                     .build();
 
             Event event = new Event();
-            event.setSummary(email.getSubject() != null ? email.getSubject() : "Nexora Deadline");
-            event.setDescription("Detected by Nexora Brain from email by " + 
+            event.setSummary(email.getSubject() != null ? email.getSubject() : "Cortex Mail reminder");
+            event.setDescription("Reminder from Cortex Mail based on the date/time found in email from " +
                     (email.getSenderName() != null ? email.getSenderName() : email.getSenderEmail()));
 
             LocalDateTime deadline = email.getDeadlineDetected();
             EventDateTime start = new EventDateTime();
             EventDateTime end = new EventDateTime();
 
-            if (deadline.getHour() == 0 && deadline.getMinute() == 0) {
+            if (deadline.getHour() == 0 && deadline.getMinute() == 0 && deadline.getSecond() == 0) {
                 String dateStr = deadline.format(DateTimeFormatter.ISO_LOCAL_DATE);
                 start.setDate(new com.google.api.client.util.DateTime(dateStr));
                 end.setDate(new com.google.api.client.util.DateTime(dateStr));
@@ -97,6 +97,17 @@ public class CalendarService {
 
             event.setStart(start);
             event.setEnd(end);
+            // Remind 30 minutes before when a specific time is known
+            if (!(deadline.getHour() == 0 && deadline.getMinute() == 0)) {
+                Event.Reminders reminders = new Event.Reminders();
+                reminders.setUseDefault(false);
+                com.google.api.services.calendar.model.EventReminder popup =
+                        new com.google.api.services.calendar.model.EventReminder()
+                                .setMethod("popup")
+                                .setMinutes(30);
+                reminders.setOverrides(java.util.List.of(popup));
+                event.setReminders(reminders);
+            }
 
             calendar.events().insert("primary", event).execute();
 

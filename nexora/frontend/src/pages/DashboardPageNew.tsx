@@ -6,9 +6,10 @@ import {
   CalendarClock, Flame, Gauge as GaugeIcon,
 } from 'lucide-react';
 import { dashboardApi } from '../api/dashboardApi';
+import { emailApi } from '../api/emailApi';
 import { AppShell } from '../components/layout/AppShell';
 import { useAuthStore } from '../store/authStore';
-import { useEmails } from '../hooks/useEmails';
+import { useInboxPipeline } from '../hooks/useInboxPipeline';
 import { Tile, TileHead } from '../components/bento/Tile';
 import { Gauge } from '../components/bento/Gauge';
 import { CAT_COLORS } from '../utils/catColors';
@@ -17,21 +18,31 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 /** Flow zones are fixed bands across the working day. */
 const FLOW_ZONES = [
-  { name: 'Deep Focus',    from: 9,  to: 12, tone: 'var(--v-signal)',   quiet: true },
-  { name: 'Collaboration', from: 12, to: 15, tone: 'var(--v-pulse)',    quiet: false },
-  { name: 'Rapid Fire',    from: 15, to: 17, tone: 'var(--v-ember)',    quiet: false },
+  { name: 'Deep Focus',    from: 9,  to: 12, tone: 'var(--v-ink)',      quiet: true },
+  { name: 'Collaboration', from: 12, to: 15, tone: 'var(--v-orange)',   quiet: false },
+  { name: 'Rapid Fire',    from: 15, to: 17, tone: 'var(--v-red)',      quiet: false },
   { name: 'Reflection',    from: 17, to: 19, tone: 'var(--v-ink-3)',    quiet: true },
 ];
 
 export const DashboardPageNew: React.FC = () => {
   const { user } = useAuthStore();
-  const { emails, categoryCounts, isLoading } = useEmails();
+  const {
+    emails, categoryCounts, labelCounts, inboxUnread, isLoading,
+    phase, status, runPipeline, isPipelineRunning,
+  } = useInboxPipeline(true);
   const navigate = useNavigate();
 
   const { data } = useQuery({
     queryKey: ['dashboard-summary'],
     queryFn: dashboardApi.getSummary,
-    staleTime: 300_000,
+    staleTime: 60_000,
+  });
+
+  const { data: syncStatus } = useQuery({
+    queryKey: ['sync-status'],
+    queryFn: emailApi.getSyncStatus,
+    staleTime: 30_000,
+    enabled: phase === 'grouped' || phase === 'idle',
   });
 
   const now = new Date();
@@ -39,9 +50,13 @@ export const DashboardPageNew: React.FC = () => {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
-  const unread = data?.unreadCount ?? 0;
-  // Memoised so the `?? []` fallback does not mint a new array each render,
-  // which would defeat every downstream useMemo that depends on it.
+  const unread = data?.unreadCount ?? inboxUnread;
+  const inboxTotal = data?.gmailLabelCounts?.INBOX?.messagesTotal
+    ?? labelCounts?.INBOX?.messagesTotal
+    ?? emails.length;
+  const importantUnread = data?.gmailLabelCounts?.IMPORTANT?.messagesUnread
+    ?? labelCounts?.IMPORTANT?.messagesUnread
+    ?? 0;
   const deadlines = useMemo(() => data?.upcomingDeadlines ?? [], [data]);
   const actions = useMemo(() => data?.pendingActions ?? [], [data]);
 
@@ -56,22 +71,39 @@ export const DashboardPageNew: React.FC = () => {
   );
 
   /**
-   * Velocity Score — derived from real backlog, not a decorative number.
-   * Starts at 100 and is debited by the three things that slow you down.
+   * Cortex Score — extracted from your live Gmail account + mail content.
+   * Starts at 100 and is debited by:
+   *  - Gmail INBOX unread (Backlog)
+   *  - Gmail IMPORTANT unread
+   *  - Action items extracted from mail content
+   *  - Overdue deadlines found in mail text
    */
   const score = useMemo(() => {
     const raw =
       100 -
-      Math.min(45, unread * 1.2) -
+      Math.min(40, unread * 1.2) -
+      Math.min(15, importantUnread * 2) -
       Math.min(25, actions.length * 3) -
       Math.min(20, overdue * 5);
     return Math.max(0, Math.round(raw));
-  }, [unread, actions.length, overdue]);
+  }, [unread, importantUnread, actions.length, overdue]);
 
   const scoreTone =
-    score >= 75 ? 'var(--v-pulse)' : score >= 45 ? 'var(--v-signal)' : 'var(--v-ember)';
+    score >= 75 ? 'var(--v-green)' : score >= 45 ? 'var(--v-orange)' : 'var(--v-red)';
   const scoreVerdict =
     score >= 75 ? 'Running clear' : score >= 45 ? 'Some drag' : 'Backlog building';
+
+  const scoreSource = useMemo(() => {
+    const parts = [
+      `${unread} unread (Gmail INBOX)`,
+      importantUnread > 0 ? `${importantUnread} important` : null,
+      actions.length > 0 ? `${actions.length} actions from mail` : null,
+      overdue > 0 ? `${overdue} overdue deadlines` : null,
+    ].filter(Boolean);
+    return parts.length
+      ? `Built from: ${parts.join(' · ')}`
+      : 'Built from your Gmail inbox labels after sync';
+  }, [unread, importantUnread, actions.length, overdue]);
 
   /** Last 7 days of received mail, oldest → newest. */
   const week = useMemo(() => {
@@ -124,12 +156,90 @@ export const DashboardPageNew: React.FC = () => {
 
   return (
     <AppShell title={`${greeting}, ${firstName}`} subtitle={`${scoreVerdict} · ${weekTotal} messages this week`}>
+      {(isPipelineRunning || phase === 'grouped' || phase === 'error') && status && (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: '10px 14px',
+            borderRadius: 12,
+            border: '1px solid var(--v-hairline)',
+            background: phase === 'error' ? 'var(--v-red-wash)' : 'var(--v-panel-2)',
+            color: phase === 'error' ? 'var(--v-red)' : 'var(--v-ink-2)',
+            fontSize: 13,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <span>{status}</span>
+          {phase === 'error' && (
+            <button type="button" className="vbtn vbtn-quiet" onClick={() => runPipeline(true)}>
+              Retry
+            </button>
+          )}
+          {phase === 'grouped' && (
+            <button type="button" className="vbtn vbtn-bare" onClick={() => navigate('/inbox')}>
+              Open inbox
+            </button>
+          )}
+        </div>
+      )}
+
+      {syncStatus && (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: '12px 14px',
+            borderRadius: 12,
+            border: '1px solid var(--v-hairline)',
+            background: 'var(--v-panel)',
+            fontSize: 12.5,
+            color: 'var(--v-ink-2)',
+            lineHeight: 1.5,
+          }}
+        >
+          <div style={{ fontWeight: 800, color: 'var(--v-ink)', marginBottom: 6 }}>
+            Gmail extract check
+            {syncStatus.inboxAligned && syncStatus.draftsAligned
+              ? ' · aligned'
+              : ' · needs attention'}
+          </div>
+          <div>
+            Gmail inbox {syncStatus.gmailCounts?.inboxTotal ?? '—'}
+            {' · '}local inbox {syncStatus.localCounts?.inboxTotal ?? 0}
+            {' · '}drafts Gmail {syncStatus.gmailCounts?.drafts ?? '—'} / local {syncStatus.localCounts?.drafts ?? 0}
+            {' · '}archive {syncStatus.localCounts?.archived ?? 0}
+            {' · '}groups {Object.keys(syncStatus.categoryGroups || {}).length}
+            {syncStatus.unclassifiedInbox > 0 ? ` · ${syncStatus.unclassifiedInbox} unclassified` : ''}
+          </div>
+          {syncStatus.notes?.slice(0, 2).map((n) => (
+            <div key={n} style={{ marginTop: 4, color: 'var(--v-ink-3)' }}>{n}</div>
+          ))}
+          {syncStatus.sampleInbox?.[0] && (
+            <div style={{ marginTop: 6 }}>
+              Latest: <strong style={{ color: 'var(--v-ink)' }}>{String(syncStatus.sampleInbox[0].subject || '(no subject)')}</strong>
+              {' · '}{String(syncStatus.sampleInbox[0].category || 'UNCATEGORIZED')}
+            </div>
+          )}
+          <button
+            type="button"
+            className="vbtn vbtn-bare"
+            style={{ marginTop: 8, height: 30, padding: '0 8px' }}
+            onClick={() => runPipeline(true)}
+          >
+            Re-extract from Gmail
+          </button>
+        </div>
+      )}
+
       <div className="bento">
 
         {/* ---- HERO: the instrument ---- */}
         <Tile span={5} rows={2} feature index={0}>
           <TileHead
-            label="Velocity Score"
+            label="Cortex Score"
             icon={<GaugeIcon size={17} />}
             tone={scoreTone}
             right={
@@ -145,10 +255,14 @@ export const DashboardPageNew: React.FC = () => {
           >
             <Gauge value={score} tone={scoreTone} label="of 100" />
 
+            <p className="v-meta" style={{ textAlign: 'center', maxWidth: 340, lineHeight: 1.45 }}>
+              {scoreSource}
+            </p>
+
             <div style={{ display: 'flex', gap: 8, width: '100%' }}>
               {[
-                { k: 'Backlog', v: unread, tone: 'var(--v-signal)' },
-                { k: 'Actions', v: actions.length, tone: 'var(--v-ember)' },
+                { k: 'Backlog', v: unread, tone: 'var(--v-ink)' },
+                { k: 'Actions', v: actions.length, tone: 'var(--v-red)' },
                 { k: 'Overdue', v: overdue, tone: overdue ? 'var(--v-critical)' : 'var(--v-ink-4)' },
               ].map((s) => (
                 <div
@@ -173,15 +287,15 @@ export const DashboardPageNew: React.FC = () => {
         </Tile>
 
         {/* ---- Metric chips ---- */}
-        <Tile span={3} rule="var(--v-signal)" index={1} onClick={() => navigate('/inbox')}>
-          <TileHead label="Unread" icon={<Inbox size={17} />} tone="var(--v-signal)"
+        <Tile span={3} rule="var(--v-ink)" index={1} onClick={() => navigate('/inbox')}>
+          <TileHead label="Unread" icon={<Inbox size={17} />} tone="var(--v-ink)"
             right={<ArrowUpRight size={15} style={{ color: 'var(--v-ink-4)' }} />} />
           <div className="v-readout v-readout-lg">{unread}</div>
-          <p className="v-meta">{emails.length ? `of ${emails.length} synced` : 'nothing synced yet'}</p>
+          <p className="v-meta">{inboxTotal > 0 ? `${inboxTotal} in inbox · Gmail` : 'sync inbox to load mail'}</p>
         </Tile>
 
-        <Tile span={4} rule="var(--v-ember)" index={2} onClick={() => navigate('/priority')}>
-          <TileHead label="Deadlines" icon={<Timer size={17} />} tone="var(--v-ember)"
+        <Tile span={4} rule="var(--v-red)" index={2} onClick={() => navigate('/priority')}>
+          <TileHead label="Deadlines" icon={<Timer size={17} />} tone="var(--v-red)"
             right={overdue > 0 ? <span className="delta delta-down">{overdue} overdue</span> : undefined} />
           <div className="v-readout v-readout-lg">{deadlines.length}</div>
           <p className="v-meta">
@@ -191,14 +305,14 @@ export const DashboardPageNew: React.FC = () => {
           </p>
         </Tile>
 
-        <Tile span={3} rule="var(--v-pulse)" index={3}>
-          <TileHead label="Actions" icon={<ListChecks size={17} />} tone="var(--v-pulse)" />
+        <Tile span={3} rule="var(--v-green)" index={3}>
+          <TileHead label="Actions" icon={<ListChecks size={17} />} tone="var(--v-green)" />
           <div className="v-readout v-readout-lg">{actions.length}</div>
           <p className="v-meta">extracted from your mail</p>
         </Tile>
 
         <Tile span={4} index={4} onClick={() => navigate('/analytics')}>
-          <TileHead label="Volume · 7d" icon={<Activity size={17} />} tone="var(--v-signal)"
+          <TileHead label="Volume · 7d" icon={<Activity size={17} />} tone="var(--v-ink)"
             right={<span className="v-num v-label">{weekTotal}</span>} />
           <div className="spark" style={{ minHeight: 44 }}>
             {week.map((d, i) => (
@@ -224,7 +338,7 @@ export const DashboardPageNew: React.FC = () => {
           <TileHead
             label="Needs you first"
             icon={<Flame size={17} />}
-            tone="var(--v-critical)"
+            tone="var(--v-red)"
             right={
               <button className="vbtn vbtn-bare" onClick={() => navigate('/inbox')}>
                 Open inbox <ArrowUpRight size={14} />
@@ -241,10 +355,10 @@ export const DashboardPageNew: React.FC = () => {
                     style={{
                       ['--dot' as string]:
                         e.priority === 'HIGH'
-                          ? 'var(--v-critical)'
+                          ? 'var(--v-red)'
                           : e.priority === 'MEDIUM'
-                          ? 'var(--v-ember)'
-                          : 'var(--v-ink-4)',
+                          ? 'var(--v-orange)'
+                          : 'var(--v-green)',
                     } as React.CSSProperties}
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
@@ -281,7 +395,7 @@ export const DashboardPageNew: React.FC = () => {
 
         {/* ---- Category mix ---- */}
         <Tile span={5} rows={2} index={6}>
-          <TileHead label="Where mail comes from" icon={<Sparkles size={17} />} tone="var(--v-signal)" />
+          <TileHead label="Where mail comes from" icon={<Sparkles size={17} />} tone="var(--v-ink)" />
           {topCategories.length > 0 ? (
             <div
               className="tile-body"

@@ -1,4 +1,5 @@
 import axiosInstance from './axiosInstance';
+import type { GmailLabelCount } from '../types/Email';
 
 export interface DashboardSummary {
   priorityEmails: any[];
@@ -6,6 +7,7 @@ export interface DashboardSummary {
   pendingActions: any[];
   unreadCount: number;
   categoryCounts: Record<string, number>;
+  gmailLabelCounts?: Record<string, GmailLabelCount>;
   todaysMeetings: any[];
 }
 

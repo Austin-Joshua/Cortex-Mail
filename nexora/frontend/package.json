@@ -1,6 +1,6 @@
 {
-  "name": "velocity",
-  "description": "Velocity - Communication Acceleration Platform",
+  "name": "cortex-mail",
+  "description": "Cortex Mail - AI Email Intelligence",
   "private": true,
   "version": "1.0.0",
   "type": "module",

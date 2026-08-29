@@ -1,27 +1,22 @@
-// Category color + label system — used by CategoryTag and throughout the app.
-//
-// A warm-forward categorical set: brass through rust, with a jade, a teal and
-// one dusty blue kept in for separation. Deliberately holds no indigo or
-// violet, which read as foreign against the gold/ember ground. Each hue is
-// mid-tone so it carries on both the light paper and the dark oxblood.
+// Category colors — red, green, orange only (+ grey for neutral).
+// Used for mail category dots and tags.
 
 export const CAT_COLORS: Record<string, { label: string; color: string }> = {
-  ASSIGNMENT:    { label: 'Assignment',    color: '#C8912B' },  // brass
-  HACKATHON:     { label: 'Hackathon',     color: '#E0703A' },  // burnt orange
-  PLACEMENT:     { label: 'Placement',     color: '#3E9E74' },  // jade
-  MEETING:       { label: 'Meeting',       color: '#B5506B' },  // wine rose
-  ATTENDANCE:    { label: 'Attendance',    color: '#D0453F' },  // red clay
-  ANNOUNCEMENT:  { label: 'Announcement',  color: '#D9A441' },  // gold
-  PROMOTIONAL:   { label: 'Promo',         color: '#94837A' },  // warm grey
-  INTERNSHIP:    { label: 'Internship',    color: '#3E9B9B' },  // teal
-  RESEARCH:      { label: 'Research',      color: '#6C86AE' },  // dusty blue
-  FINANCE:       { label: 'Finance',       color: '#6E9E45' },  // olive
-  PERSONAL:      { label: 'Personal',      color: '#D4788E' },  // dusty rose
-  SPAM:          { label: 'Spam',          color: '#9E3B36' },  // rust
-  UNCATEGORIZED: { label: 'Other',         color: '#94837A' },  // warm grey
+  ASSIGNMENT:    { label: 'Assignment',    color: '#DC2626' },  // red — urgent
+  ATTENDANCE:    { label: 'Attendance',    color: '#DC2626' },  // red
+  SPAM:          { label: 'Spam',          color: '#DC2626' },  // red
+  HACKATHON:     { label: 'Hackathon',     color: '#EA580C' },  // orange
+  MEETING:       { label: 'Meeting',       color: '#EA580C' },  // orange — calendar
+  INTERNSHIP:    { label: 'Internship',    color: '#EA580C' },  // orange
+  ANNOUNCEMENT:  { label: 'Announcement',  color: '#EA580C' },  // orange
+  PLACEMENT:     { label: 'Placement',     color: '#16A34A' },  // green
+  FINANCE:       { label: 'Finance',       color: '#16A34A' },  // green
+  RESEARCH:      { label: 'Research',      color: '#16A34A' },  // green
+  PERSONAL:      { label: 'Personal',      color: '#6B7280' },  // neutral grey
+  PROMOTIONAL:   { label: 'Promo',         color: '#6B7280' },
+  UNCATEGORIZED: { label: 'Other',         color: '#6B7280' },
 };
 
-// Legacy label map kept for backward-compat with existing pages
 export const CATEGORY_LABELS: Record<string, string> = {
   ASSIGNMENT:    'Assignment',
   ATTENDANCE:    'Attendance',

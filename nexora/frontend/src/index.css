@@ -23,38 +23,37 @@
     --text-3:        var(--v-ink-3);
     --text-4:        var(--v-ink-4);
 
-    --primary:       var(--v-signal);
-    --primary-light: var(--v-signal-dim);
+    --primary:       var(--v-ink);
+    --primary-light: var(--v-ink-2);
     --primary-pale:  var(--v-signal-wash);
-    --secondary:     var(--v-pulse);
-    --secondary-pale:var(--v-pulse-wash);
-    --accent:        var(--v-signal);
+    --secondary:     var(--v-green);
+    --secondary-pale:var(--v-green-wash);
+    --accent:        var(--v-ink);
     --accent-pale:   var(--v-signal-wash);
     --accent-soft:   var(--v-signal-wash);
 
-    --success:       var(--v-pulse);
-    --warning:       var(--v-signal);
-    --danger:        var(--v-critical);
-    --info:          var(--v-signal);
-    --warn:          var(--v-signal);
+    --success:       var(--v-green);
+    --warning:       var(--v-orange);
+    --danger:        var(--v-red);
+    --info:          var(--v-ink);
+    --warn:          var(--v-orange);
 
-    --unread-dot:    var(--v-signal);
-    --star:          var(--v-signal);
-    --ember:         var(--v-signal);
-    --ember-soft:    var(--v-signal-wash);
-    --violet:        var(--v-ember);
-    --violet-soft:   var(--v-ember-wash);
+    --unread-dot:    var(--v-ink);
+    --star:          var(--v-orange);
+    --ember:         var(--v-red);
+    --ember-soft:    var(--v-red-wash);
+    --violet:        var(--v-red);
+    --violet-soft:   var(--v-red-wash);
 
-    /* Category hues — kept distinct from the accent so they read as data,
-       not as brand. */
-    --cat-assignment:   #C8912B;
-    --cat-hackathon:    #E0703A;
-    --cat-placement:    #3E9E74;
-    --cat-meeting:      #B5506B;
-    --cat-attendance:   #D0453F;
-    --cat-announcement: #D9A441;
-    --cat-research:     #6C86AE;
-    --cat-personal:     #94837A;
+    /* Category hues — red, green, orange, grey only */
+    --cat-assignment:   var(--v-red);
+    --cat-hackathon:    var(--v-orange);
+    --cat-placement:    var(--v-green);
+    --cat-meeting:      var(--v-orange);
+    --cat-attendance:   var(--v-red);
+    --cat-announcement: var(--v-orange);
+    --cat-research:     var(--v-green);
+    --cat-personal:     var(--v-ink-3);
 
     --paper:      var(--v-ground);
     --paper-2:    var(--v-panel);
@@ -82,7 +81,6 @@
   }
 
   html { color-scheme: light; }
-  html.dark { color-scheme: dark; }
 
   body {
     margin: 0;
@@ -102,7 +100,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--v-signal);
+    outline: 2px solid var(--v-ink);
     outline-offset: 2px;
     border-radius: var(--r-sm);
   }
@@ -252,9 +250,9 @@
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 3px;
-  background: var(--v-signal);
+  background: var(--v-ink);
 }
-.gmail-row.selected { background: var(--v-signal-wash); }
+.gmail-row.selected { background: var(--v-panel-2); }
 .gmail-row .actions-cell { display: none; }
 .gmail-row:hover .actions-cell { display: flex; }
 .gmail-row:hover .date-cell { display: none; }
@@ -277,8 +275,8 @@
 }
 .gmail-tab:hover { color: var(--v-ink); }
 .gmail-tab.active {
-  color: var(--v-signal);
-  border-bottom-color: var(--v-signal);
+  color: var(--v-ink);
+  border-bottom-color: var(--v-ink);
   font-weight: 700;
 }
 
@@ -300,8 +298,8 @@
 }
 .gmail-nav-item:hover { background: var(--v-panel-2); color: var(--v-ink); }
 .gmail-nav-item.active {
-  background: var(--v-signal-wash);
-  color: var(--v-signal);
+  background: var(--v-panel-2);
+  color: var(--v-ink);
   font-weight: 700;
 }
 
@@ -319,7 +317,7 @@
   transition: all var(--v-fast);
 }
 .gmail-nav-item-collapsed:hover { background: var(--v-panel-2); color: var(--v-ink); }
-.gmail-nav-item-collapsed.active { background: var(--v-signal-wash); color: var(--v-signal); }
+.gmail-nav-item-collapsed.active { background: var(--v-panel-2); color: var(--v-ink); }
 
 /* Skeleton */
 @keyframes shimmer {

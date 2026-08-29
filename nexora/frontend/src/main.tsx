@@ -5,6 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App.tsx'
 import './index.css'
 
+// Light mode only — clear any saved dark preference from earlier versions.
+document.documentElement.classList.remove('dark')
+localStorage.removeItem('theme')
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

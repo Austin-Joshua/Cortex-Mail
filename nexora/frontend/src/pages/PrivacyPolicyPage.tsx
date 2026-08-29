@@ -47,7 +47,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               1. Gmail OAuth Access &amp; Read Scope
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-              Velocity requests Google OAuth access to fetch and analyze incoming emails for deadlines, priority classification, and AI summaries. We request read-only access by default and optional send permissions for user-initiated email replies.
+              Cortex Mail requests Google OAuth access to fetch and analyze incoming emails for deadlines, priority classification, and AI summaries. We request read-only access by default and optional send permissions for user-initiated email replies.
             </p>
           </section>
 
@@ -65,7 +65,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               3. Data Sharing &amp; Privacy Guarantee
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-              Velocity never sells, rents, or shares your personal email data with third-party advertisers. All email classification is powered by isolated AI models operating under strict privacy constraints.
+              Cortex Mail never sells, rents, or shares your personal email data with third-party advertisers. All email classification is powered by isolated AI models operating under strict privacy constraints.
             </p>
           </section>
         </div>

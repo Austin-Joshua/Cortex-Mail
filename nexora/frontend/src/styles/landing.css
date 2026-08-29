@@ -1,5 +1,5 @@
 /* ==========================================================================
-   VELOCITY — landing surface
+   CORTEX MAIL — landing surface
    Built on the same tokens as the app (styles/bento.css). Nothing here
    redefines a colour; the page follows the viewer's theme.
    ========================================================================== */
@@ -20,7 +20,7 @@
   width: 100%;
   transform-origin: 0 50%;
   transform: scaleX(var(--p, 0));
-  background: linear-gradient(90deg, var(--v-signal), var(--v-ember));
+  background: linear-gradient(90deg, var(--v-signal), #334155);
   z-index: 60;
   will-change: transform;
 }
@@ -63,7 +63,7 @@
   font-weight: 700;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: var(--v-signal);
+  color: var(--v-ink);
 }
 
 .lp-eyebrow::before {
@@ -99,8 +99,8 @@
   margin: 0;
 }
 
-.lp-gold { color: var(--v-signal); }
-.lp-ember { color: var(--v-ember); }
+.lp-gold { color: var(--v-ink); }
+.lp-ember { color: var(--v-red); }
 
 /* --- hero --------------------------------------------------------------- */
 
@@ -121,9 +121,7 @@
   height: 130%;
   pointer-events: none;
   z-index: 0;
-  background:
-    radial-gradient(46% 44% at 78% 16%, var(--v-signal-wash) 0%, transparent 68%),
-    radial-gradient(40% 40% at 14% 78%, var(--v-ember-wash) 0%, transparent 66%);
+  background: none;
 }
 
 /* Must exclude the atmosphere layer: it carries position:absolute at the
@@ -175,11 +173,8 @@
 
 .lp-panel {
   position: relative;
-  background:
-    radial-gradient(120% 100% at 100% 0%, var(--v-signal-wash) 0%, transparent 62%),
-    radial-gradient(95% 85% at 0% 100%, var(--v-ember-wash) 0%, transparent 58%),
-    var(--v-panel);
-  border: 1px solid var(--v-hairline-2);
+  background: var(--v-panel);
+  border: 1px solid var(--v-hairline);
   border-radius: 24px;
   padding: clamp(22px, 3vw, 34px);
   box-shadow: var(--v-lift-3);

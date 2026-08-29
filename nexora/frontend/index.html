@@ -4,27 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Velocity — Communication Acceleration Platform. Accelerate your communication. Reclaim your time. Amplify your impact." />
+    <meta name="description" content="Cortex Mail — AI-powered email intelligence for Gmail. Classify, prioritize, and ask questions about your inbox." />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#1F40FF" />
+    <meta name="theme-color" content="#FFFFFF" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="google-site-verification" content="YRKCKh9cl0E2zBF8hTggw0ydUvJsK9RoAJ8xQ96zNyU" />
-    <title>Velocity — Communication Acceleration Platform</title>
+    <title>Cortex Mail — AI Email Intelligence</title>
     <script>
       if (typeof global === 'undefined') {
         var global = window;
       }
-      // Theme preload — runs before paint to avoid flash
-      (function() {
-        var saved = localStorage.getItem('theme');
-        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        // The stylesheet keys off html.dark, so that is the class to set.
-        // Without this the landing page — which renders no TopBar to apply
-        // it — was stuck in light mode regardless of preference.
-        var theme = (saved === 'dark' || saved === 'light') ? saved : (prefersDark ? 'dark' : 'light');
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-      })();
     </script>
   </head>
   <body>

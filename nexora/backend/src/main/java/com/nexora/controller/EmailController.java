@@ -1,7 +1,10 @@
 package com.nexora.controller;
 
 import com.nexora.dto.response.EmailResponse;
+import com.nexora.dto.response.GmailLabelCountResponse;
+import com.nexora.dto.response.GmailSyncResponse;
 import com.nexora.dto.response.SenderSummaryResponse;
+import com.nexora.dto.response.SyncIntegrityResponse;
 import com.nexora.model.User;
 import com.nexora.service.EmailService;
 import lombok.RequiredArgsConstructor;
@@ -31,40 +34,48 @@ public class EmailController {
         return ResponseEntity.ok(emailService.getEmails(user.getId(), category, priority, search, page, size));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<EmailResponse> getEmail(
+    @GetMapping("/drafts")
+    public ResponseEntity<Page<EmailResponse>> getDraftEmails(
             @AuthenticationPrincipal User user,
-            @PathVariable Long id) {
-        return ResponseEntity.ok(emailService.getEmailDetail(user.getId(), id));
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(emailService.getDraftEmails(user.getId(), search, page, size));
+    }
+
+    @GetMapping("/archived")
+    public ResponseEntity<Page<EmailResponse>> getArchivedEmails(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(emailService.getArchivedEmails(user.getId(), search, page, size));
+    }
+
+    @GetMapping("/sync-status")
+    public ResponseEntity<SyncIntegrityResponse> getSyncStatus(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(emailService.getSyncIntegrity(user));
     }
 
     @PostMapping("/sync")
-    public ResponseEntity<Map<String, String>> syncEmails(@AuthenticationPrincipal User user) {
-        emailService.syncInbox(user.getId());
-        return ResponseEntity.ok(Map.of("message", "Sync completed successfully"));
+    public ResponseEntity<GmailSyncResponse> syncEmails(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(emailService.syncInbox(user.getId()));
+    }
+
+    @GetMapping("/labels/counts")
+    public ResponseEntity<Map<String, GmailLabelCountResponse>> getGmailLabelCounts(
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(emailService.getGmailLabelCounts(user.getId()));
+    }
+
+    @PostMapping("/classify")
+    public ResponseEntity<Map<String, Object>> classifyInbox(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(emailService.classifyInbox(user.getId(), user));
     }
 
     @GetMapping("/categories")
     public ResponseEntity<Map<String, Long>> getCategoryCounts(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(emailService.getCategoryCounts(user.getId()));
-    }
-
-    @PatchMapping("/{id}/read")
-    public ResponseEntity<Void> markRead(
-            @AuthenticationPrincipal User user,
-            @PathVariable Long id) {
-        emailService.markRead(user.getId(), id);
-        return ResponseEntity.ok().build();
-    }
-
-    @PatchMapping("/{id}/reaction")
-    public ResponseEntity<Void> updateReaction(
-            @AuthenticationPrincipal User user,
-            @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
-        String reaction = body.getOrDefault("reaction", "NONE");
-        emailService.updateReaction(user.getId(), id, reaction);
-        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/by-sender")
@@ -88,6 +99,39 @@ public class EmailController {
             @AuthenticationPrincipal User user,
             @PathVariable String threadId) {
         return ResponseEntity.ok(emailService.getEmailThread(user.getId(), threadId));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<EmailResponse> getEmail(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(emailService.getEmailDetail(user.getId(), id));
+    }
+
+    @PostMapping("/{id}/classify")
+    public ResponseEntity<Map<String, String>> classifyEmail(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        emailService.classifyEmail(user.getId(), id, user);
+        return ResponseEntity.ok(Map.of("message", "Classification started"));
+    }
+
+    @PatchMapping("/{id}/read")
+    public ResponseEntity<Void> markRead(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        emailService.markRead(user.getId(), id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{id}/reaction")
+    public ResponseEntity<Void> updateReaction(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        String reaction = body.getOrDefault("reaction", "NONE");
+        emailService.updateReaction(user.getId(), id, reaction);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/draft-reply")

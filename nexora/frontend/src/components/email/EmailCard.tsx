@@ -206,7 +206,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({ email, onClick, isSelected
 
         <button
           onClick={handleAskBrain}
-          title="Ask Velocity Brain about this email"
+          title="Ask Cortex Brain about this email"
           style={{
             background: 'transparent',
             border: 'none',

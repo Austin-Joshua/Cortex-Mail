@@ -20,6 +20,15 @@ public class EmailResponse {
     private LocalDateTime receivedAt;
     private Boolean isRead;
     private Boolean hasAttachments;
+    private String gmailLabelIds;
+    private String recipientTo;
+    private String recipientCc;
+    private Boolean isStarred;
+    private Boolean isImportant;
+    private Boolean inInbox;
+    private Boolean isDraft;
+    private Boolean isArchived;
+    private Long sizeEstimate;
     private EmailCategory category;
     private Priority priority;
     private Reaction reaction;
@@ -146,6 +155,33 @@ public class EmailResponse {
     public void setHasAttachments(Boolean hasAttachments) {
         this.hasAttachments = hasAttachments;
     }
+
+    public String getGmailLabelIds() { return gmailLabelIds; }
+    public void setGmailLabelIds(String gmailLabelIds) { this.gmailLabelIds = gmailLabelIds; }
+
+    public String getRecipientTo() { return recipientTo; }
+    public void setRecipientTo(String recipientTo) { this.recipientTo = recipientTo; }
+
+    public String getRecipientCc() { return recipientCc; }
+    public void setRecipientCc(String recipientCc) { this.recipientCc = recipientCc; }
+
+    public Boolean getIsStarred() { return isStarred; }
+    public void setIsStarred(Boolean isStarred) { this.isStarred = isStarred; }
+
+    public Boolean getIsImportant() { return isImportant; }
+    public void setIsImportant(Boolean isImportant) { this.isImportant = isImportant; }
+
+    public Boolean getInInbox() { return inInbox; }
+    public void setInInbox(Boolean inInbox) { this.inInbox = inInbox; }
+
+    public Boolean getIsDraft() { return isDraft; }
+    public void setIsDraft(Boolean isDraft) { this.isDraft = isDraft; }
+
+    public Boolean getIsArchived() { return isArchived; }
+    public void setIsArchived(Boolean isArchived) { this.isArchived = isArchived; }
+
+    public Long getSizeEstimate() { return sizeEstimate; }
+    public void setSizeEstimate(Long sizeEstimate) { this.sizeEstimate = sizeEstimate; }
 
     public EmailCategory getCategory() {
         return category;
@@ -337,6 +373,15 @@ public class EmailResponse {
         private LocalDateTime receivedAt;
         private Boolean isRead;
         private Boolean hasAttachments;
+        private String gmailLabelIds;
+        private String recipientTo;
+        private String recipientCc;
+        private Boolean isStarred;
+        private Boolean isImportant;
+        private Boolean inInbox;
+        private Boolean isDraft;
+        private Boolean isArchived;
+        private Long sizeEstimate;
         private EmailCategory category;
         private Priority priority;
         private Reaction reaction;
@@ -404,6 +449,51 @@ public class EmailResponse {
             return this;
         }
 
+        public EmailResponseBuilder gmailLabelIds(String gmailLabelIds) {
+            this.gmailLabelIds = gmailLabelIds;
+            return this;
+        }
+
+        public EmailResponseBuilder recipientTo(String recipientTo) {
+            this.recipientTo = recipientTo;
+            return this;
+        }
+
+        public EmailResponseBuilder recipientCc(String recipientCc) {
+            this.recipientCc = recipientCc;
+            return this;
+        }
+
+        public EmailResponseBuilder isStarred(Boolean isStarred) {
+            this.isStarred = isStarred;
+            return this;
+        }
+
+        public EmailResponseBuilder isImportant(Boolean isImportant) {
+            this.isImportant = isImportant;
+            return this;
+        }
+
+        public EmailResponseBuilder inInbox(Boolean inInbox) {
+            this.inInbox = inInbox;
+            return this;
+        }
+
+        public EmailResponseBuilder isDraft(Boolean isDraft) {
+            this.isDraft = isDraft;
+            return this;
+        }
+
+        public EmailResponseBuilder isArchived(Boolean isArchived) {
+            this.isArchived = isArchived;
+            return this;
+        }
+
+        public EmailResponseBuilder sizeEstimate(Long sizeEstimate) {
+            this.sizeEstimate = sizeEstimate;
+            return this;
+        }
+
         public EmailResponseBuilder category(EmailCategory category) {
             this.category = category;
             return this;
@@ -450,10 +540,37 @@ public class EmailResponse {
         }
 
         public EmailResponse build() {
-            return new EmailResponse(this.id, this.gmailMessageId, this.gmailThreadId, this.senderName, this.senderEmail,
-                    this.subject, this.bodySnippet, this.bodyFull, this.receivedAt, this.isRead, this.hasAttachments,
-                    this.category, this.priority, this.reaction, this.aiSummary, this.aiActionItems, this.deadlineDetected,
-                    this.isDeadlineAddedToCalendar, this.actions, this.createdAt);
+            EmailResponse r = new EmailResponse();
+            r.id = this.id;
+            r.gmailMessageId = this.gmailMessageId;
+            r.gmailThreadId = this.gmailThreadId;
+            r.senderName = this.senderName;
+            r.senderEmail = this.senderEmail;
+            r.subject = this.subject;
+            r.bodySnippet = this.bodySnippet;
+            r.bodyFull = this.bodyFull;
+            r.receivedAt = this.receivedAt;
+            r.isRead = this.isRead;
+            r.hasAttachments = this.hasAttachments;
+            r.gmailLabelIds = this.gmailLabelIds;
+            r.recipientTo = this.recipientTo;
+            r.recipientCc = this.recipientCc;
+            r.isStarred = this.isStarred;
+            r.isImportant = this.isImportant;
+            r.inInbox = this.inInbox;
+            r.isDraft = this.isDraft;
+            r.isArchived = this.isArchived;
+            r.sizeEstimate = this.sizeEstimate;
+            r.category = this.category;
+            r.priority = this.priority;
+            r.reaction = this.reaction;
+            r.aiSummary = this.aiSummary;
+            r.aiActionItems = this.aiActionItems;
+            r.deadlineDetected = this.deadlineDetected;
+            r.isDeadlineAddedToCalendar = this.isDeadlineAddedToCalendar;
+            r.actions = this.actions;
+            r.createdAt = this.createdAt;
+            return r;
         }
     }
 }

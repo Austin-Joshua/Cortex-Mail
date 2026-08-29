@@ -18,7 +18,7 @@ public class EmailDraft {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "to_address", columnDefinition = "TEXT")
     private String to;
 
     @Column(columnDefinition = "TEXT")

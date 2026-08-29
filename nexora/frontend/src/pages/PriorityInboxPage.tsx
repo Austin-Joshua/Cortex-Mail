@@ -8,9 +8,9 @@ import { useEmails } from '../hooks/useEmails';
 import { CAT_COLORS } from '../utils/catColors';
 
 const BANDS = [
-  { key: 'HIGH',   label: 'Act now',    tone: 'var(--v-ember)' },
-  { key: 'MEDIUM', label: 'Today',      tone: 'var(--v-signal)' },
-  { key: 'LOW',    label: 'When clear', tone: 'var(--v-ink-3)' },
+  { key: 'HIGH',   label: 'Act now',    tone: 'var(--v-red)' },
+  { key: 'MEDIUM', label: 'Today',      tone: 'var(--v-orange)' },
+  { key: 'LOW',    label: 'When clear', tone: 'var(--v-green)' },
 ] as const;
 
 export const PriorityInboxPage: React.FC = () => {
@@ -39,7 +39,7 @@ export const PriorityInboxPage: React.FC = () => {
           icon={<Flame size={26} />}
           tone="var(--v-critical)"
           headline="Nothing is waiting on you"
-          body="Everything in your inbox is read. When new mail lands, Velocity ranks it here by urgency so the top of the list is always the thing to do next."
+          body="Everything in your inbox is read. When new mail lands, Cortex Mail ranks it here by urgency so the top of the list is always the thing to do next."
           points={['Act now', 'Today', 'When clear']}
           action={{ label: 'Open inbox', onClick: () => navigate('/inbox') }}
         />

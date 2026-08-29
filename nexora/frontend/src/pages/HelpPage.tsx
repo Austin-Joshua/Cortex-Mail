@@ -7,15 +7,15 @@ const CATEGORIES = [
   {
     title: 'Getting started',
     icon: HelpCircle,
-    tone: 'var(--v-signal)',
+    tone: 'var(--v-ink)',
     items: [
       {
         q: 'How do I connect Gmail?',
-        a: 'Sign in with Google and grant read-only access. Velocity never gets permission to delete or send from your account.',
+        a: 'Sign in with Google and grant read-only access. Cortex Mail never gets permission to delete or send from your account.',
       },
       {
         q: 'Where is my data stored?',
-        a: 'Your messages are stored in your own Velocity workspace and your Google tokens are encrypted with AES-256 at rest. Nothing is shared with third parties.',
+        a: 'Your messages are stored in your own Cortex Mail workspace and your Google tokens are encrypted with AES-256 at rest. Nothing is shared with third parties.',
       },
       {
         q: 'Which providers work?',
@@ -26,10 +26,10 @@ const CATEGORIES = [
   {
     title: 'Your score',
     icon: Zap,
-    tone: 'var(--v-ember)',
+    tone: 'var(--v-red)',
     items: [
       {
-        q: 'What is the Velocity Score?',
+        q: 'What is the Cortex Score?',
         a: 'It starts at 100 and is debited by the three things that slow you down: unread backlog, open action items, and overdue deadlines. It moves as you clear them — there is nothing to configure.',
       },
       {
@@ -43,9 +43,9 @@ const CATEGORIES = [
     ],
   },
   {
-    title: 'Velocity Brain',
+    title: 'Cortex Brain',
     icon: Sparkles,
-    tone: 'var(--v-pulse)',
+    tone: 'var(--v-green)',
     items: [
       {
         q: 'What can I ask it?',
@@ -97,7 +97,7 @@ export const HelpPage: React.FC = () => {
   }, [term]);
 
   return (
-    <AppShell title="Help" subtitle="How Velocity works">
+    <AppShell title="Help" subtitle="How Cortex Mail works">
       {/* Sits outside the grid so it keeps its natural height rather than
           stretching to the bento's minimum row. */}
       <div
@@ -221,7 +221,7 @@ export const HelpPage: React.FC = () => {
               </p>
             </div>
             <a
-              href="mailto:support@velocity.app"
+              href="mailto:support@Cortex Mail.app"
               className="vbtn vbtn-signal"
               style={{ textDecoration: 'none' }}
             >

@@ -42,7 +42,7 @@ public class NexoraBrainService {
 
         // Step 3: Call LLM dynamically (Claude or Gemini)
         String systemPrompt = """
-You are Nexora Brain, a personal communication assistant. You have access to the user's recent emails (summarized below). Answer the user's question based ONLY on the information in these emails. Be specific — mention sender names, dates, and subject lines when relevant. If the answer is not found in the emails, say so clearly.
+You are Cortex Mail Brain, a personal communication assistant. You have access to the user's recent emails (summarized below). Answer the user's question based ONLY on the information in these emails. Be specific — mention sender names, dates, and subject lines when relevant. If the answer is not found in the emails, say so clearly. Never invent emails, deadlines, or events that are not present.
 
 User's email history:
 %s
@@ -116,20 +116,54 @@ User's email history:
     }
 
     private String generateLocalBrainAnswer(List<Email> emails, String userQuery) {
-        String q = userQuery.toLowerCase();
-        if (q.contains("assignment")) {
-            return "Based on your emails, you have 1 pending assignment. 'URGENT: Software Engineering Assignment 3 Submission' from Prof. Alan Turing. The deadline is in 2 days, and UML designs and architecture diagrams are required.";
-        } else if (q.contains("google") || q.contains("placement") || q.contains("interview") || q.contains("job")) {
-            return "Congratulations! You have been shortlisted for a Google Software Engineer Internship Interview. The email is from 'Google Careers Recruiting' and they requested your availability for a technical interview this week.";
-        } else if (q.contains("hackathon")) {
-            return "You received a notice about the 'Nexora Hackathon 2026' from the Nexora Dev Community. Registration is currently open, and there is a $5,000 prize pool.";
-        } else if (q.contains("meeting") || q.contains("sync")) {
-            return "You have a meeting titled 'Project Check-in / Sync Meeting' with Sarah Jenkins scheduled for today at 3 PM. The discussion will cover styling, dashboard, and integration.";
-        } else if (q.contains("deadline") || q.contains("due")) {
-            return "I see multiple upcoming deadlines: Google interview availability (1 day), Software Engineering Assignment 3 (2 days), and Nexora Hackathon registration (5 days).";
-        } else {
-            return "Hello! I am Nexora Brain (running in local fallback mode). I analyzed your " + emails.size() + 
-                   " recent emails. I found updates regarding: Software Engineering Assignment 3, Google SWE interview, Nexora Hackathon 2026, and a project check-in meeting with Sarah Jenkins. Please configure a Gemini or Claude API key in your .env file to enable unrestricted AI Q&A.";
+        if (emails == null || emails.isEmpty()) {
+            return "Your inbox has no synced emails yet. Click Sync inbox after connecting Gmail, then ask again.";
         }
+
+        String q = userQuery.toLowerCase();
+        List<Email> matches = emails.stream()
+                .filter(e -> {
+                    String hay = ((e.getSubject() != null ? e.getSubject() : "") + " " +
+                            (e.getSenderName() != null ? e.getSenderName() : "") + " " +
+                            (e.getAiSummary() != null ? e.getAiSummary() : "") + " " +
+                            (e.getBodySnippet() != null ? e.getBodySnippet() : "") + " " +
+                            (e.getCategory() != null ? e.getCategory().name() : "")).toLowerCase();
+                    if (q.contains("deadline") || q.contains("due")) {
+                        return e.getDeadlineDetected() != null;
+                    }
+                    if (q.contains("assignment")) return hay.contains("assignment") || (e.getCategory() != null && e.getCategory().name().equals("ASSIGNMENT"));
+                    if (q.contains("meeting")) return hay.contains("meeting") || (e.getCategory() != null && e.getCategory().name().equals("MEETING"));
+                    if (q.contains("interview") || q.contains("placement") || q.contains("job")) {
+                        return hay.contains("interview") || hay.contains("placement") || (e.getCategory() != null && e.getCategory().name().equals("PLACEMENT"));
+                    }
+                    if (q.contains("hackathon")) return hay.contains("hackathon") || (e.getCategory() != null && e.getCategory().name().equals("HACKATHON"));
+                    // Generic: match any query token against subject/sender
+                    return Arrays.stream(q.split("\\s+"))
+                            .filter(t -> t.length() > 3)
+                            .anyMatch(hay::contains);
+                })
+                .limit(5)
+                .collect(Collectors.toList());
+
+        if (matches.isEmpty()) {
+            return "I checked your " + emails.size() + " most recent synced emails and did not find a clear match for that question. Try asking about a sender, subject, or deadline that appears in your inbox.";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Based only on your synced Gmail messages:\n");
+        for (Email e : matches) {
+            sb.append("• ").append(e.getSubject() != null ? e.getSubject() : "(no subject)");
+            sb.append(" — from ").append(e.getSenderName() != null ? e.getSenderName() : e.getSenderEmail());
+            if (e.getDeadlineDetected() != null) {
+                sb.append(" — date/time in mail: ").append(e.getDeadlineDetected().format(DATE_FMT));
+            } else if (e.getReceivedAt() != null) {
+                sb.append(" — received ").append(e.getReceivedAt().format(DATE_FMT));
+            }
+            if (e.getAiSummary() != null && !e.getAiSummary().isBlank()) {
+                sb.append(" — ").append(e.getAiSummary());
+            }
+            sb.append("\n");
+        }
+        return sb.toString().trim();
     }
 }

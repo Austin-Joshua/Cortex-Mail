@@ -309,7 +309,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
                 className="btn-outline"
                 onClick={() => navigate(`/brain?context=email:${emailId}`)}
               >
-                <Sparkles size={14} /> Ask Velocity Brain
+                <Sparkles size={14} /> Ask Cortex Brain
               </button>
               <button
                 className="btn-outline"

@@ -1,5 +1,8 @@
 package com.nexora.dto.response;
 
+import com.nexora.dto.response.EmailResponse;
+import com.nexora.dto.response.GmailLabelCountResponse;
+
 import java.util.List;
 import java.util.Map;
 
@@ -9,6 +12,7 @@ public class DashboardSummaryResponse {
     private List<ActionItemResponse> pendingActions;
     private long unreadCount;
     private Map<String, Long> categoryCounts;
+    private Map<String, GmailLabelCountResponse> gmailLabelCounts;
     private List<EmailResponse> todaysMeetings;
 
     public DashboardSummaryResponse() {}
@@ -62,6 +66,14 @@ public class DashboardSummaryResponse {
 
     public void setCategoryCounts(Map<String, Long> categoryCounts) {
         this.categoryCounts = categoryCounts;
+    }
+
+    public Map<String, GmailLabelCountResponse> getGmailLabelCounts() {
+        return gmailLabelCounts;
+    }
+
+    public void setGmailLabelCounts(Map<String, GmailLabelCountResponse> gmailLabelCounts) {
+        this.gmailLabelCounts = gmailLabelCounts;
     }
 
     public List<EmailResponse> getTodaysMeetings() {
@@ -233,6 +245,7 @@ public class DashboardSummaryResponse {
         private List<ActionItemResponse> pendingActions;
         private long unreadCount;
         private Map<String, Long> categoryCounts;
+        private Map<String, GmailLabelCountResponse> gmailLabelCounts;
         private List<EmailResponse> todaysMeetings;
 
         DashboardSummaryResponseBuilder() {}
@@ -262,14 +275,26 @@ public class DashboardSummaryResponse {
             return this;
         }
 
+        public DashboardSummaryResponseBuilder gmailLabelCounts(Map<String, GmailLabelCountResponse> gmailLabelCounts) {
+            this.gmailLabelCounts = gmailLabelCounts;
+            return this;
+        }
+
         public DashboardSummaryResponseBuilder todaysMeetings(List<EmailResponse> todaysMeetings) {
             this.todaysMeetings = todaysMeetings;
             return this;
         }
 
         public DashboardSummaryResponse build() {
-            return new DashboardSummaryResponse(this.priorityEmails, this.upcomingDeadlines, this.pendingActions,
-                    this.unreadCount, this.categoryCounts, this.todaysMeetings);
+            DashboardSummaryResponse r = new DashboardSummaryResponse();
+            r.priorityEmails = this.priorityEmails;
+            r.upcomingDeadlines = this.upcomingDeadlines;
+            r.pendingActions = this.pendingActions;
+            r.unreadCount = this.unreadCount;
+            r.categoryCounts = this.categoryCounts;
+            r.gmailLabelCounts = this.gmailLabelCounts;
+            r.todaysMeetings = this.todaysMeetings;
+            return r;
         }
     }
 }

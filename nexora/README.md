@@ -32,6 +32,7 @@
 - 🧠 **Nexora Brain** — Ask natural language questions about your inbox
 - 🔔 **Smart Alerts** — Role-aware notifications for deadlines and events
 - 👤 **Sender Analytics** — See who emails you most, ranked with gold/silver/bronze medals, full drill-down
+- 📱 **Responsive Web** — One web app that adapts to phone, tablet, and desktop (no native mobile client)
 - 🔒 **Private & Secure** — Read-only Gmail access, AES-256 token encryption
 
 ---

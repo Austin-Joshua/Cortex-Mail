@@ -15,12 +15,12 @@ export const WeeklyRecapCard: React.FC<RecapProps> = ({
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'My Velocity Weekly Email Recap',
-        text: `Managed ${totalVolume} emails this week with Velocity AI intelligence! Top category: ${topCategory}.`,
+        title: 'My Cortex Mail Weekly Email Recap',
+        text: `Managed ${totalVolume} emails this week with Cortex Mail AI intelligence! Top category: ${topCategory}.`,
         url: window.location.href,
       }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(`Managed ${totalVolume} emails this week with Velocity AI!`);
+      navigator.clipboard.writeText(`Managed ${totalVolume} emails this week with Cortex Mail AI!`);
       alert('Recap summary copied to clipboard!');
     }
   };
@@ -30,15 +30,15 @@ export const WeeklyRecapCard: React.FC<RecapProps> = ({
       className="card-paper"
       style={{
         padding: 24,
-        background: 'linear-gradient(135deg, var(--paper-2), var(--violet-soft))',
-        border: '1px solid rgba(108, 76, 255, 0.3)',
+        background: 'var(--v-panel)',
+        border: '1px solid var(--v-hairline)',
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--violet)', fontWeight: 800, fontSize: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--v-ink)', fontWeight: 800, fontSize: 13 }}>
           <Award size={18} /> YOUR WEEKLY INBOX RECAP
         </div>
         <button onClick={handleShare} className="btn-outline" style={{ height: 32, padding: '0 12px', fontSize: 12 }}>
@@ -56,7 +56,7 @@ export const WeeklyRecapCard: React.FC<RecapProps> = ({
 
         <div>
           <span style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', fontWeight: 700 }}>TOP CATEGORY</span>
-          <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--violet)', margin: '4px 0 0' }}>
+          <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--v-orange)', margin: '4px 0 0' }}>
             {topCategory}
           </p>
         </div>
