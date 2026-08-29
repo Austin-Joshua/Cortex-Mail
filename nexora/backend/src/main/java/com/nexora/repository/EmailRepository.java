@@ -131,7 +131,7 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     /** Important / starred / high-priority inbox mail — candidates for selective Gemini enrichment. */
     @Query("""
             SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.isDraft = false
-            AND (e.isImportant = true OR e.isStarred = true OR e.priority = com.nexora.model.Email.Priority.HIGH)
+            AND (e.isImportant = true OR e.isStarred = true OR e.priority = 'HIGH')
             ORDER BY e.receivedAt DESC
             """)
     Page<Email> findGeminiPriorityCandidates(@Param("userId") Long userId, Pageable pageable);
