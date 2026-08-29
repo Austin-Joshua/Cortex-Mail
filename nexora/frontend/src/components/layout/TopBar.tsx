@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Search, LogOut, X,
+  Search, LogOut, X, Bell, RefreshCw,
   Settings as SettingsIcon, ChevronDown,
 } from 'lucide-react';
 import { useEmailStore } from '../../store/emailStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAuth } from '../../hooks/useAuth';
+import { useEmailSync } from '../../hooks/useEmailSync';
+import { useNotificationStore } from '../../store/notificationStore';
+import { NotificationPanel } from '../notifications/NotificationPanel';
 import { useNavigate } from 'react-router-dom';
 import { useViewport } from '../../hooks/useViewport';
+import { useQuery } from '@tanstack/react-query';
+import { notificationApi } from '../../api/notificationApi';
 import { CAT_COLORS } from '../../utils/catColors';
 import { BrandLogo } from '../common/BrandLogo';
 
@@ -15,6 +20,8 @@ export const TopBar: React.FC = () => {
   const { setSearchQuery, searchQuery, setActiveCategory } = useEmailStore();
   const { user } = useAuthStore();
   const { handleLogout } = useAuth();
+  const { sync, isSyncing } = useEmailSync();
+  const { unreadCount, setUnreadCount, togglePanel, isPanelOpen } = useNotificationStore();
   const navigate = useNavigate();
   const { isMobile } = useViewport();
 
@@ -23,6 +30,17 @@ export const TopBar: React.FC = () => {
   const [showAccount, setShowAccount] = useState(false);
   const [mobileSearch, setMobileSearch] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const { data: notifBadge } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn: notificationApi.getUnreadCount,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
+  useEffect(() => {
+    if (typeof notifBadge === 'number') setUnreadCount(notifBadge);
+  }, [notifBadge, setUnreadCount]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,6 +60,11 @@ export const TopBar: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const goHome = () => {
+    navigate('/');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const initials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'CM';
@@ -54,11 +77,11 @@ export const TopBar: React.FC = () => {
         borderBottom: '1px solid var(--v-hairline)',
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
-        padding: isMobile ? '0 12px' : '0 20px',
+        padding: isMobile ? '0 12px' : '0 28px 0 32px',
         flexShrink: 0,
         zIndex: 40,
         boxShadow: 'var(--v-lift-1)',
+        gap: isMobile ? 12 : 24,
       }}
     >
       {isMobile && mobileSearch && (
@@ -99,7 +122,7 @@ export const TopBar: React.FC = () => {
         style={{
           display: isMobile && mobileSearch ? 'none' : 'flex',
           alignItems: 'center',
-          gap: 16,
+          gap: isMobile ? 12 : 28,
           flex: 1,
           minWidth: 0,
         }}
@@ -108,7 +131,7 @@ export const TopBar: React.FC = () => {
           size={isMobile ? 28 : 34}
           textSize={isMobile ? 13 : 15}
           showText={!isMobile}
-          onClick={() => navigate('/dashboard')}
+          onClick={goHome}
         />
 
         {!isMobile && (
@@ -213,7 +236,7 @@ export const TopBar: React.FC = () => {
         style={{
           display: isMobile && mobileSearch ? 'none' : 'flex',
           alignItems: 'center',
-          gap: 4,
+          gap: 6,
           flexShrink: 0,
           marginLeft: isMobile ? 'auto' : 0,
         }}
@@ -223,7 +246,7 @@ export const TopBar: React.FC = () => {
             onClick={() => setMobileSearch(true)}
             className="vbtn vbtn-bare"
             aria-label="Search mail"
-            style={{ width: 34, padding: 0 }}
+            style={{ width: 36, height: 36, padding: 0 }}
           >
             <Search size={17} />
           </button>
@@ -231,7 +254,72 @@ export const TopBar: React.FC = () => {
 
         <div style={{ position: 'relative' }}>
           <button
-            onClick={() => setShowAccount((p) => !p)}
+            type="button"
+            onClick={() => {
+              setShowAccount(false);
+              togglePanel();
+            }}
+            className="vbtn vbtn-bare"
+            aria-label="Notifications"
+            aria-expanded={isPanelOpen}
+            title="Notifications"
+            style={{ width: 36, height: 36, padding: 0, color: 'var(--v-ink-2)', position: 'relative' }}
+          >
+            <Bell size={18} style={{ display: 'block' }} />
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  minWidth: 16,
+                  height: 16,
+                  padding: '0 4px',
+                  borderRadius: 999,
+                  background: 'var(--v-red)',
+                  color: '#fff',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+          <NotificationPanel />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => sync()}
+          disabled={isSyncing}
+          className="vbtn vbtn-bare"
+          aria-label={isSyncing ? 'Syncing Gmail' : 'Sync Gmail'}
+          title={isSyncing ? 'Syncing…' : 'Sync mail from Gmail'}
+          style={{
+            width: 36,
+            height: 36,
+            padding: 0,
+            color: isSyncing ? 'var(--v-navy)' : 'var(--v-ink-2)',
+          }}
+        >
+          <RefreshCw
+            size={18}
+            className={isSyncing ? 'animate-spin' : undefined}
+            style={{ display: 'block' }}
+          />
+        </button>
+
+        <div style={{ position: 'relative', marginLeft: 2 }}>
+          <button
+            onClick={() => {
+              if (isPanelOpen) togglePanel();
+              setShowAccount((p) => !p);
+            }}
             aria-expanded={showAccount}
             aria-label="Account menu"
             style={{

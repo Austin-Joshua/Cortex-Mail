@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Inbox, Sparkles, BarChart2, Settings,
   Zap, Clock, Archive, FileText, Share2, HelpCircle,
 } from 'lucide-react';
-import { useEmails } from '../../hooks/useEmails';
+import { useInboxUnread } from '../../hooks/useInboxUnread';
 
 type Badge = 'unread' | 'hot';
 
@@ -34,7 +34,7 @@ const SYSTEM: NavItem[] = [
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { inboxUnread } = useEmails();
+  const inboxUnread = useInboxUnread();
 
   const isOn = (to: string) =>
     location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to));

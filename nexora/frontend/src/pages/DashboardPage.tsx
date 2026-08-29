@@ -12,7 +12,7 @@ import { StreakCard } from '../components/dashboard/StreakCard';
 import { DashboardReportModal } from '../components/dashboard/DashboardReportModal';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
-import { useEmails } from '../hooks/useEmails';
+import { useEmailSync } from '../hooks/useEmailSync';
 import { CAT_COLORS } from '../utils/catColors';
 import { Mail, Clock, ListCheck, Tag, RefreshCw, Sparkles, User } from 'lucide-react';
 import { emailApi } from '../api/emailApi';
@@ -20,7 +20,7 @@ import { emailApi } from '../api/emailApi';
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
   const { openReportModal } = useUIStore();
-  const { sync, isSyncing } = useEmails();
+  const { sync, isSyncing } = useEmailSync();
   const navigate = useNavigate();
 
   const hasSynced = React.useRef(false);

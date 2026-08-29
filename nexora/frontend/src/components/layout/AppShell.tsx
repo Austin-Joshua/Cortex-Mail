@@ -39,9 +39,10 @@ export const AppShell: React.FC<AppShellProps> = ({
         overflow: 'hidden',
       }}
     >
+      {/* Title bar spans the full width; sidebar sits underneath */}
       <TopBar />
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0 }}>
         {!isMobile && <Sidebar />}
 
         <main
@@ -99,7 +100,6 @@ export const AppShell: React.FC<AppShellProps> = ({
                 )}
               </header>
             )}
-
             {children}
           </div>
         </main>

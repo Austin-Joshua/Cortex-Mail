@@ -185,59 +185,68 @@ const WelcomeState: React.FC<{ suggestions: string[]; onSend: (q: string) => voi
     style={{
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
       height: '100%',
-      padding: '32px 24px',
-      gap: 24,
-      textAlign: 'center',
+      padding: 'clamp(24px, 4vh, 40px) clamp(20px, 4vw, 40px)',
+      gap: 28,
+      maxWidth: 880,
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
     }}
     className="animate-fade-in"
   >
-    <div>
+    <div style={{ textAlign: 'left' }}>
       <div
         style={{
-          width: 56,
-          height: 56,
-          borderRadius: '50%',
-          background: 'var(--accent-soft)',
-          display: 'flex',
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          background: 'var(--v-navy-soft)',
+          display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          margin: '0 auto 16px',
+          marginBottom: 14,
         }}
       >
-        <Brain size={28} style={{ color: 'var(--accent)' }} />
+        <Brain size={24} style={{ color: 'var(--v-navy)' }} />
       </div>
-      <h3 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 8px', fontFamily: 'Google Sans, Roboto, sans-serif' }}>
+      <h3 style={{ fontSize: 24, fontWeight: 800, color: 'var(--v-ink)', margin: '0 0 8px', letterSpacing: '-0.03em' }}>
         Ask your inbox anything
       </h3>
-      <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, maxWidth: 360, lineHeight: 1.5 }}>
-        Cortex Brain reads all your emails and answers in plain English.
+      <p style={{ fontSize: 14.5, color: 'var(--v-ink-2)', margin: 0, maxWidth: '52ch', lineHeight: 1.55 }}>
+        Cortex Brain answers from your <strong>synced Gmail</strong> only. Sync the dashboard first if Inbox is empty.
       </p>
     </div>
 
-    <div style={{ width: '100%', maxWidth: 460 }}>
-      <p className="section-label" style={{ marginBottom: 12 }}>TRY ASKING...</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {suggestions.map((q, i) => (
+    <div>
+      <p className="v-label" style={{ marginBottom: 12, color: 'var(--v-navy)' }}>Try asking</p>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 10,
+        }}
+      >
+        {suggestions.map((q) => (
           <button
-            key={i}
+            key={q}
+            type="button"
             onClick={() => onSend(q)}
             style={{
-              width: '100%',
               textAlign: 'left',
-              padding: '10px 14px',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              fontSize: 13,
-              color: 'var(--text-1)',
+              padding: '14px 16px',
+              background: 'var(--v-panel)',
+              border: '1px solid color-mix(in srgb, var(--v-navy) 16%, transparent)',
+              borderRadius: 14,
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: 'var(--v-ink)',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              lineHeight: 1.4,
+              boxShadow: 'var(--v-lift-1)',
             }}
           >
-            → {q}
+            {q}
           </button>
         ))}
       </div>

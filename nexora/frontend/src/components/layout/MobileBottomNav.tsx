@@ -1,9 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Inbox, Sparkles, Zap, Settings } from 'lucide-react';
-import { useEmails } from '../../hooks/useEmails';
-import { useQuery } from '@tanstack/react-query';
-import { emailApi } from '../../api/emailApi';
+import { useInboxUnread } from '../../hooks/useInboxUnread';
 
 const ITEMS = [
   { to: '/dashboard', label: 'Home',     icon: LayoutDashboard },
@@ -15,13 +13,7 @@ const ITEMS = [
 
 export const MobileBottomNav: React.FC = () => {
   const location = useLocation();
-  const { emails } = useEmails();
-  const { data: labelData } = useQuery({
-    queryKey: ['gmail-label-counts'],
-    queryFn: emailApi.getGmailLabelCounts,
-    staleTime: 120_000,
-  });
-  const unread = labelData?.INBOX?.messagesUnread ?? emails.filter((e) => !e.isRead).length;
+  const unread = useInboxUnread();
 
   return (
     <nav

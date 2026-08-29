@@ -3,7 +3,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { BrainChat } from '../components/brain/BrainChat';
 import { brainApi } from '../api/brainApi';
 import type { BrainConversation } from '../types/Brain';
-import { History, Clock, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { History, Clock, Plus, PanelLeftClose, PanelLeft } from 'lucide-react';
 
 const formatRelativeTime = (dateStr?: string) => {
   if (!dateStr) return '';
@@ -11,15 +11,14 @@ const formatRelativeTime = (dateStr?: string) => {
     const diffMs = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diffMs / 60000);
     if (mins < 1) return 'just now';
-    if (mins === 1) return '1m ago';
     if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 3600000);
-    if (hrs === 1) return '1h ago';
+    const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
-    if (days === 1) return '1d ago';
-    return `${days}d ago`;
-  } catch { return ''; }
+    return days === 1 ? '1d ago' : `${days}d ago`;
+  } catch {
+    return '';
+  }
 };
 
 export const BrainPage: React.FC = () => {
@@ -36,126 +35,126 @@ export const BrainPage: React.FC = () => {
   }, []);
 
   return (
-    <AppShell title="Cortex Brain" subtitle="Natural language Q&A over your emails" noScroll>
-      <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
-        <div
-          style={{
-            flexShrink: 0,
-            transition: 'width 0.25s ease',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            width: historyOpen ? 220 : 0,
-            borderRight: historyOpen ? '1px solid var(--border)' : 'none',
-            background: 'var(--bg)',
-          }}
-        >
-          {historyOpen && (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '10px 14px',
-                  borderBottom: '1px solid var(--border)',
-                  flexShrink: 0,
-                }}
-              >
-                <History size={14} style={{ color: 'var(--accent)' }} />
-                <span className="section-label" style={{ flex: 1 }}>HISTORY</span>
-              </div>
-
+    <AppShell title="Cortex Brain" subtitle="Ask questions about your synced Gmail — answers cite real messages" noScroll>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: historyOpen ? '240px minmax(0, 1fr)' : 'minmax(0, 1fr)',
+          height: 'calc(100dvh - 180px)',
+          minHeight: 420,
+          border: '1px solid var(--v-hairline)',
+          borderRadius: 20,
+          overflow: 'hidden',
+          background: 'var(--v-panel)',
+          boxShadow: 'var(--v-lift-1)',
+        }}
+      >
+        {historyOpen && (
+          <aside
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              borderRight: '1px solid var(--v-hairline)',
+              background: 'var(--v-ground-2)',
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '14px 14px 10px',
+                flexShrink: 0,
+              }}
+            >
+              <History size={15} style={{ color: 'var(--v-navy)' }} />
+              <span className="v-label" style={{ flex: 1, color: 'var(--v-navy)' }}>History</span>
               <button
-                onClick={() => setSelectedConversationId(null)}
-                className="btn-accent"
-                style={{
-                  margin: '8px 8px 4px',
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                  cursor: 'pointer',
-                }}
+                type="button"
+                className="vbtn vbtn-bare"
+                style={{ width: 28, height: 28, padding: 0 }}
+                onClick={() => setHistoryOpen(false)}
+                aria-label="Hide history"
               >
-                <Plus size={14} /> New conversation
+                <PanelLeftClose size={15} />
               </button>
+            </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {conversations.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 12, padding: 16 }}>No history yet</div>
-                ) : conversations.map((conv) => {
-                  const isSelected = conv.id === selectedConversationId;
+            <button
+              type="button"
+              onClick={() => setSelectedConversationId(null)}
+              className="vbtn vbtn-signal"
+              style={{ margin: '0 12px 10px', height: 36, fontSize: 12.5 }}
+            >
+              <Plus size={14} /> New conversation
+            </button>
+
+            <div className="v-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 10px 12px' }}>
+              {conversations.length === 0 ? (
+                <p style={{ fontSize: 12.5, color: 'var(--v-ink-3)', padding: '12px 6px', margin: 0, lineHeight: 1.45 }}>
+                  No conversations yet. Ask about deadlines, placements, or today’s important mail.
+                </p>
+              ) : (
+                conversations.map((conv) => {
+                  const on = conv.id === selectedConversationId;
                   return (
-                    <div
+                    <button
                       key={conv.id}
+                      type="button"
                       onClick={() => setSelectedConversationId(conv.id)}
                       style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
                         padding: '10px 12px',
-                        borderRadius: 6,
-                        background: isSelected ? 'var(--accent-soft)' : 'var(--bg)',
-                        border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                        marginBottom: 6,
+                        borderRadius: 12,
+                        border: on ? '1px solid var(--v-navy)' : '1px solid transparent',
+                        background: on ? 'var(--v-navy-soft)' : 'var(--v-panel)',
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease',
                       }}
                     >
-                      <p style={{
-                        fontSize: 12,
-                        fontWeight: isSelected ? 700 : 400,
-                        color: isSelected ? 'var(--accent)' : 'var(--text-1)',
-                        margin: '0 0 4px',
-                        lineHeight: 1.4,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}>
+                      <span
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          fontSize: 12.5,
+                          fontWeight: on ? 700 : 600,
+                          color: 'var(--v-ink)',
+                          lineHeight: 1.35,
+                        }}
+                      >
                         {conv.userQuery}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-3)', fontSize: 10 }}>
-                        <Clock size={10} />
-                        <span>{formatRelativeTime(conv.createdAt)}</span>
-                      </div>
-                    </div>
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 10.5, color: 'var(--v-ink-3)' }}>
+                        <Clock size={10} /> {formatRelativeTime(conv.createdAt)}
+                      </span>
+                    </button>
                   );
-                })}
-              </div>
-            </>
+                })
+              )}
+            </div>
+          </aside>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, position: 'relative' }}>
+          {!historyOpen && (
+            <button
+              type="button"
+              className="vbtn vbtn-bare"
+              style={{ position: 'absolute', left: 10, top: 12, zIndex: 2, width: 32, height: 32, padding: 0 }}
+              onClick={() => setHistoryOpen(true)}
+              aria-label="Show history"
+            >
+              <PanelLeft size={16} />
+            </button>
           )}
-        </div>
-
-        <button
-          onClick={() => setHistoryOpen(o => !o)}
-          style={{
-            position: 'absolute',
-            left: historyOpen ? 220 : 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            zIndex: 10,
-            width: 16,
-            height: 40,
-            borderRadius: '0 6px 6px 0',
-            background: 'var(--bg)',
-            border: '1px solid var(--border)',
-            borderLeft: 'none',
-            color: 'var(--text-2)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'left 0.25s ease',
-          }}
-          title={historyOpen ? 'Close history' : 'Open history'}
-        >
-          {historyOpen ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
-        </button>
-
-        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          <BrainChat 
-            selectedConversationId={selectedConversationId} 
-            setSelectedConversationId={setSelectedConversationId} 
+          <BrainChat
+            selectedConversationId={selectedConversationId}
+            setSelectedConversationId={setSelectedConversationId}
             onNewConversationSaved={fetchHistory}
           />
         </div>

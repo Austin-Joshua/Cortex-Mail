@@ -15,13 +15,12 @@ const BANDS = [
 
 export const PriorityInboxPage: React.FC = () => {
   const navigate = useNavigate();
-  const { emails, isLoading } = useEmails();
+  const { emails, isLoading, totalElements } = useEmails(0, 80);
 
   const banded = useMemo(() => {
-    const unread = emails.filter((e) => !e.isRead);
     return BANDS.map((band) => ({
       ...band,
-      items: unread
+      items: emails
         .filter((e) => e.priority === band.key)
         .sort(
           (a, b) =>
@@ -32,16 +31,16 @@ export const PriorityInboxPage: React.FC = () => {
 
   const total = banded.reduce((n, b) => n + b.items.length, 0);
 
-  if (!isLoading && total === 0) {
+  if (!isLoading && totalElements === 0) {
     return (
       <AppShell title="Priority" subtitle="Ranked by what actually needs you">
         <Placeholder
           icon={<Flame size={26} />}
           tone="var(--v-critical)"
-          headline="Nothing is waiting on you"
-          body="Everything in your inbox is read. When new mail lands, Cortex Mail ranks it here by urgency so the top of the list is always the thing to do next."
+          headline="No mail synced yet"
+          body="Sync Gmail from the Dashboard or the sync icon in the title bar. Priority bands fill from your real inbox."
           points={['Act now', 'Today', 'When clear']}
-          action={{ label: 'Open inbox', onClick: () => navigate('/inbox') }}
+          action={{ label: 'Open dashboard', onClick: () => navigate('/dashboard') }}
         />
       </AppShell>
     );
@@ -50,7 +49,7 @@ export const PriorityInboxPage: React.FC = () => {
   return (
     <AppShell
       title="Priority"
-      subtitle={isLoading ? 'Ranking your inbox…' : `${total} unread, ranked by urgency`}
+      subtitle={isLoading ? 'Loading inbox…' : `${total} messages ranked by urgency`}
       actions={
         <button className="vbtn vbtn-quiet" onClick={() => navigate('/inbox')}>
           <Inbox size={16} /> All mail
@@ -69,7 +68,7 @@ export const PriorityInboxPage: React.FC = () => {
 
             {band.items.length > 0 ? (
               <div className="stream">
-                {band.items.slice(0, 8).map((e) => (
+                {band.items.slice(0, 10).map((e) => (
                   <div
                     key={e.id}
                     className="stream-row"
@@ -82,7 +81,7 @@ export const PriorityInboxPage: React.FC = () => {
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div
                         className="truncate"
-                        style={{ fontSize: 13, fontWeight: 700, color: 'var(--v-ink)' }}
+                        style={{ fontSize: 13, fontWeight: e.isRead ? 600 : 700, color: 'var(--v-ink)' }}
                       >
                         {e.subject || '(no subject)'}
                       </div>

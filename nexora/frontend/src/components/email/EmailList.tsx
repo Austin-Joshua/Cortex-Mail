@@ -72,7 +72,7 @@ export const EmailList: React.FC<EmailListProps> = ({ emails, isLoading, onEmail
           Your inbox is clear
         </p>
         <p style={{ color: 'var(--text-2)', fontSize: 13, margin: 0 }}>
-          No emails match your selected category or search filters.
+          Sync from the title bar if your inbox looks empty.
         </p>
       </div>
     );

@@ -84,11 +84,12 @@ public class CortexScoreService {
                 .build();
     }
 
+    /** Higher score = healthier inbox (fewer debit factors). */
     private static String bandFor(int score) {
-        if (score <= 20) return "Calm";
-        if (score <= 40) return "Light";
-        if (score <= 60) return "Moderate";
-        if (score <= 80) return "Heavy";
+        if (score >= 85) return "Clear";
+        if (score >= 70) return "Light";
+        if (score >= 50) return "Moderate";
+        if (score >= 30) return "Heavy";
         return "Critical";
     }
 }

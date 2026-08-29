@@ -43,7 +43,7 @@ export interface GmailSyncResult {
   updatedCount: number;
   inboxMessagesProcessed: number;
   labelCounts: Record<string, GmailLabelCount>;
-  syncMode?: 'FULL' | 'INCREMENTAL';
+  syncMode?: 'FULL' | 'INCREMENTAL' | 'SKIPPED';
 }
 
 export interface Email {

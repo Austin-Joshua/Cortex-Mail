@@ -10,7 +10,6 @@ import { emailApi } from '../api/emailApi';
 import { useQueryClient } from '@tanstack/react-query';
 import { useViewport } from '../hooks/useViewport';
 import type { EmailCategory } from '../types/Email';
-import { Eye, EyeOff, Search, X } from 'lucide-react';
 
 type ViewMode = EmailCategory | 'ALL' | 'SENDERS';
 
@@ -35,42 +34,29 @@ export const InboxPage: React.FC = () => {
   const urlCategory = searchParams.get('category') as ViewMode | null;
 
   const [activeView, setActiveView] = useState<ViewMode>(urlCategory ?? 'ALL');
-  const [unreadOnly, setUnreadOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const { isMobile, isTablet } = useViewport();
   const { setActiveCategory, selectedEmail, setSelectedEmail } = useEmailStore();
-  const { emails, isLoading, categoryCounts, totalElements, inboxUnread } = useEmails(0, 500);
+  const { emails, isLoading, categoryCounts, totalElements, inboxUnread } = useEmails(0, 80);
   const showDetail = !!(selectedEmail || urlEmailId);
   const mobileDetailOnly = isMobile && showDetail;
 
   useEffect(() => {
-    if (urlCategory && TABS.some(t => t.key === urlCategory)) {
+    if (urlCategory && TABS.some((t) => t.key === urlCategory)) {
       setActiveView(urlCategory);
       setActiveCategory(urlCategory as EmailCategory | 'ALL');
+    } else {
+      setActiveView('ALL');
+      setActiveCategory('ALL');
     }
-  }, [urlCategory]);
+  }, [urlCategory, setActiveCategory]);
 
   useEffect(() => {
     if (urlEmailId && emails.length > 0) {
-      const found = emails.find(e => e.id === parseInt(urlEmailId));
+      const found = emails.find((e) => e.id === parseInt(urlEmailId, 10));
       if (found) setSelectedEmail(found);
     }
-  }, [urlEmailId, emails]);
-
-  const displayedEmails = emails.filter(email => {
-    const matchesUnread = !unreadOnly || !email.isRead;
-    if (!searchQuery.trim()) return matchesUnread;
-
-    const query = searchQuery.toLowerCase();
-    const matchesSearch =
-      (email.senderName?.toLowerCase().includes(query)) ||
-      (email.subject?.toLowerCase().includes(query)) ||
-      (email.bodySnippet?.toLowerCase().includes(query)) ||
-      (email.senderEmail?.toLowerCase().includes(query));
-
-    return matchesUnread && matchesSearch;
-  });
+  }, [urlEmailId, emails, setSelectedEmail]);
 
   const handleTabClick = (key: ViewMode) => {
     setActiveView(key);
@@ -78,15 +64,21 @@ export const InboxPage: React.FC = () => {
       setActiveCategory(key as EmailCategory | 'ALL');
     }
     setSelectedEmail(null);
+    if (key === 'ALL') {
+      navigate('/inbox', { replace: true });
+    } else if (key !== 'SENDERS') {
+      navigate(`/inbox?category=${key}`, { replace: true });
+    }
   };
 
-  const handleEmailSelect = async (email: any) => {
-    setSelectedEmail(email);
+  const handleEmailSelect = async (email: { id: number; isRead?: boolean }) => {
+    setSelectedEmail(email as any);
     if (!email.isRead) {
       try {
         await emailApi.markRead(email.id);
         queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-      } catch {}
+        queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
+      } catch { /* ignore */ }
     }
   };
 
@@ -101,120 +93,57 @@ export const InboxPage: React.FC = () => {
               background: 'var(--bg)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
               gap: 8,
               paddingRight: isMobile ? 8 : 16,
-              flexWrap: isMobile ? 'wrap' : 'nowrap',
+              overflowX: 'auto',
             }}
           >
-            <div style={{ overflowX: 'auto', display: 'flex', flex: 1, minWidth: 0, alignItems: 'center' }}>
-              <span className="v-meta" style={{ padding: '0 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>
-                {inboxUnread > 0 ? `${inboxUnread} unread` : 'Inbox'}
-                {totalElements > 0 ? ` · ${totalElements} synced` : ''}
-              </span>
-              {TABS.map(({ key, label }) => {
-                const isActive = activeView === key;
-                const count = key !== 'ALL' && key !== 'SENDERS'
-                  ? (categoryCounts[key as string] ?? 0)
-                  : undefined;
+            <button
+              type="button"
+              onClick={() => handleTabClick('ALL')}
+              className="vbtn vbtn-bare"
+              style={{
+                padding: '0 12px',
+                height: 44,
+                whiteSpace: 'nowrap',
+                fontWeight: 700,
+                fontSize: 12,
+                color: activeView === 'ALL' ? 'var(--v-signal)' : 'var(--v-ink-2)',
+                flexShrink: 0,
+              }}
+            >
+              {inboxUnread > 0 ? `${inboxUnread} unread` : 'Inbox'}
+              {totalElements > 0 ? ` · ${totalElements}` : ''}
+            </button>
 
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleTabClick(key)}
-                    className={`gmail-tab${isActive ? ' active' : ''}`}
-                  >
-                    {label}
-                    {count !== undefined && count > 0 && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: isActive ? 'var(--accent)' : 'var(--text-3)',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {TABS.map(({ key, label }) => {
+              const isActive = activeView === key;
+              const count = key !== 'ALL' && key !== 'SENDERS'
+                ? (categoryCounts[key as string] ?? 0)
+                : undefined;
 
-            {activeView !== 'SENDERS' && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: isMobile ? 8 : 12,
-                  flexShrink: 0,
-                  padding: isMobile ? '8px' : 0,
-                  width: isMobile ? '100%' : 'auto',
-                  justifyContent: isMobile ? 'space-between' : 'flex-start',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg)', flex: isMobile ? 1 : undefined }}>
-                  <Search size={14} style={{ color: 'var(--text-3)' }} />
-                  <input
-                    type="text"
-                    placeholder="Search emails..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      fontSize: 12,
-                      color: 'var(--text-1)',
-                      outline: 'none',
-                      width: isMobile ? '100%' : 140,
-                      minWidth: 0,
-                    }}
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleTabClick(key)}
+                  className={`gmail-tab${isActive ? ' active' : ''}`}
+                >
+                  {label}
+                  {count !== undefined && count > 0 && (
+                    <span
                       style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: 0,
+                        fontSize: 11,
+                        color: isActive ? 'var(--accent)' : 'var(--text-3)',
+                        fontWeight: 700,
                       }}
                     >
-                      <X size={12} style={{ color: 'var(--text-3)' }} />
-                    </button>
+                      {count}
+                    </span>
                   )}
-                </div>
-
-                {!isMobile && (
-                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                    {displayedEmails.length} messages
-                  </span>
-                )}
-
-                <button
-                  onClick={() => setUnreadOnly(u => !u)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: unreadOnly ? 'var(--accent)' : 'var(--text-2)',
-                    background: unreadOnly ? 'var(--accent-soft)' : 'transparent',
-                    border: '1px solid var(--border)',
-                    cursor: 'pointer',
-                    padding: '4px 10px',
-                    borderRadius: 16,
-                    flexShrink: 0,
-                  }}
-                >
-                  {unreadOnly ? <EyeOff size={14} /> : <Eye size={14} />}
-                  {unreadOnly ? 'Unread' : 'All'}
                 </button>
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
 
@@ -236,7 +165,7 @@ export const InboxPage: React.FC = () => {
                   }}
                 >
                   <EmailList
-                    emails={displayedEmails}
+                    emails={emails}
                     isLoading={isLoading}
                     onEmailSelect={handleEmailSelect}
                   />
@@ -251,10 +180,9 @@ export const InboxPage: React.FC = () => {
                     overflow: 'hidden',
                     minWidth: 0,
                   }}
-                  className="animate-fade-in"
                 >
                   <EmailDetail
-                    emailId={selectedEmail ? selectedEmail.id : parseInt(urlEmailId!)}
+                    emailId={selectedEmail ? selectedEmail.id : parseInt(urlEmailId!, 10)}
                     onClose={() => {
                       setSelectedEmail(null);
                       navigate('/inbox', { replace: true });

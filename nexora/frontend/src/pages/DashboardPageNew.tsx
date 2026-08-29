@@ -41,8 +41,8 @@ export const DashboardPageNew: React.FC = () => {
   const { data: syncStatus } = useQuery({
     queryKey: ['sync-status'],
     queryFn: emailApi.getSyncStatus,
-    staleTime: 30_000,
-    enabled: phase === 'grouped' || phase === 'idle',
+    staleTime: 15_000,
+    refetchInterval: isPipelineRunning ? 5000 : false,
   });
 
   const now = new Date();
@@ -70,20 +70,31 @@ export const DashboardPageNew: React.FC = () => {
   );
 
   const cortex = data?.cortexScore;
-  const score = cortex?.score ?? Math.max(0, Math.round(
-    100 - Math.min(40, unread * 1.2) - Math.min(15, importantUnread * 2)
-    - Math.min(25, actions.length * 3) - Math.min(20, overdue * 5),
-  ));
-  const scoreBand = cortex?.band;
-  const scoreTone =
-    score >= 75 ? 'var(--v-green)' : score >= 45 ? 'var(--v-orange)' : 'var(--v-red)';
+  const hasSyncedMail = Boolean(user?.lastSyncedAt) || emails.length > 0
+    || (syncStatus?.localCounts?.allStored ?? 0) > 0;
+  const score = !hasSyncedMail
+    ? null
+    : (cortex?.score ?? Math.max(0, Math.round(
+      100 - Math.min(40, unread * 1.2) - Math.min(15, importantUnread * 2)
+      - Math.min(25, actions.length * 3) - Math.min(20, overdue * 5),
+    )));
+  const scoreBand = !hasSyncedMail ? undefined : cortex?.band;
+  const scoreTone = score == null
+    ? 'var(--v-ink-3)'
+    : score >= 75 ? 'var(--v-green)' : score >= 45 ? 'var(--v-orange)' : 'var(--v-red)';
   const scoreVerdict =
-    scoreBand
-      ?? (score >= 75 ? 'Running clear' : score >= 45 ? 'Some drag' : 'Backlog building');
+    !hasSyncedMail
+      ? 'Sync Gmail to score'
+      : (scoreBand
+        ?? (score != null && score >= 75 ? 'Running clear' : score != null && score >= 45 ? 'Some drag' : 'Backlog building'));
+
+  const labelsReady = syncStatus?.gmailCounts
+    && Object.keys(syncStatus.gmailCounts).length > 0;
+  const extractOk = Boolean(labelsReady && syncStatus?.inboxAligned && syncStatus?.draftsAligned);
 
   const syncChip =
     phase === 'error' ? 'error'
-      : isPipelineRunning || phase === 'syncing' || phase === 'extracting' || phase === 'scoring'
+      : phase === 'busy' || isPipelineRunning || phase === 'syncing' || phase === 'extracting' || phase === 'scoring'
         ? 'syncing'
         : phase === 'grouped' || user?.lastSyncedAt
           ? 'synced'
@@ -192,15 +203,15 @@ export const DashboardPageNew: React.FC = () => {
         </button>
       </div>
 
-      {(isPipelineRunning || phase === 'grouped' || phase === 'error') && status && (
+      {(isPipelineRunning || phase === 'grouped' || phase === 'busy' || phase === 'error') && status && (
         <div
           style={{
             marginBottom: 14,
             padding: '10px 14px',
             borderRadius: 12,
             border: '1px solid var(--v-hairline)',
-            background: phase === 'error' ? 'var(--v-red-wash)' : 'var(--v-panel-2)',
-            color: phase === 'error' ? 'var(--v-red)' : 'var(--v-ink-2)',
+            background: phase === 'error' ? 'var(--v-red-wash)' : phase === 'busy' ? 'var(--v-orange-wash, #fff7ed)' : 'var(--v-panel-2)',
+            color: phase === 'error' ? 'var(--v-red)' : phase === 'busy' ? 'var(--v-orange)' : 'var(--v-ink-2)',
             fontSize: 13,
             fontWeight: 600,
             display: 'flex',
@@ -238,15 +249,18 @@ export const DashboardPageNew: React.FC = () => {
         >
           <div style={{ fontWeight: 800, color: 'var(--v-ink)', marginBottom: 6 }}>
             Gmail extract check
-            {syncStatus.inboxAligned && syncStatus.draftsAligned
-              ? ' · aligned'
-              : ' · needs attention'}
+            {!labelsReady
+              ? ' · awaiting sync'
+              : extractOk
+                ? ' · aligned'
+                : ' · needs attention'}
           </div>
           <div>
             Gmail inbox {syncStatus.gmailCounts?.inboxTotal ?? '—'}
             {' · '}local inbox {syncStatus.localCounts?.inboxTotal ?? 0}
             {' · '}drafts Gmail {syncStatus.gmailCounts?.drafts ?? '—'} / local {syncStatus.localCounts?.drafts ?? 0}
             {' · '}archive {syncStatus.localCounts?.archived ?? 0}
+            {' · '}stored {syncStatus.localCounts?.allStored ?? 0}
             {' · '}groups {Object.keys(syncStatus.categoryGroups || {}).length}
             {syncStatus.unclassifiedInbox > 0 ? ` · ${syncStatus.unclassifiedInbox} unclassified` : ''}
           </div>
@@ -279,7 +293,7 @@ export const DashboardPageNew: React.FC = () => {
             icon={<GaugeIcon size={17} />}
             tone={scoreTone}
             right={
-              <span className={`delta ${score >= 75 ? 'delta-up' : score >= 45 ? 'delta-flat' : 'delta-down'}`}>
+              <span className={`delta ${score == null ? 'delta-flat' : score >= 75 ? 'delta-up' : score >= 45 ? 'delta-flat' : 'delta-down'}`}>
                 {scoreVerdict}
               </span>
             }
@@ -289,10 +303,12 @@ export const DashboardPageNew: React.FC = () => {
             className="tile-body"
             style={{ alignItems: 'center', justifyContent: 'center', gap: 18, paddingBlock: 8 }}
           >
-            <Gauge value={score} tone={scoreTone} label="of 100" />
+            <Gauge value={score ?? 0} tone={scoreTone} label={score == null ? 'sync first' : 'of 100'} />
 
             <p className="v-meta" style={{ textAlign: 'center', maxWidth: 340, lineHeight: 1.45 }}>
-              {scoreBand ? `${scoreBand} · ` : ''}{scoreSource}
+              {score == null
+                ? 'Cortex Score starts after Gmail extract. Empty inbox is not “Critical” — sync to measure real load.'
+                : `${scoreBand ? `${scoreBand} · ` : ''}${scoreSource}`}
             </p>
 
             <button

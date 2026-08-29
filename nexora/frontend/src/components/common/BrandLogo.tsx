@@ -92,7 +92,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       <button
         type="button"
         onClick={onClick}
-        aria-label="Cortex Mail — go to dashboard"
+        aria-label="Cortex Mail — home"
         className={className}
         style={{
           display: 'flex',

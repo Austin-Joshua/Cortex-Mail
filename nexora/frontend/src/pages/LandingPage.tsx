@@ -134,7 +134,11 @@ export const LandingPage: React.FC = () => {
       <div className="lp-rail" style={{ ['--p' as string]: progress } as React.CSSProperties} />
 
       <nav className="lp-nav" data-stuck={stuck ? '1' : '0'}>
-        <BrandLogo size={32} textSize={14} />
+        <BrandLogo
+          size={32}
+          textSize={14}
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        />
         <button
           className="lp-btn lp-btn-primary"
           onClick={handleGoogleLogin}
@@ -528,7 +532,12 @@ export const LandingPage: React.FC = () => {
             gap: 16, flexWrap: 'wrap',
           }}
         >
-          <BrandLogo size={28} textSize={13} showText />
+          <BrandLogo
+            size={28}
+            textSize={13}
+            showText
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          />
           <span style={{ fontSize: 12, color: 'var(--v-ink-3)' }}>
             Navy-clear priorities · AES-256 at rest
           </span>

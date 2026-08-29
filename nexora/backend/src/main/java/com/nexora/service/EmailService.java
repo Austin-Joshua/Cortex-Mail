@@ -231,9 +231,9 @@ public class EmailService {
                 userId, EmailCategory.UNCATEGORIZED);
 
         Map<String, Long> gmailCounts = new LinkedHashMap<>();
-        gmailCounts.put("inboxTotal", gmailInbox);
-        gmailCounts.put("inboxUnread", gmailUnread);
-        gmailCounts.put("drafts", gmailDrafts);
+        if (gmailInbox >= 0) gmailCounts.put("inboxTotal", gmailInbox);
+        if (gmailUnread >= 0) gmailCounts.put("inboxUnread", gmailUnread);
+        if (gmailDrafts >= 0) gmailCounts.put("drafts", gmailDrafts);
         if (labels.get("IMPORTANT") != null && labels.get("IMPORTANT").getMessagesTotal() != null) {
             gmailCounts.put("important", labels.get("IMPORTANT").getMessagesTotal());
         }
@@ -249,8 +249,9 @@ public class EmailService {
         localCounts.put("allStored", localTotal);
 
         List<String> notes = new ArrayList<>();
-        boolean inboxAligned = gmailInbox < 0 || localInbox == gmailInbox;
-        boolean draftsAligned = gmailDrafts < 0 || localDrafts == gmailDrafts;
+        boolean labelsCached = !labels.isEmpty();
+        boolean inboxAligned = labelsCached && gmailInbox >= 0 && localInbox == gmailInbox;
+        boolean draftsAligned = labelsCached && gmailDrafts >= 0 && localDrafts == gmailDrafts;
 
         if (user.getGmailAccessToken() == null) {
             notes.add("Gmail is not connected — no token on user.");
@@ -350,7 +351,8 @@ public class EmailService {
 
     public EmailResponse toResponse(Email email, boolean includeFullBody) {
         List<EmailResponse.ActionItemDto> actions = new ArrayList<>();
-        if (email.getActions() != null) {
+        // List endpoints must not touch lazy collections — one query per row kills inbox load time.
+        if (includeFullBody && email.getActions() != null) {
             actions = email.getActions().stream().map(a -> EmailResponse.ActionItemDto.builder()
                     .id(a.getId())
                     .actionType(a.getActionType())

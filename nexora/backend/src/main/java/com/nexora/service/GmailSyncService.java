@@ -19,6 +19,7 @@ import com.nexora.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -42,9 +43,15 @@ public class GmailSyncService {
     private final TokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
 
-    private final Set<Long> activeSyncs = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.concurrent.ConcurrentHashMap<Long, Long> activeSyncs =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long SYNC_LOCK_TTL_MS = 20 * 60 * 1000L;
 
     private static final int PAGE_SIZE = 100;
+    /** Newest-first page cap so first sync finishes; incremental history covers the rest. */
+    private static final int MAX_INBOX_FULL_SYNC = 500;
+    private static final int MAX_DRAFT_FULL_SYNC = 200;
+    private static final int MAX_ARCHIVE_FULL_SYNC = 300;
     private static final int MAX_RETRIES = 3;
     private static final Pattern HTML_TAGS = Pattern.compile("<[^>]+>");
 
@@ -52,11 +59,19 @@ public class GmailSyncService {
      * Unified sync entry: prefers incremental when a historyId is stored;
      * falls back to full sync on first sync or invalid/expired history.
      */
+    @Transactional
     public GmailSyncResponse syncInbox(Long userId) {
-        if (!activeSyncs.add(userId)) {
-            log.info("Gmail sync already in progress for user {} — skipping concurrent request", userId);
-            return emptyResponse("Sync already in progress", null);
+        long now = System.currentTimeMillis();
+        Long lockStarted = activeSyncs.get(userId);
+        if (lockStarted != null) {
+            if (now - lockStarted < SYNC_LOCK_TTL_MS) {
+                log.info("Gmail sync already in progress for user {} — skipping concurrent request", userId);
+                return skippedResponse(userId, "Sync already in progress — try again in a moment");
+            }
+            log.warn("Stale Gmail sync lock for user {} — allowing new sync", userId);
+            activeSyncs.remove(userId);
         }
+        activeSyncs.put(userId, now);
 
         try {
             User user = userRepository.findById(userId)
@@ -95,8 +110,9 @@ public class GmailSyncService {
 
         Map<String, GmailLabelCountResponse> labelCounts = fetchAndCacheLabelCounts(gmail, user);
 
-        List<Message> inboxMessages = listMessagesByLabel(gmail, "INBOX", Integer.MAX_VALUE);
-        log.info("Fetched {} INBOX message refs for user {}", inboxMessages.size(), userId);
+        List<Message> inboxMessages = listMessagesByLabel(gmail, "INBOX", MAX_INBOX_FULL_SYNC);
+        log.info("Fetched {} INBOX message refs for user {} (cap {})",
+                inboxMessages.size(), userId, MAX_INBOX_FULL_SYNC);
 
         int newCount = 0;
         int updatedCount = 0;
@@ -108,14 +124,14 @@ public class GmailSyncService {
 
         updatedCount += markRemovedFromInbox(userId, seenInboxIds);
 
-        List<Message> draftMessages = listMessagesByLabel(gmail, "DRAFT", Integer.MAX_VALUE);
+        List<Message> draftMessages = listMessagesByLabel(gmail, "DRAFT", MAX_DRAFT_FULL_SYNC);
         log.info("Fetched {} DRAFT message refs for user {}", draftMessages.size(), userId);
         int[] draftStats = upsertMessageBatch(gmail, user, draftMessages, MailboxKind.DRAFT, null);
         newCount += draftStats[0];
         updatedCount += draftStats[1];
 
         List<Message> archivedMessages = listMessagesByQuery(
-                gmail, "-in:inbox -in:trash -in:spam -in:drafts", 300);
+                gmail, "-in:inbox -in:trash -in:spam -in:drafts", MAX_ARCHIVE_FULL_SYNC);
         log.info("Fetched {} archived message refs for user {}", archivedMessages.size(), userId);
         int[] archiveStats = upsertMessageBatch(gmail, user, archivedMessages, MailboxKind.ARCHIVE, null);
         newCount += archiveStats[0];
@@ -775,14 +791,22 @@ public class GmailSyncService {
         return email;
     }
 
+    /**
+     * Replace attachments in-place. Never call setAttachments(new …) on a managed
+     * Email — Hibernate orphanRemoval rejects replacing the PersistentBag.
+     * clear() + add within the sync transaction deletes orphans and adds new rows.
+     */
     private void replaceAttachments(Email email, List<EmailAttachment> attachments) {
-        if (email.getAttachments() == null) {
-            email.setAttachments(new ArrayList<>());
+        List<EmailAttachment> bag = email.getAttachments();
+        if (bag == null) {
+            bag = new ArrayList<>();
+            email.setAttachments(bag);
+        } else {
+            bag.clear();
         }
-        email.getAttachments().clear();
         for (EmailAttachment att : attachments) {
             att.setEmail(email);
-            email.getAttachments().add(att);
+            bag.add(att);
         }
     }
 
@@ -904,6 +928,12 @@ public class GmailSyncService {
 
     private GmailSyncResponse emptyResponse(String message, String syncMode) {
         return new GmailSyncResponse(message, 0, 0, 0, Map.of(), syncMode);
+    }
+
+    /** Concurrent sync: return cached label counts so the UI stays usable. */
+    private GmailSyncResponse skippedResponse(Long userId, String message) {
+        Map<String, GmailLabelCountResponse> labels = getLabelCounts(userId);
+        return new GmailSyncResponse(message, 0, 0, 0, labels, "SKIPPED");
     }
 
     // ─── Parsing helpers ─────────────────────────────────────────────────────

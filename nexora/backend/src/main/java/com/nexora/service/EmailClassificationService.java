@@ -237,14 +237,20 @@ Body:
     /**
      * Synchronous group-by-source-and-content. Used after inbox sync so mail
      * appears first, then is separated into groups. Does not invent data.
+     * Caps work per call so classify does not load the entire mailbox into memory.
      */
     public int classifyInboxBySourceAndContent(Long userId) {
+        final int batchSize = 150;
         List<Email> toClassify = new ArrayList<>();
-        toClassify.addAll(emailRepository.findByUserIdAndInInboxTrue(userId));
-        // Also classify archived mail so Archive page shows groups/details
+        toClassify.addAll(
+                emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
+                        userId,
+                        EmailCategory.UNCATEGORIZED,
+                        org.springframework.data.domain.PageRequest.of(0, batchSize)
+                ).getContent());
         toClassify.addAll(
                 emailRepository.findByUserIdAndIsArchivedTrueOrderByReceivedAtDesc(
-                        userId, org.springframework.data.domain.PageRequest.of(0, 300)).getContent());
+                        userId, org.springframework.data.domain.PageRequest.of(0, 100)).getContent());
 
         int classified = 0;
         Set<Long> seen = new HashSet<>();
