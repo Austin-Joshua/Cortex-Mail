@@ -145,33 +145,40 @@ Then: Google login → Dashboard sync pipeline → Inbox / Drafts / Archive → 
 
 ## 7. Exact next actions (do in this order)
 
-### A. Ship the working tree (today)
+### A. Ship the working tree — DONE (29 Aug 2026)
 
-1. Review uncommitted diffs (AuthService, Gmail/Email null-safety, frontend polish).  
-2. Commit those + optional `.hintrc`. **Skip** `.env`. Decide on the big production prompt MD.  
-3. Push `master` (and `main` if you keep them mirrored).
+1. ~~Review uncommitted diffs~~ → committed as `3344ddb` (+ `vercel.json` follow-up).  
+2. ~~Commit polish + `.hintrc` + audit + docs~~ (prompt MD left untracked).  
+3. ~~Push `master` and mirror `main`~~.
 
-### B. Prove the stack (today / tomorrow)
+### B. Prove the stack — PARTIAL (automated smoke DONE)
 
-4. Restart backend + frontend (clean).  
-5. Manual E2E: login → sync chip / extract check → mail appears in Supabase `emails` → mutate star/archive → confirm Gmail + DB.  
-6. If demo quality matters: set **Gemini or Claude** key in backend `.env` and retest classify + Brain.  
-7. If the DB password was ever shared in chat: **rotate** Supabase password and update `.env` (+ Render later).
+4. ~~Restart backend + frontend~~ — running locally.  
+5. **You:** Google login → Dashboard sync → Inbox/Drafts/Archive → star/archive in browser.  
+6. Optional: set Gemini/Claude key for better classify/Brain.  
+7. Optional: rotate Supabase DB password if it was shared in chat.
 
-### C. Production deploy (next milestone)
+Automated smoke (this session):
+- `GET /actuator/health` → `UP`
+- `GET /api/emails` → `401` (auth gate OK)
+- `GET http://127.0.0.1:5173/` → `200` Cortex Mail HTML
 
-8. **Render:** Web service from `nexora/backend`; set `SPRING_PROFILES_ACTIVE=prod`, all `DB_*`, Google OAuth, JWT, ENCRYPTION, CORS, redirect URI.  
-9. **Vercel:** root `nexora/frontend`; `VITE_API_BASE_URL` = Render URL; `VITE_GOOGLE_CLIENT_ID`.  
-10. Google Cloud Console: production redirect URIs; scopes match modify behavior.  
-11. Smoke production URL end-to-end.
+### C. Production deploy — CONFIG DONE; live click-deploy NEEDS YOU
 
-### D. Docs + honesty (same milestone)
+8. **Render:** `nexora/backend/render.yaml` updated (`cortex-mail-backend`, `SPRING_PROFILES_ACTIVE=prod`, DB/Flyway keys). Create Web Service from GitHub and paste secrets in the dashboard.  
+9. **Vercel:** import repo, root `nexora/frontend`, set `VITE_*`, deploy.  
+10. Google Cloud: add production redirect URI + JS origin.  
+11. Smoke production URL.
 
-12. Rewrite `PRODUCTION.md` for Cortex Mail + Supabase + Flyway (drop MySQL-as-primary + dark mode).  
-13. Fix root / `nexora` READMEs and privacy copy (no false “read-only”).  
-14. Fix PROJECT_REPORT §2 MySQL line.
+No Render/Vercel CLI on this machine; `gh` is not logged in for API deploy helpers. Git remotes are updated so dashboard “Deploy” picks up `3344ddb`.
 
-### E. Defer until A–D are green
+### D. Docs + honesty — DONE
+
+12. ~~`PRODUCTION.md` rewritten~~ (Cortex Mail + Supabase + Flyway).  
+13. ~~Root / `nexora` READMEs + privacy policy~~.  
+14. ~~`PROJECT_REPORT` stack table~~.
+
+### E. Defer until C is green
 
 15. Pub/Sub Watch  
 16. Gmail search parity  
