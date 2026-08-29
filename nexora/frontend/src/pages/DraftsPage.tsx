@@ -41,10 +41,11 @@ export const DraftsPage: React.FC = () => {
   return (
     <AppShell
       noScroll
+      flush
       title="Drafts"
       subtitle={total > 0 ? `${total} from your Gmail Drafts` : 'Unsent mail from your Gmail account'}
     >
-      <div style={{ display: 'flex', height: '100%', minHeight: 420, overflow: 'hidden', background: 'var(--v-panel)', border: '1px solid var(--v-hairline)', borderRadius: 16 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', background: 'var(--v-panel)', border: '1px solid var(--v-hairline)', borderRadius: 16 }}>
         {!mobileDetailOnly && (
           <div style={{ flex: showDetail && !isMobile ? '0 0 42%' : 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: showDetail && !isMobile ? '1px solid var(--v-hairline)' : undefined }}>
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--v-hairline)', display: 'flex', gap: 8 }}>

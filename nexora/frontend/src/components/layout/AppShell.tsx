@@ -14,6 +14,8 @@ interface AppShellProps {
   subtitle?: string;
   actions?: React.ReactNode;
   noScroll?: boolean;
+  /** Full-height pane: no padding, child fills main column (inbox, brain, etc.) */
+  flush?: boolean;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({
@@ -22,6 +24,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   subtitle,
   actions,
   noScroll = false,
+  flush = false,
 }) => {
   const { isMobile } = useViewport();
   const { bottomSheet, closeBottomSheet, openBottomSheet } = useUIStore();
@@ -51,17 +54,30 @@ export const AppShell: React.FC<AppShellProps> = ({
           style={{
             flex: 1,
             minWidth: 0,
-            overflowY: noScroll ? 'hidden' : 'auto',
+            minHeight: 0,
+            display: flush ? 'flex' : undefined,
+            flexDirection: flush ? 'column' : undefined,
+            overflowY: noScroll || flush ? 'hidden' : 'auto',
             overflowX: 'hidden',
           }}
         >
           <div
-            style={{
-              maxWidth: 1560,
-              margin: '0 auto',
-              width: '100%',
-              padding: isMobile ? '16px 14px 96px' : '24px 28px 32px',
-            }}
+            style={
+              flush
+                ? {
+                    flex: 1,
+                    minHeight: 0,
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }
+                : {
+                    maxWidth: 1560,
+                    margin: '0 auto',
+                    width: '100%',
+                    padding: isMobile ? '16px 14px 96px' : '24px 28px 32px',
+                  }
+            }
           >
             {(title || subtitle || actions) && (
               <header
@@ -72,6 +88,8 @@ export const AppShell: React.FC<AppShellProps> = ({
                   gap: 16,
                   flexWrap: 'wrap',
                   marginBottom: isMobile ? 16 : 22,
+                  flexShrink: 0,
+                  padding: flush ? (isMobile ? '16px 14px 0' : '20px 24px 0') : 0,
                 }}
               >
                 <div style={{ minWidth: 0 }}>
@@ -100,7 +118,23 @@ export const AppShell: React.FC<AppShellProps> = ({
                 )}
               </header>
             )}
-            {children}
+            {flush ? (
+              <div
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: title
+                    ? (isMobile ? '0 14px 16px' : '0 24px 24px')
+                    : 0,
+                }}
+              >
+                {children}
+              </div>
+            ) : (
+              children
+            )}
           </div>
         </main>
       </div>

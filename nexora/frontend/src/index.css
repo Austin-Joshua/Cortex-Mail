@@ -284,6 +284,29 @@
   font-weight: 700;
 }
 
+/* Inbox category rail — scroll on small screens, no visible scrollbar */
+.inbox-tab-rail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+  padding: 0 8px 0 0;
+}
+@media (max-width: 900px) {
+  .inbox-tab-rail {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .inbox-tab-rail::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Sidebar nav (legacy markup) */
 .gmail-nav-item {
   display: flex;

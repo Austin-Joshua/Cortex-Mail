@@ -35,13 +35,13 @@ export const BrainPage: React.FC = () => {
   }, []);
 
   return (
-    <AppShell title="Cortex Brain" subtitle="Ask questions about your synced Gmail — answers cite real messages" noScroll>
+    <AppShell title="Cortex Brain" subtitle="Ask questions about your synced Gmail — answers cite real messages" noScroll flush>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: historyOpen ? '240px minmax(0, 1fr)' : 'minmax(0, 1fr)',
-          height: 'calc(100dvh - 180px)',
-          minHeight: 420,
+          flex: 1,
+          minHeight: 0,
           border: '1px solid var(--v-hairline)',
           borderRadius: 20,
           overflow: 'hidden',

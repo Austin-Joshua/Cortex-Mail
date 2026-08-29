@@ -240,34 +240,43 @@ Body:
      * Caps work per call so classify does not load the entire mailbox into memory.
      */
     public int classifyInboxBySourceAndContent(Long userId) {
-        final int batchSize = 150;
-        List<Email> toClassify = new ArrayList<>();
-        toClassify.addAll(
-                emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
-                        userId,
-                        EmailCategory.UNCATEGORIZED,
-                        org.springframework.data.domain.PageRequest.of(0, batchSize)
-                ).getContent());
-        toClassify.addAll(
-                emailRepository.findByUserIdAndIsArchivedTrueOrderByReceivedAtDesc(
-                        userId, org.springframework.data.domain.PageRequest.of(0, 100)).getContent());
-
-        int classified = 0;
-        Set<Long> seen = new HashSet<>();
-        for (Email email : toClassify) {
-            if (email.getId() != null && !seen.add(email.getId())) continue;
-            if (Boolean.TRUE.equals(email.getIsDraft())) continue;
-            if (email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED) {
-                continue;
+        final int batchSize = 200;
+        int totalClassified = 0;
+        for (int pass = 0; pass < 6; pass++) {
+            List<Email> toClassify = new ArrayList<>();
+            toClassify.addAll(
+                    emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
+                            userId,
+                            EmailCategory.UNCATEGORIZED,
+                            org.springframework.data.domain.PageRequest.of(0, batchSize)
+                    ).getContent());
+            if (pass == 0) {
+                toClassify.addAll(
+                        emailRepository.findByUserIdAndIsArchivedTrueOrderByReceivedAtDesc(
+                                userId, org.springframework.data.domain.PageRequest.of(0, 100)).getContent());
             }
-            try {
-                applySourceContentClassification(email, userId);
-                classified++;
-            } catch (Exception e) {
-                log.warn("Local classify failed for email {}: {}", email.getId(), e.getMessage());
+
+            int classifiedThisPass = 0;
+            Set<Long> seen = new HashSet<>();
+            for (Email email : toClassify) {
+                if (email.getId() != null && !seen.add(email.getId())) continue;
+                if (Boolean.TRUE.equals(email.getIsDraft())) continue;
+                if (email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED) {
+                    continue;
+                }
+                try {
+                    applySourceContentClassification(email, userId);
+                    classifiedThisPass++;
+                } catch (Exception e) {
+                    log.warn("Local classify failed for email {}: {}", email.getId(), e.getMessage());
+                }
+            }
+            totalClassified += classifiedThisPass;
+            if (classifiedThisPass == 0) {
+                break;
             }
         }
-        return classified;
+        return totalClassified;
     }
 
     private void applySourceContentClassification(Email email, Long userId) {
