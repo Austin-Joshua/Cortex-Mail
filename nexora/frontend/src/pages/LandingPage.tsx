@@ -20,10 +20,10 @@ const LEDGER = [
 ];
 
 const ZONES = [
-  { name: 'Deep Focus',    hours: '9 — 12', note: 'Notifications muted',  tone: 'var(--v-ink)' },
+  { name: 'Deep Focus',    hours: '9 — 12', note: 'Notifications muted',  tone: 'var(--v-navy)' },
   { name: 'Collaboration', hours: '12 — 3', note: 'Notifications live',   tone: 'var(--v-orange)' },
   { name: 'Rapid Fire',    hours: '3 — 5',  note: 'Batch the quick ones', tone: 'var(--v-red)' },
-  { name: 'Reflection',    hours: '5 — 7',  note: 'Notifications muted',  tone: 'var(--v-ink-3)' },
+  { name: 'Reflection',    hours: '5 — 7',  note: 'Notifications muted',  tone: 'var(--v-navy-mid)' },
 ];
 
 const CAPABILITIES = [
@@ -47,14 +47,14 @@ const CAPABILITIES = [
   },
   {
     icon: Brain,
-    tone: 'var(--v-ink)',
+    tone: 'var(--v-navy)',
     title: 'It answers in your own words',
     body: 'Ask what the placement cell sent last week, or which deadlines land before Friday. Answers link straight back to the mail.',
   },
 ];
 
 const TRUST = [
-  { icon: EyeOff,   title: 'Read-only, always',   body: 'Cortex Mail can read your mail. It cannot send, delete or alter anything.' },
+  { icon: EyeOff,   title: 'You stay in control', body: 'Cortex Mail syncs and ranks your mail. Mailbox changes (star, archive, trash) happen only when you click them.' },
   { icon: KeyRound, title: 'Encrypted at rest',   body: 'Google tokens are sealed with AES-256 and never leave your workspace.' },
   { icon: Lock,     title: 'Not training data',   body: 'Your messages are yours. They are never used to train any model.' },
 ];
@@ -178,29 +178,32 @@ export const LandingPage: React.FC = () => {
       <header className="lp-section lp-hero" ref={heroRef}>
         <div className="lp-atmos" aria-hidden="true" />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
           <Reveal i={0}>
-            <span className="lp-eyebrow">AI email intelligence</span>
+            <div className="lp-brand-hero">
+              <BrandLogo size={48} showText={false} />
+              <h1 className="lp-brand-name">Cortex Mail</h1>
+            </div>
           </Reveal>
 
           <Reveal i={1}>
-            {/* No hand-placed breaks: text-wrap:balance plus a ch-based
-                measure gives even lines at every width. */}
-            <h1 className="lp-display" style={{ maxWidth: '11ch' }}>
-              Your inbox, understood.{' '}
-              <span className="lp-gold">Powered by Cortex Mail.</span>
-            </h1>
+            <span className="lp-eyebrow">AI email intelligence</span>
           </Reveal>
 
           <Reveal i={2}>
-            <p className="lp-lead">
-              Cortex Mail puts an instrument on your Gmail. It measures the drag your
-              backlog is creating, surfaces the deadlines hiding inside it, and gives
-              you back the hours you were spending deciding what to read.
+            <p className="lp-display" style={{ maxWidth: '12ch', fontSize: 'clamp(32px, 5.8vw, 64px)' }}>
+              Your inbox, understood.
             </p>
           </Reveal>
 
           <Reveal i={3}>
+            <p className="lp-lead">
+              An instrument on your Gmail — navy-clear priorities, deadlines pulled
+              into view, and hours back from deciding what to read.
+            </p>
+          </Reveal>
+
+          <Reveal i={4}>
             <div className="lp-cta-row">
               <button className="lp-btn lp-btn-primary" onClick={handleGoogleLogin}>
                 Connect Gmail <ArrowRight size={17} />
@@ -211,9 +214,9 @@ export const LandingPage: React.FC = () => {
             </div>
           </Reveal>
 
-          <Reveal i={4}>
+          <Reveal i={5}>
             <p style={{ fontSize: 12.5, color: 'var(--v-ink-3)', margin: 0 }}>
-              Read-only access · No card · Disconnect whenever you like
+              Encrypted tokens · Disconnect anytime · You control every mailbox action
             </p>
           </Reveal>
         </div>
@@ -221,11 +224,11 @@ export const LandingPage: React.FC = () => {
         <Reveal variant="scale" i={2} className="lp-hero-art">
           <div className="lp-panel" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <span className="v-label">Cortex Score</span>
+              <span className="v-label" style={{ color: 'var(--v-navy)' }}>Cortex Score</span>
               <span
                 style={{
                   fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
-                  background: 'var(--v-red-wash)', color: 'var(--v-red)',
+                  background: 'var(--v-navy-soft)', color: 'var(--v-navy)',
                 }}
               >
                 Backlog building
@@ -233,7 +236,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', paddingBlock: 4 }}>
-              <Gauge value={55} tone="var(--v-orange)" label="of 100" size={186} />
+              <Gauge value={55} tone="var(--v-navy)" label="of 100" size={186} />
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
@@ -246,7 +249,7 @@ export const LandingPage: React.FC = () => {
                   key={s.k}
                   style={{
                     flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 13,
-                    background: 'var(--v-panel-2)', border: '1px solid var(--v-hairline)',
+                    background: 'var(--v-navy-soft)', border: '1px solid color-mix(in srgb, var(--v-navy) 14%, transparent)',
                   }}
                 >
                   <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: s.tone, fontVariantNumeric: 'tabular-nums' }}>
@@ -274,16 +277,7 @@ export const LandingPage: React.FC = () => {
       {/* --------------------------------------------------------- COST */}
       <section className="lp-section" style={{ paddingBlock: 'clamp(48px, 8vh, 96px)' }}>
         <Reveal>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-              gap: 'clamp(20px, 4vw, 56px)',
-              paddingBlock: 'clamp(28px, 4vw, 44px)',
-              borderTop: '1px solid var(--v-hairline)',
-              borderBottom: '1px solid var(--v-hairline)',
-            }}
-          >
+          <div className="lp-stats">
             {[
               { n: 28, suffix: '%', label: 'of the working week goes to mail', d: 0 },
               { n: 2.6, suffix: 'h', label: 'lost daily just deciding what matters', d: 1, dec: 1 },
@@ -300,7 +294,7 @@ export const LandingPage: React.FC = () => {
                     fontWeight: 800,
                     letterSpacing: '-0.045em',
                     lineHeight: 1,
-                    color: 'var(--v-ink)',
+                    color: 'var(--v-navy)',
                   }}
                 />
                 <p style={{ margin: '12px 0 0', fontSize: 13.5, color: 'var(--v-ink-2)', maxWidth: '26ch' }}>
@@ -313,7 +307,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* -------------------------------------------------------- LEDGER */}
-      <section className="lp-section">
+      <section className="lp-section lp-band">
         <div
           style={{
             display: 'grid',
@@ -390,7 +384,8 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* --------------------------------------------------------- ZONES */}
-      <section className="lp-section">
+      <section className="lp-band-strong">
+        <div className="lp-section">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
           <Reveal i={0}>
             <span className="lp-eyebrow">Flow zones</span>
@@ -427,6 +422,7 @@ export const LandingPage: React.FC = () => {
               ))}
             </div>
           </Reveal>
+        </div>
         </div>
       </section>
 
@@ -488,7 +484,7 @@ export const LandingPage: React.FC = () => {
               const Icon = t.icon;
               return (
                 <div key={t.title}>
-                  <Icon size={19} style={{ color: 'var(--v-ink)' }} />
+                  <Icon size={19} style={{ color: 'var(--v-navy)' }} />
                   <h3 style={{ fontSize: 15, fontWeight: 700, margin: '13px 0 0', letterSpacing: '-0.015em' }}>
                     {t.title}
                   </h3>
@@ -503,7 +499,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ----------------------------------------------------------- CTA */}
-      <section className="lp-section" style={{ textAlign: 'center', paddingBottom: 'clamp(80px, 12vh, 150px)' }}>
+      <section className="lp-section lp-cta-finale">
         <Reveal i={0}>
           <h2 className="lp-display" style={{ maxWidth: '16ch', margin: '0 auto' }}>
             Find out what your <span className="lp-gold">score</span> is.
@@ -524,12 +520,7 @@ export const LandingPage: React.FC = () => {
         </Reveal>
       </section>
 
-      <footer
-        style={{
-          borderTop: '1px solid var(--v-hairline)',
-          padding: '30px clamp(16px, 4vw, 44px)',
-        }}
-      >
+      <footer className="lp-footer">
         <div
           style={{
             maxWidth: 1180, margin: '0 auto',
@@ -537,9 +528,9 @@ export const LandingPage: React.FC = () => {
             gap: 16, flexWrap: 'wrap',
           }}
         >
-          <BrandLogo size={26} textSize={13} showText />
+          <BrandLogo size={28} textSize={13} showText />
           <span style={{ fontSize: 12, color: 'var(--v-ink-3)' }}>
-            Read-only Gmail access · AES-256 at rest
+            Navy-clear priorities · AES-256 at rest
           </span>
         </div>
       </footer>

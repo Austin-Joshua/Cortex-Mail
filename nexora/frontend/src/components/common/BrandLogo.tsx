@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 interface BrandLogoProps {
   size?: number;
@@ -6,6 +6,8 @@ interface BrandLogoProps {
   textSize?: number;
   onClick?: () => void;
   className?: string;
+  /** Light text for navy / dark surfaces */
+  inverted?: boolean;
 }
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
@@ -14,22 +16,38 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   textSize = 15,
   onClick,
   className = '',
+  inverted = false,
 }) => {
+  const gid = useId().replace(/:/g, '');
+  const ink = inverted ? '#FFFFFF' : 'var(--v-ink)';
+  const bar = inverted
+    ? 'linear-gradient(90deg, #FFFFFF 0%, rgba(255,255,255,0.35) 70%, transparent 100%)'
+    : 'linear-gradient(90deg, var(--v-navy) 0%, var(--v-navy-mid) 55%, transparent 100%)';
+
   const mark = (
     <>
       <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" style={{ flexShrink: 0 }}>
         <defs>
-          <linearGradient id="cortex-mark" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#1F2937" />
-            <stop offset="100%" stopColor="#0B1220" />
+          <linearGradient id={`cm-mark-${gid}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#2563EB" />
+            <stop offset="55%" stopColor="#1E3A8A" />
+            <stop offset="100%" stopColor="#172554" />
           </linearGradient>
         </defs>
-        <circle cx="16" cy="16" r="14" fill="url(#cortex-mark)" />
+        <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#cm-mark-${gid})`} />
+        {/* Envelope fold — mail mark */}
         <path
-          d="M10 10.5 L16 21.5 L22 10.5"
+          d="M7.5 11.2h17v10.6c0 .7-.5 1.2-1.2 1.2H8.7c-.7 0-1.2-.5-1.2-1.2V11.2z"
           fill="none"
           stroke="#FFFFFF"
-          strokeWidth="2.6"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M8 11.5 L16 17.2 L24 11.5"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="1.7"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -49,7 +67,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
               fontSize: textSize,
               fontWeight: 800,
               letterSpacing: '-0.02em',
-              color: 'var(--v-ink)',
+              color: ink,
             }}
           >
             Cortex Mail
@@ -60,8 +78,8 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
               width: '100%',
               height: 2,
               borderRadius: 999,
-              background: 'linear-gradient(90deg, var(--v-ink) 0%, var(--v-ink-3) 70%, transparent 100%)',
-              opacity: 0.85,
+              background: bar,
+              opacity: 0.9,
             }}
           />
         </span>

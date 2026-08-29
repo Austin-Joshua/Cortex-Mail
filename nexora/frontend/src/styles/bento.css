@@ -1,33 +1,35 @@
 /* ==========================================================================
-   CORTEX MAIL — minimal palette
-   Sidebar: navy only. Main UI: white + black.
+   CORTEX MAIL — palette
+   White grounds + navy blue signal + black ink.
    Accents: red, green, orange — mail & calendar indicators only.
    ========================================================================== */
 
 :root {
-  /* --- Main UI: white + black --- */
+  /* --- Main UI: white --- */
   --v-ground:      #FFFFFF;
-  --v-ground-2:    #F9FAFB;
+  --v-ground-2:    #F4F6FB;
   --v-panel:       #FFFFFF;
-  --v-panel-2:     #F3F4F6;
-  --v-hairline:    #E5E7EB;
-  --v-hairline-2:  #D1D5DB;
+  --v-panel-2:     #F0F3FA;
+  --v-hairline:    #E2E8F0;
+  --v-hairline-2:  #CBD5E1;
 
   --v-ink:         #0B1220;
-  --v-ink-2:       #374151;
-  --v-ink-3:       #6B7280;
-  --v-ink-4:       #9CA3AF;
+  --v-ink-2:       #334155;
+  --v-ink-3:       #64748B;
+  --v-ink-4:       #94A3B8;
   --v-on-signal:   #FFFFFF;
 
-  /* Main chrome uses black — NOT navy */
-  --v-signal:      #0B1220;
-  --v-signal-dim:  #1F2937;
-  --v-signal-wash: rgba(11, 18, 32, 0.06);
-
-  /* Sidebar-only navy (scoped via .app-sidebar) */
+  /* Signal = navy blue */
   --v-navy:        #1E3A8A;
   --v-navy-dim:    #172554;
+  --v-navy-mid:    #2563EB;
+  --v-navy-soft:   #EEF2FF;
+  --v-navy-mist:   #E0E7FF;
   --v-navy-wash:   rgba(255, 255, 255, 0.12);
+
+  --v-signal:      var(--v-navy);
+  --v-signal-dim:  var(--v-navy-dim);
+  --v-signal-wash: rgba(30, 58, 138, 0.10);
 
   /* Mail & calendar indicators only */
   --v-red:         #DC2626;
