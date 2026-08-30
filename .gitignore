@@ -4,6 +4,7 @@
 .vscode/
 .idea/
 *.iml
+.settings/
 .DS_Store
 Thumbs.db
 *.local
