@@ -21,13 +21,27 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center p-8">
-          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+        <div
+          className="flex flex-col items-center justify-center min-h-screen gap-4 text-center p-8"
+          style={{ background: 'var(--color-bg-app)', color: 'var(--color-text-primary)' }}
+        >
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'var(--color-danger-soft)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-danger)',
+            }}
+          >
             <AlertTriangle size={28} />
           </div>
-          <h2 className="text-xl font-semibold text-slate-200">Something went wrong</h2>
-          <p className="text-slate-500 text-sm max-w-sm">{this.state.error?.message}</p>
-          <button className="btn-primary" onClick={() => window.location.reload()}>
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            Something went wrong
+          </h2>
+          <p className="text-sm max-w-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {this.state.error?.message}
+          </p>
+          <button className="btn-accent" onClick={() => window.location.reload()}>
             Reload Page
           </button>
         </div>

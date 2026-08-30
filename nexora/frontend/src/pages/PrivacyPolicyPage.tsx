@@ -22,8 +22,8 @@ export const PrivacyPolicyPage: React.FC = () => {
               width: 40,
               height: 40,
               borderRadius: 10,
-              background: 'var(--v-navy-soft)',
-              color: 'var(--v-navy)',
+              background: 'var(--color-cortex-soft)',
+              color: 'var(--color-cortex-light)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -43,7 +43,7 @@ export const PrivacyPolicyPage: React.FC = () => {
 
         <div className="card-paper" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <section>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-cortex-light)', margin: '0 0 8px' }}>
               1. Gmail OAuth access
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
@@ -55,7 +55,7 @@ export const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-cortex-light)', margin: '0 0 8px' }}>
               2. Data protection &amp; encryption
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
@@ -65,7 +65,7 @@ export const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-cortex-light)', margin: '0 0 8px' }}>
               3. Data sharing
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
@@ -75,7 +75,7 @@ export const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--v-navy)', margin: '0 0 8px' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-cortex-light)', margin: '0 0 8px' }}>
               4. Google API Services User Data Policy
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>

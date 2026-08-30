@@ -9,21 +9,21 @@ import { Bell, Clock, Mail, CheckCircle, Check, ArrowRight } from 'lucide-react'
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; border: string }> = {
   DEADLINE: {
     icon: <Clock size={12} />,
-    color: 'var(--danger)',
-    bg: 'rgba(217,48,37,0.12)',
-    border: 'rgba(217,48,37,0.25)',
+    color: 'var(--color-danger)',
+    bg: 'var(--color-danger-soft)',
+    border: 'var(--color-border)',
   },
   ACTION_REQUIRED: {
     icon: <CheckCircle size={12} />,
-    color: 'var(--star)',
-    bg: 'rgba(242,180,0,0.12)',
-    border: 'rgba(242,180,0,0.25)',
+    color: 'var(--color-warning)',
+    bg: 'var(--color-warning-soft)',
+    border: 'var(--color-border)',
   },
   IMPORTANT_EMAIL: {
     icon: <Mail size={12} />,
-    color: 'var(--accent)',
-    bg: 'var(--accent-soft)',
-    border: 'rgba(26,115,232,0.25)',
+    color: 'var(--color-cortex-light)',
+    bg: 'var(--color-cortex-soft)',
+    border: 'var(--color-cortex-border)',
   },
   DAILY_DIGEST: {
     icon: <Bell size={12} />,

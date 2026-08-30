@@ -24,16 +24,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const ink = inverted ? '#FFFFFF' : 'var(--v-ink)';
   const bar = inverted
     ? 'linear-gradient(90deg, #FFFFFF 0%, rgba(255,255,255,0.35) 70%, transparent 100%)'
-    : 'linear-gradient(90deg, var(--v-navy) 0%, var(--v-navy-mid) 55%, transparent 100%)';
+    : 'linear-gradient(90deg, var(--color-cortex) 0%, var(--color-indigo) 55%, transparent 100%)';
 
   const mark = (
     <>
       <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" style={{ flexShrink: 0 }}>
         <defs>
           <linearGradient id={`cm-mark-${gid}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2563EB" />
-            <stop offset="55%" stopColor="#1E3A8A" />
-            <stop offset="100%" stopColor="#172554" />
+            <stop offset="0%" stopColor="#8B5CF6" />
+            <stop offset="55%" stopColor="#6366F1" />
+            <stop offset="100%" stopColor="#6D28D9" />
           </linearGradient>
         </defs>
         <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#cm-mark-${gid})`} />

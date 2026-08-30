@@ -75,10 +75,8 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
       className={`gmail-row${isUnread ? ' unread' : ''}${isSelected ? ' selected' : ''}`}
       style={{
         background: isSelected
-          ? 'var(--surface-2)'
-          : isUnread
-          ? 'var(--bg)'
-          : 'var(--bg)',
+          ? 'var(--color-surface-active)'
+          : 'var(--color-surface)',
       }}
     >
       <div
@@ -97,8 +95,8 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
         <Star
           size={18}
           style={{
-            color: isHighPriority ? 'var(--star)' : 'var(--border-strong)',
-            fill: isHighPriority ? 'var(--star)' : 'transparent',
+            color: isHighPriority ? 'var(--color-star)' : 'var(--color-star-muted)',
+            fill: isHighPriority ? 'var(--color-star)' : 'transparent',
             cursor: 'pointer',
           }}
         />
@@ -135,7 +133,7 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
         <span
           style={{
             fontWeight: isUnread ? 700 : 400,
-            color: 'var(--text-1)',
+            color: isUnread ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',

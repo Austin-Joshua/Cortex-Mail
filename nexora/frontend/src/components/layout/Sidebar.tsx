@@ -48,13 +48,17 @@ export const Sidebar: React.FC = () => {
   const renderItem = ({ to, icon: Icon, label, badge }: NavItem) => {
     const on = isOn(to);
     const badgeText = badgeFor(badge);
+    const isCortex = to === '/brain';
+    const activeClass = on
+      ? (isCortex ? ' rail-item-cortex' : ' rail-item-on')
+      : '';
 
     return (
       <Link
         key={to}
         to={to}
         aria-current={on ? 'page' : undefined}
-        className={`rail-item${on ? ' rail-item-on' : ''}`}
+        className={`rail-item${activeClass}`}
       >
         <Icon size={17} />
         <span className="truncate">{label}</span>

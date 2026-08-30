@@ -8,7 +8,7 @@ interface PriorityBadgeProps {
 }
 
 export const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority, className = '' }) => (
-  <span className={`${getPriorityClass(priority)} ${className}`}>
+  <span className={`cat-badge ${getPriorityClass(priority)} ${className}`}>
     {PRIORITY_LABELS[priority] ?? priority}
   </span>
 );

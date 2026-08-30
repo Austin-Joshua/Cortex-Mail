@@ -59,8 +59,8 @@ export const BrainPage: React.FC = () => {
                 flexShrink: 0,
               }}
             >
-              <History size={15} style={{ color: 'var(--v-navy)' }} />
-              <span className="v-label" style={{ flex: 1, color: 'var(--v-navy)' }}>History</span>
+              <History size={15} style={{ color: 'var(--color-cortex-light)' }} />
+              <span className="v-label" style={{ flex: 1, color: 'var(--color-cortex-light)' }}>History</span>
               <button
                 type="button"
                 className="vbtn vbtn-bare"
@@ -104,8 +104,8 @@ export const BrainPage: React.FC = () => {
                         padding: '10px 12px',
                         marginBottom: 6,
                         borderRadius: 12,
-                        border: on ? '1px solid var(--v-navy)' : '1px solid transparent',
-                        background: on ? 'var(--v-navy-soft)' : 'var(--v-panel)',
+                        border: on ? '1px solid var(--color-cortex-border)' : '1px solid transparent',
+                        background: on ? 'var(--color-cortex-soft)' : 'var(--color-surface)',
                         cursor: 'pointer',
                       }}
                     >

@@ -265,19 +265,10 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
         {hasHtml ? (
           <div
             className="email-html-body"
-            style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.6, overflowX: 'auto' }}
             dangerouslySetInnerHTML={{ __html: email.bodyHtml as string }}
           />
         ) : (
-          <div
-            style={{
-              fontSize: 14,
-              color: 'var(--text-1)',
-              lineHeight: 1.6,
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'Roboto, sans-serif',
-            }}
-          >
+          <div className="email-body-isolate" style={{ whiteSpace: 'pre-wrap', fontFamily: 'Roboto, sans-serif' }}>
             {displayBody || '(No content)'}
             {isLong && (
               <button
@@ -318,49 +309,41 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
 
         {/* AI Summary Card */}
         {email.aiSummary && (
-          <div className="surface-elevated" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'var(--accent)' }}>
+          <div className="cortex-insight-panel">
+            <div className="cortex-insight-heading">
               <Sparkles size={16} />
-              <span style={{ fontSize: 13, fontWeight: 700 }}>✨ AI Intelligence Summary</span>
+              <span>AI Intelligence Summary</span>
             </div>
-            <p style={{ fontSize: 13, color: 'var(--text-1)', margin: 0, lineHeight: 1.6 }}>
-              {email.aiSummary}
-            </p>
+            <p className="cortex-insight-summary">{email.aiSummary}</p>
           </div>
         )}
 
         {/* Action Items Card */}
         {actionItems.length > 0 && (
-          <div className="surface-elevated" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: 'var(--accent)' }}>
+          <div className="cortex-insight-panel">
+            <div className="cortex-insight-heading">
               <CheckSquare size={16} />
-              <span style={{ fontSize: 13, fontWeight: 700 }}>Action Items Required ({actionItems.length})</span>
+              <span>Action Items Required ({actionItems.length})</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {actionItems.map((a: any, i: number) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '8px 12px',
-                    background: 'var(--bg)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 6,
-                  }}
-                >
+                <div key={i} className="cortex-insight-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {a.id && (
                     <input
                       type="checkbox"
                       checked={completingActions.has(a.id)}
                       onChange={() => handleCompleteAction(a.id)}
-                      style={{ cursor: 'pointer', accentColor: 'var(--accent)' }}
+                      style={{ cursor: 'pointer', accentColor: 'var(--color-cortex)' }}
                     />
                   )}
-                  <span style={{ flex: 1, fontSize: 13, color: 'var(--text-1)' }}>{a.description}</span>
+                  <span style={{ flex: 1, fontSize: 13, color: 'var(--color-text-primary)' }}>{a.description}</span>
+                  {a.deadline && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-warning)' }}>
+                      {a.deadline}
+                    </span>
+                  )}
                   {a.action_type && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 6px', borderRadius: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-info)', background: 'var(--color-info-soft)', padding: '2px 6px', borderRadius: 4 }}>
                       {a.action_type}
                     </span>
                   )}
@@ -390,10 +373,10 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
 
         {/* Draft Reply Card */}
         {showDraftReply && (
-          <div className="surface-elevated" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: 'var(--accent)' }}>
+          <div className="cortex-insight-panel">
+            <div className="cortex-insight-heading">
               <MessageSquare size={16} />
-              <span style={{ fontSize: 13, fontWeight: 700 }}>↩ Draft AI Reply</span>
+              <span>Draft AI Reply</span>
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>

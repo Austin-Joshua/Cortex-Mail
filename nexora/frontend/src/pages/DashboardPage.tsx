@@ -191,7 +191,8 @@ export const DashboardPage: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {Object.entries(data?.categoryCounts ?? {}).map(([cat, count]) => {
                     const cfg = CAT_COLORS[cat];
-                    const color = cfg?.color ?? 'var(--text-2)';
+                    const bg = cfg?.bg ?? 'var(--color-surface-elevated)';
+                    const text = cfg?.text ?? 'var(--color-text-secondary)';
                     return (
                       <button
                         key={cat}
@@ -201,10 +202,10 @@ export const DashboardPage: React.FC = () => {
                           alignItems: 'center',
                           gap: 8,
                           padding: '6px 16px',
-                          background: color + '15',
-                          border: `1px solid ${color}35`,
+                          background: bg,
+                          border: '1px solid var(--color-border)',
                           borderRadius: 'var(--r-full)',
-                          color,
+                          color: text,
                           fontSize: 13,
                           fontWeight: 700,
                           cursor: 'pointer',

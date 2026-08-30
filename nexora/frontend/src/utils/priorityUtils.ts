@@ -1,15 +1,15 @@
 import type { Priority } from '../types/Email';
 
 export const PRIORITY_CLASS: Record<Priority, string> = {
-  HIGH:   'priority-high',
-  MEDIUM: 'priority-medium',
-  LOW:    'priority-low',
+  HIGH:   'badge-priority-high priority-high',
+  MEDIUM: 'badge-priority-medium priority-medium',
+  LOW:    'badge-priority-low priority-low',
 };
 
 export const PRIORITY_LABELS: Record<Priority, string> = {
-  HIGH:   '🔴 High',
-  MEDIUM: '🟡 Medium',
-  LOW:    '🟢 Low',
+  HIGH:   'HIGH',
+  MEDIUM: 'MEDIUM',
+  LOW:    'LOW',
 };
 
 export function getPriorityClass(priority: Priority): string {

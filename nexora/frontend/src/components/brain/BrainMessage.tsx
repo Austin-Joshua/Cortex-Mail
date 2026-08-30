@@ -22,9 +22,9 @@ export const BrainMessageComponent: React.FC<Props> = ({ message, onEmailClick }
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          background: isUser ? 'var(--surface-2)' : 'var(--accent-soft)',
-          border: '1px solid var(--border)',
-          color: isUser ? 'var(--text-1)' : 'var(--accent)',
+          background: isUser ? 'var(--color-surface-active)' : 'var(--color-cortex-soft)',
+          border: `1px solid ${isUser ? 'var(--color-border)' : 'var(--color-cortex-border)'}`,
+          color: isUser ? 'var(--color-text-primary)' : 'var(--color-cortex-light)',
         }}
       >
         {isUser ? <UserIcon size={16} /> : <Brain size={16} />}
@@ -35,18 +35,7 @@ export const BrainMessageComponent: React.FC<Props> = ({ message, onEmailClick }
           {isUser ? 'You' : 'Brain'}
         </span>
 
-        <div
-          style={{
-            maxWidth: '100%',
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: isUser ? 'var(--accent-soft)' : 'var(--surface)',
-            color: isUser ? 'var(--accent)' : 'var(--text-1)',
-            border: '1px solid var(--border)',
-            fontSize: 14,
-            lineHeight: 1.6,
-          }}
-        >
+        <div className={isUser ? 'brain-user-bubble' : 'brain-ai-bubble'}>
           {message.content}
         </div>
 
@@ -56,36 +45,25 @@ export const BrainMessageComponent: React.FC<Props> = ({ message, onEmailClick }
             {message.referencedEmails.map((email) => (
               <button
                 key={email.id}
+                type="button"
                 onClick={() => onEmailClick(email.id)}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '8px 12px',
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  transition: 'all 0.15s ease',
-                }}
+                className="brain-source-link"
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-info)', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {email.subject || '(no subject)'}
                   </p>
-                  <p style={{ fontSize: 11, color: 'var(--text-2)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {email.senderName || email.senderEmail}
                   </p>
                 </div>
-                <ExternalLink size={12} style={{ color: 'var(--text-3)' }} />
+                <ExternalLink size={12} style={{ color: 'var(--color-text-muted)' }} />
               </button>
             ))}
           </div>
         )}
 
-        <span style={{ fontSize: 10, color: 'var(--text-3)' }}>
+        <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>
           {formatRelative(message.timestamp.toISOString())}
         </span>
       </div>

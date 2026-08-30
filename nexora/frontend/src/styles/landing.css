@@ -1,21 +1,19 @@
 /* ==========================================================================
    CORTEX MAIL — landing surface
-   White + navy blue atmosphere (brand palette). Accents from app tokens.
+   Dark command-center atmosphere. Violet Cortex accents from app tokens.
    ========================================================================== */
 
 .lp {
-  --lp-navy: var(--v-navy);
-  --lp-navy-mid: var(--v-navy-mid);
-  --lp-navy-dim: var(--v-navy-dim);
+  --lp-navy: var(--color-cortex);
+  --lp-navy-mid: var(--color-cortex-light);
+  --lp-navy-dim: var(--color-cortex-dark);
   min-height: 100dvh;
-  color: var(--v-ink);
+  color: var(--color-text-primary);
   overflow-x: clip;
   background:
-    radial-gradient(ellipse 90% 55% at 8% -5%, rgba(37, 99, 235, 0.28), transparent 58%),
-    radial-gradient(ellipse 75% 50% at 96% 0%, rgba(30, 58, 138, 0.22), transparent 52%),
-    radial-gradient(ellipse 55% 40% at 70% 35%, rgba(224, 231, 255, 0.9), transparent 60%),
-    radial-gradient(ellipse 70% 45% at 20% 85%, rgba(30, 58, 138, 0.10), transparent 55%),
-    linear-gradient(165deg, #EEF2FF 0%, #F5F7FF 28%, #FFFFFF 62%, #F8FAFC 100%);
+    radial-gradient(ellipse 70% 45% at 50% -8%, rgba(139, 92, 246, 0.10), transparent 58%),
+    radial-gradient(ellipse 50% 35% at 92% 12%, rgba(99, 102, 241, 0.06), transparent 52%),
+    var(--color-bg-app);
 }
 
 /* --- scroll rail ---------------------------------------------------------- */
@@ -44,7 +42,7 @@
   gap: 16px;
   height: 68px;
   padding: 0 clamp(16px, 4vw, 44px);
-  background: color-mix(in srgb, #EEF2FF 72%, transparent);
+  background: color-mix(in srgb, var(--color-bg-app) 82%, transparent);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
   backdrop-filter: blur(16px) saturate(1.2);
   border-bottom: 1px solid transparent;
@@ -52,8 +50,8 @@
 }
 
 .lp-nav[data-stuck='1'] {
-  border-bottom-color: color-mix(in srgb, var(--lp-navy) 18%, transparent);
-  background: color-mix(in srgb, #FFFFFF 78%, #EEF2FF);
+  border-bottom-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-app));
 }
 
 /* --- section scaffold ----------------------------------------------------- */
@@ -192,37 +190,35 @@
 }
 
 .lp-btn-primary {
-  background: linear-gradient(135deg, var(--lp-navy-mid) 0%, var(--lp-navy) 55%, var(--lp-navy-dim) 100%);
+  background: linear-gradient(135deg, var(--color-cortex) 0%, var(--color-cortex-dark) 100%);
   color: #fff;
-  box-shadow: 0 8px 24px rgba(30, 58, 138, 0.28);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25);
 }
 .lp-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(30, 58, 138, 0.36);
+  box-shadow: 0 12px 28px rgba(139, 92, 246, 0.32);
 }
 .lp-btn-primary:active { transform: translateY(0); }
 
 .lp-btn-ghost {
-  background: color-mix(in srgb, #FFFFFF 70%, transparent);
-  border-color: color-mix(in srgb, var(--lp-navy) 28%, transparent);
-  color: var(--lp-navy);
+  background: var(--color-surface-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 .lp-btn-ghost:hover {
-  background: var(--v-navy-soft);
-  border-color: var(--lp-navy);
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
 }
 
 /* --- instrument panel ----------------------------------------------------- */
 
 .lp-panel {
   position: relative;
-  background: color-mix(in srgb, #FFFFFF 88%, var(--v-navy-soft));
-  border: 1px solid color-mix(in srgb, var(--lp-navy) 14%, transparent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 24px;
   padding: clamp(22px, 3vw, 34px);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 18px 40px rgba(30, 58, 138, 0.12);
+  box-shadow: var(--v-lift-2);
   overflow: hidden;
 }
 
@@ -231,7 +227,7 @@
   position: absolute;
   inset: 0 0 auto;
   height: 3px;
-  background: linear-gradient(90deg, var(--lp-navy-mid), var(--lp-navy), transparent 80%);
+  background: linear-gradient(90deg, var(--color-cortex), var(--color-cortex-dark), transparent 80%);
 }
 
 .lp-grid {
@@ -241,32 +237,31 @@
 }
 
 .lp-card {
-  background: color-mix(in srgb, #FFFFFF 92%, var(--v-navy-soft));
-  border: 1px solid color-mix(in srgb, var(--lp-navy) 12%, transparent);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
   border-radius: 18px;
   padding: 22px;
   transition: border-color var(--v-fast), transform var(--v-fast), box-shadow var(--v-fast);
 }
 
 .lp-card:hover {
-  border-color: color-mix(in srgb, var(--lp-navy) 32%, transparent);
+  border-color: var(--color-border-strong);
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(30, 58, 138, 0.12);
+  box-shadow: var(--v-lift-2);
 }
 
 /* --- band sections -------------------------------------------------------- */
 
 .lp-band {
   position: relative;
-  background:
-    linear-gradient(180deg, transparent, rgba(30, 58, 138, 0.04) 20%, rgba(30, 58, 138, 0.06) 50%, transparent);
+  background: linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.04) 20%, rgba(139, 92, 246, 0.06) 50%, transparent);
 }
 
 .lp-band-strong {
   background:
-    radial-gradient(ellipse 80% 80% at 50% 0%, rgba(37, 99, 235, 0.14), transparent 55%),
-    linear-gradient(180deg, #EEF2FF, #FFFFFF);
-  border-block: 1px solid color-mix(in srgb, var(--lp-navy) 10%, transparent);
+    radial-gradient(ellipse 80% 80% at 50% 0%, rgba(139, 92, 246, 0.08), transparent 55%),
+    linear-gradient(180deg, var(--color-surface-elevated), var(--color-bg-app));
+  border-block: 1px solid var(--color-border-subtle);
 }
 
 .lp-stats {
@@ -274,9 +269,9 @@
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: clamp(20px, 4vw, 56px);
   padding-block: clamp(28px, 4vw, 44px);
-  border-top: 1px solid color-mix(in srgb, var(--lp-navy) 12%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--lp-navy) 12%, transparent);
-  background: color-mix(in srgb, #FFFFFF 55%, var(--v-navy-soft));
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
   border-radius: 20px;
   padding-inline: clamp(16px, 3vw, 32px);
 }
@@ -304,7 +299,7 @@
   height: 5px;
   min-width: 40px;
   border-radius: 999px;
-  background: var(--v-navy-mist);
+  background: var(--color-cortex-soft);
   overflow: hidden;
 }
 
@@ -313,7 +308,7 @@
   height: 100%;
   width: 0;
   border-radius: inherit;
-  background: var(--bar, var(--v-navy));
+  background: var(--bar, var(--color-cortex));
   transition: width 900ms var(--v-ease);
 }
 
@@ -332,8 +327,8 @@
   min-width: 0;
   padding: 16px 14px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--lp-navy) 14%, transparent);
-  background: color-mix(in srgb, #FFFFFF 85%, var(--v-navy-soft));
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
   transform-origin: 50% 100%;
 }
 
@@ -368,12 +363,12 @@
   50%      { transform: translateY(7px); opacity: 1; }
 }
 
-.lp-cue { animation: lp-bob 2.1s ease-in-out infinite; color: var(--lp-navy); }
+.lp-cue { animation: lp-bob 2.1s ease-in-out infinite; color: var(--color-cortex-light); }
 
 .lp-footer {
-  border-top: 1px solid color-mix(in srgb, var(--lp-navy) 12%, transparent);
+  border-top: 1px solid var(--color-border-subtle);
   padding: 30px clamp(16px, 4vw, 44px);
-  background: linear-gradient(180deg, transparent, rgba(30, 58, 138, 0.06));
+  background: linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.04));
 }
 
 .lp-cta-finale {
@@ -387,7 +382,7 @@
   position: absolute;
   inset: 10% 10% auto;
   height: 55%;
-  background: radial-gradient(ellipse at 50% 40%, rgba(37, 99, 235, 0.18), transparent 65%);
+  background: radial-gradient(ellipse at 50% 40%, rgba(139, 92, 246, 0.12), transparent 65%);
   pointer-events: none;
   z-index: 0;
 }

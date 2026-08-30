@@ -5,25 +5,15 @@ interface CategoryTagProps {
   category: string;
 }
 
-/**
-  Gmail-style label chip: 4px rounded, sans-serif, 11px font.
- */
+/** Cortex category badge — compact, moderate saturation. */
 export const CategoryTag: React.FC<CategoryTagProps> = ({ category }) => {
-  const cfg = CAT_COLORS[category] ?? { label: category, color: '#64748b' };
+  const cfg = CAT_COLORS[category] ?? { label: category, bg: '#202734', text: '#9AA6B2' };
   return (
     <span
+      className="cat-badge"
       style={{
-        background: cfg.color + '18',
-        color: cfg.color,
-        border: `1px solid ${cfg.color}30`,
-        padding: '2px 8px',
-        borderRadius: 4,
-        fontSize: 11,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-        display: 'inline-flex',
-        alignItems: 'center',
+        background: cfg.bg,
+        color: cfg.text,
       }}
     >
       {cfg.label}

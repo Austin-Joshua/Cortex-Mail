@@ -66,7 +66,7 @@ export const Gauge: React.FC<GaugeProps> = ({ value, size = 152, label, tone, pe
           pointerEvents: 'none',
         }}
       >
-        <span className="v-readout v-readout-xl" style={{ fontSize: pending ? size * 0.22 : size * 0.3, color: pending ? 'var(--v-ink-3)' : undefined }}>
+        <span className="v-readout v-readout-xl" style={{ fontSize: pending ? size * 0.22 : size * 0.3, color: pending ? 'var(--color-text-muted)' : (tone ?? 'var(--color-cortex)') }}>
           {pending ? '—' : v}
         </span>
         {label && <span className="v-label">{label}</span>}

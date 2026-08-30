@@ -70,7 +70,7 @@ export const AnalyticsPage: React.FC = () => {
     return Object.entries(summary.categoryCounts).map(([cat, count]) => ({
       name: CATEGORY_LABELS[cat] ?? cat,
       value: count as number,
-      color: CAT_COLORS[cat]?.color ?? '#5f6368',
+      color: CAT_COLORS[cat]?.text ?? '#9AA6B2',
       raw: cat,
     }));
   }, [summary]);

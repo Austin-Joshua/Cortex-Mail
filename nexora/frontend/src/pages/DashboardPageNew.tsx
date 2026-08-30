@@ -12,7 +12,7 @@ import { useAuthStore } from '../store/authStore';
 import { useInboxPipeline } from '../hooks/useInboxPipeline';
 import { Tile, TileHead } from '../components/bento/Tile';
 import { Gauge } from '../components/bento/Gauge';
-import { CAT_COLORS } from '../utils/catColors';
+import { CAT_COLORS, scoreToneFor } from '../utils/catColors';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -98,9 +98,7 @@ export const DashboardPageNew: React.FC = () => {
         : !hasSyncedMail
           ? 'Sync Gmail to compute your score from real inbox data.'
           : 'Waiting for score from Gmail and stored mail.');
-  const scoreTone = !scoreReady
-    ? 'var(--v-ink-3)'
-    : (score ?? 0) >= 75 ? 'var(--v-green)' : (score ?? 0) >= 45 ? 'var(--v-orange)' : 'var(--v-red)';
+  const scoreTone = scoreToneFor(score, scoreReady);
   const scoreVerdict = scoreReady
     ? (scoreBand ?? 'Scored')
     : unclassified > 0
@@ -204,9 +202,10 @@ export const DashboardPageNew: React.FC = () => {
         <span>
           Sync:{' '}
           <strong style={{
-            color: syncChip === 'error' ? 'var(--v-red)'
-              : syncChip === 'syncing' || syncChip === 'classifying' ? 'var(--v-orange)'
-                : 'var(--v-ink)',
+            color: syncChip === 'error' ? 'var(--color-danger)'
+              : syncChip === 'syncing' || syncChip === 'classifying' ? 'var(--color-cortex)'
+              : syncChip === 'synced' ? 'var(--color-success)'
+                : 'var(--color-text-primary)',
           }}>
             {syncChip}
           </strong>
@@ -221,8 +220,8 @@ export const DashboardPageNew: React.FC = () => {
         <div
           className="status-banner"
           style={{
-            background: phase === 'error' ? 'var(--v-red-wash)' : phase === 'busy' ? 'var(--v-orange-wash, #fff7ed)' : 'var(--v-panel-2)',
-            color: phase === 'error' ? 'var(--v-red)' : phase === 'busy' ? 'var(--v-orange)' : 'var(--v-ink-2)',
+            background: phase === 'error' ? 'var(--color-danger-soft)' : phase === 'busy' ? 'var(--color-cortex-soft)' : 'var(--color-surface-elevated)',
+            color: phase === 'error' ? 'var(--color-danger)' : phase === 'busy' ? 'var(--color-cortex-light)' : 'var(--color-text-secondary)',
           }}
         >
           <span>{status}</span>
@@ -394,7 +393,7 @@ export const DashboardPageNew: React.FC = () => {
                   <span
                     className="chip"
                     style={{
-                      color: CAT_COLORS[e.category]?.color ?? 'var(--v-ink-3)',
+                      color: CAT_COLORS[e.category]?.text ?? 'var(--color-text-muted)',
                       borderColor: 'var(--v-hairline)',
                       flexShrink: 0,
                     }}
@@ -424,7 +423,7 @@ export const DashboardPageNew: React.FC = () => {
               style={{ justifyContent: 'space-between', gap: 14, paddingBlock: 4 }}
             >
               {topCategories.map(([cat, n]) => {
-                const cfg = CAT_COLORS[cat] ?? { label: cat, color: 'var(--v-ink-3)' };
+                const cfg = CAT_COLORS[cat] ?? { label: cat, bg: '#202734', text: 'var(--color-text-muted)' };
                 return (
                   <button
                     key={cat}
@@ -442,7 +441,7 @@ export const DashboardPageNew: React.FC = () => {
                         {n}
                       </span>
                     </div>
-                    <div className="meter" style={{ ['--meter' as string]: cfg.color } as React.CSSProperties}>
+                    <div className="meter" style={{ ['--meter' as string]: cfg.text } as React.CSSProperties}>
                       <span style={{ width: `${(n / catMax) * 100}%` }} />
                     </div>
                   </button>

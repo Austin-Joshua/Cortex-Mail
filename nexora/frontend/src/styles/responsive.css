@@ -125,8 +125,8 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--v-panel);
-  border: 1px solid var(--v-hairline);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--v-r-tile);
   box-shadow: var(--v-lift-1);
 }
@@ -137,7 +137,7 @@
   border: none;
   box-shadow: none;
   border-radius: 0;
-  background: var(--bg);
+  background: var(--color-bg-app);
 }
 
 .mail-workspace-list {

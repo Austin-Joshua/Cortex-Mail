@@ -1,57 +1,95 @@
 /* ==========================================================================
-   CORTEX MAIL — palette
-   White grounds + navy blue signal + black ink.
-   Accents: red, green, orange — mail & calendar indicators only.
+   CORTEX MAIL — dark command-center palette
+   Gmail layer = neutral surfaces · Cortex layer = violet accent
    ========================================================================== */
 
 :root {
-  /* --- Main UI: white --- */
-  --v-ground:      #FFFFFF;
-  --v-ground-2:    #F4F6FB;
-  --v-panel:       #FFFFFF;
-  --v-panel-2:     #F0F3FA;
-  --v-hairline:    #E2E8F0;
-  --v-hairline-2:  #CBD5E1;
+  /* --- Design tokens (source of truth) --- */
+  --color-bg-app:           #0B0F19;
+  --color-bg-sidebar:       #0E1422;
+  --color-surface:          #111827;
+  --color-surface-elevated: #172033;
+  --color-surface-hover:    #1B2639;
+  --color-surface-active:   #202D43;
 
-  --v-ink:         #0B1220;
-  --v-ink-2:       #334155;
-  --v-ink-3:       #64748B;
-  --v-ink-4:       #94A3B8;
+  --color-border-subtle:    #1A2535;
+  --color-border:           #243044;
+  --color-border-strong:    #334155;
+  --color-border-focus:     #8B5CF6;
+
+  --color-text-primary:     #F5F7FA;
+  --color-text-secondary:   #C1CAD6;
+  --color-text-muted:       #9AA6B2;
+  --color-text-disabled:    #5F6B7A;
+  --color-text-inverse:     #0B0F19;
+
+  --color-cortex:           #8B5CF6;
+  --color-cortex-light:     #A78BFA;
+  --color-cortex-dark:      #6D28D9;
+  --color-cortex-soft:      #1E1633;
+  --color-cortex-border:    #2A2143;
+
+  --color-indigo:           #6366F1;
+  --color-indigo-soft:      #171A3A;
+
+  --color-success:          #2DD4BF;
+  --color-success-soft:     #102D2C;
+  --color-warning:          #FBBF24;
+  --color-warning-soft:     #332A12;
+  --color-danger:           #F87171;
+  --color-danger-soft:      #35191D;
+  --color-info:             #60A5FA;
+  --color-info-soft:        #14263D;
+
+  --color-star:             #FBBF24;
+  --color-star-muted:       #718096;
+
+  /* --- Instrument cluster aliases (--v-*) --- */
+  --v-ground:      var(--color-bg-app);
+  --v-ground-2:    var(--color-surface-elevated);
+  --v-panel:       var(--color-surface);
+  --v-panel-2:     var(--color-surface-elevated);
+  --v-hairline:    var(--color-border);
+  --v-hairline-2:  var(--color-border-strong);
+
+  --v-ink:         var(--color-text-primary);
+  --v-ink-2:       var(--color-text-secondary);
+  --v-ink-3:       var(--color-text-muted);
+  --v-ink-4:       var(--color-text-disabled);
   --v-on-signal:   #FFFFFF;
 
-  /* Signal = navy blue */
-  --v-navy:        #1E3A8A;
-  --v-navy-dim:    #172554;
-  --v-navy-mid:    #2563EB;
-  --v-navy-soft:   #EEF2FF;
-  --v-navy-mist:   #E0E7FF;
-  --v-navy-wash:   rgba(255, 255, 255, 0.12);
+  --v-navy:        var(--color-bg-sidebar);
+  --v-navy-dim:    var(--color-border-subtle);
+  --v-navy-mid:    var(--color-cortex);
+  --v-navy-soft:   var(--color-surface-elevated);
+  --v-navy-mist:   var(--color-cortex-soft);
+  --v-navy-wash:   var(--color-surface-hover);
 
-  --v-signal:      var(--v-navy);
-  --v-signal-dim:  var(--v-navy-dim);
-  --v-signal-wash: rgba(30, 58, 138, 0.10);
+  --v-signal:      var(--color-cortex);
+  --v-signal-dim:  #7C3AED;
+  --v-signal-wash: var(--color-cortex-soft);
 
-  /* Mail & calendar indicators only */
-  --v-red:         #DC2626;
-  --v-red-wash:    rgba(220, 38, 38, 0.08);
-  --v-green:       #16A34A;
-  --v-green-wash:  rgba(22, 163, 74, 0.08);
-  --v-orange:      #EA580C;
-  --v-orange-wash: rgba(234, 88, 12, 0.08);
+  --v-red:         var(--color-danger);
+  --v-red-wash:    var(--color-danger-soft);
+  --v-green:       var(--color-success);
+  --v-green-wash:  var(--color-success-soft);
+  --v-orange:      var(--color-warning);
+  --v-orange-wash: var(--color-warning-soft);
+  --v-info:        var(--color-info);
+  --v-info-wash:   var(--color-info-soft);
 
-  /* Legacy aliases → semantic trio */
-  --v-ember:       var(--v-red);
-  --v-ember-wash:  var(--v-red-wash);
-  --v-pulse:       var(--v-green);
-  --v-pulse-wash:  var(--v-green-wash);
-  --v-critical:    var(--v-red);
-  --v-critical-wash: var(--v-red-wash);
+  --v-ember:       var(--color-danger);
+  --v-ember-wash:  var(--color-danger-soft);
+  --v-pulse:       var(--color-success);
+  --v-pulse-wash:  var(--color-success-soft);
+  --v-critical:    var(--color-danger);
+  --v-critical-wash: var(--color-danger-soft);
 
-  /* --- Depth --- */
-  --v-lift-1: 0 1px 2px rgba(11, 18, 32, 0.05);
-  --v-lift-2: 0 4px 14px rgba(11, 18, 32, 0.07);
-  --v-lift-3: 0 12px 32px rgba(11, 18, 32, 0.10);
-  --v-glow:   0 0 0 1px rgba(11, 18, 32, 0.18), 0 4px 16px rgba(11, 18, 32, 0.06);
+  /* --- Depth (dark UI) --- */
+  --v-lift-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --v-lift-2: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --v-lift-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --v-glow:   0 0 0 2px rgba(139, 92, 246, 0.12);
 
   /* --- Geometry --- */
   --v-r-tile: 24px;
@@ -315,9 +353,9 @@
 .chip:hover { border-color: var(--v-hairline-2); color: var(--v-ink); }
 
 .chip-on {
-  background: var(--v-signal);
-  border-color: var(--v-signal);
-  color: var(--v-on-signal);
+  background: var(--color-cortex-soft);
+  border-color: var(--color-cortex);
+  color: var(--color-cortex-light);
 }
 
 .dot {
@@ -405,13 +443,19 @@
 .rail-item:hover { background: var(--v-panel-2); color: var(--v-ink); }
 
 .rail-item-on {
-  background: var(--v-signal-wash);
-  color: var(--v-signal);
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
   font-weight: 700;
 }
 
-/* active marker: a short bar on the leading edge */
-.rail-item-on::before {
+.rail-item-cortex {
+  background: var(--color-cortex-soft);
+  color: var(--color-cortex-light);
+  font-weight: 700;
+}
+
+.rail-item-on::before,
+.rail-item-cortex::before {
   content: '';
   position: absolute;
   left: -8px;
@@ -420,8 +464,10 @@
   width: 3px;
   height: 18px;
   border-radius: 0 3px 3px 0;
-  background: var(--v-signal);
 }
+
+.rail-item-on::before { background: var(--color-text-primary); }
+.rail-item-cortex::before { background: var(--color-cortex); }
 
 .rail-badge {
   margin-left: auto;
@@ -557,55 +603,64 @@
 /* Any wide content inside a tile scrolls itself, never the page. */
 
 /* ==========================================================================
-   SIDEBAR — navy blue only here
+   SIDEBAR
    ========================================================================== */
 
 .app-sidebar {
-  --v-signal: var(--v-navy);
-  --v-signal-dim: var(--v-navy-dim);
-  --v-signal-wash: var(--v-navy-wash);
-
-  background: var(--v-navy);
-  border-right: 1px solid var(--v-navy-dim);
-  color: rgba(255, 255, 255, 0.88);
+  background: var(--color-bg-sidebar);
+  border-right: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
 }
+
+.app-sidebar .v-label {
+  color: var(--color-text-muted);
+}
+
 .app-sidebar .rail-item {
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--color-text-muted);
 }
 
 .app-sidebar .rail-item:hover {
-  background: var(--v-navy-wash);
-  color: #FFFFFF;
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
 }
 
 .app-sidebar .rail-item-on {
-  background: var(--v-navy-wash);
-  color: #FFFFFF;
-  font-weight: 700;
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
 }
 
 .app-sidebar .rail-item-on::before {
-  background: #FFFFFF;
+  background: var(--color-text-primary);
+}
+
+.app-sidebar .rail-item-cortex {
+  background: var(--color-cortex-soft);
+  color: var(--color-cortex-light);
+}
+
+.app-sidebar .rail-item-cortex::before {
+  background: var(--color-cortex);
 }
 
 .app-sidebar .rail-badge {
-  background: rgba(255, 255, 255, 0.14);
-  color: #FFFFFF;
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
 }
 
 .app-sidebar .rail-badge-hot {
-  background: var(--v-red);
-  color: #FFFFFF;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 
 .app-sidebar .vbtn-signal {
-  background: #FFFFFF;
-  color: var(--v-navy);
-  box-shadow: none;
+  background: var(--color-cortex);
+  color: #FFFFFF;
+  box-shadow: var(--v-lift-1);
 }
 
 .app-sidebar .vbtn-signal:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--v-signal-dim);
 }
 
 .app-sidebar .sidebar-cat-btn {
@@ -619,20 +674,20 @@
   border: none;
   cursor: pointer;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--color-text-muted);
   font-size: 12.5px;
   font-weight: 500;
   transition: background var(--v-fast), color var(--v-fast);
 }
 
 .app-sidebar .sidebar-cat-btn:hover {
-  background: var(--v-navy-wash);
-  color: #FFFFFF;
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
 }
 
 .app-sidebar .sidebar-cat-btn-on {
-  background: var(--v-navy-wash);
-  color: #FFFFFF;
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
   font-weight: 700;
 }
 
@@ -640,24 +695,196 @@
 .app-sidebar .sidebar-cat-count {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-text-disabled);
 }
 
 .app-sidebar > div:last-child {
-  border-top-color: rgba(255, 255, 255, 0.12) !important;
+  border-top-color: var(--color-border-subtle) !important;
 }
 
-/* Mail / calendar indicator chips */
-.ind-red    { background: var(--v-red-wash);    color: var(--v-red); }
-.ind-green  { background: var(--v-green-wash);  color: var(--v-green); }
-.ind-orange { background: var(--v-orange-wash); color: var(--v-orange); }
+/* Indicators */
+.ind-red    { background: var(--color-danger-soft);  color: var(--color-danger); }
+.ind-green  { background: var(--color-success-soft); color: var(--color-success); }
+.ind-orange { background: var(--color-warning-soft); color: var(--color-warning); }
 
-.priority-high   { color: var(--v-red); }
-.priority-medium { color: var(--v-orange); }
-.priority-low    { color: var(--v-green); }
+/* Priority badges (Cortex — distinct from Gmail Important) */
+.priority-high,
+.badge-priority-high {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.priority-medium,
+.badge-priority-medium {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+.priority-low,
+.badge-priority-low {
+  background: #202734;
+  color: #94A3B8;
+}
 
-.badge-assignment, .badge-attendance, .badge-spam { background: var(--v-red-wash); color: var(--v-red); }
-.badge-hackathon, .badge-meeting, .badge-internship, .badge-announcement { background: var(--v-orange-wash); color: var(--v-orange); }
-.badge-placement, .badge-finance, .badge-research { background: var(--v-green-wash); color: var(--v-green); }
-.badge-personal, .badge-promotional, .badge-uncategorized { background: var(--v-panel-2); color: var(--v-ink-3); }
+/* Cortex category badges */
+.cat-badge,
+[class^='badge-'],
+[class*=' badge-'] {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.35;
+  border: none;
+}
+
+.badge-placement    { background: #24173F; color: #A78BFA; }
+.badge-internship   { background: #1D1D45; color: #818CF8; }
+.badge-assignment   { background: #14263D; color: #60A5FA; }
+.badge-attendance   { background: #102D2C; color: #2DD4BF; }
+.badge-hackathon    { background: #351B31; color: #F472B6; }
+.badge-meeting      { background: #102D2C; color: #2DD4BF; }
+.badge-announcement { background: #24173F; color: #C4B5FD; }
+.badge-research     { background: #122D20; color: #4ADE80; }
+.badge-finance      { background: #332A12; color: #FBBF24; }
+.badge-personal     { background: #14263D; color: #60A5FA; }
+.badge-promotional  { background: #202734; color: #94A3B8; }
+.badge-spam         { background: #35191D; color: #F87171; }
+.badge-uncategorized { background: #202734; color: #9AA6B2; }
+
+/* AI / Cortex markers */
+.cortex-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--color-cortex-soft);
+  color: var(--color-cortex-light);
+}
+
+.cortex-insight-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-cortex-border);
+  border-radius: var(--v-r-tile);
+  padding: 16px;
+}
+
+.cortex-insight-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--color-cortex-light);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cortex-insight-heading svg { color: var(--color-cortex); flex-shrink: 0; }
+
+.cortex-insight-card {
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.cortex-insight-summary {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.brain-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  background: var(--color-surface);
+}
+
+.brain-header-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--color-cortex-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-cortex);
+}
+
+.brain-ai-bubble {
+  max-width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-cortex-border);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.brain-user-bubble {
+  max-width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.brain-suggestion-card {
+  text-align: left;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  line-height: 1.4;
+  box-shadow: var(--v-lift-1);
+  transition: border-color var(--v-fast), background var(--v-fast);
+}
+
+.brain-suggestion-card:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-cortex-border);
+}
+
+.brain-source-link {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--color-bg-app);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background var(--v-fast);
+}
+
+.brain-source-link:hover { background: var(--color-surface-hover); }
+
+.email-body-isolate {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
 .v-xscroll { overflow-x: auto; overscroll-behavior-x: contain; }

@@ -24,41 +24,41 @@
     --text-3:        var(--v-ink-3);
     --text-4:        var(--v-ink-4);
 
-    --primary:       var(--v-ink);
-    --primary-light: var(--v-ink-2);
-    --primary-pale:  var(--v-signal-wash);
-    --secondary:     var(--v-green);
-    --secondary-pale:var(--v-green-wash);
-    --accent:        var(--v-ink);
-    --accent-pale:   var(--v-signal-wash);
-    --accent-soft:   var(--v-signal-wash);
+    --primary:       var(--color-cortex);
+    --primary-light: var(--color-cortex-light);
+    --primary-pale:  var(--color-cortex-soft);
+    --secondary:     var(--color-success);
+    --secondary-pale:var(--color-success-soft);
+    --accent:        var(--color-cortex-light);
+    --accent-pale:   var(--color-cortex-soft);
+    --accent-soft:   var(--color-cortex-soft);
 
-    --success:       var(--v-green);
-    --warning:       var(--v-orange);
-    --danger:        var(--v-red);
-    --info:          var(--v-ink);
-    --warn:          var(--v-orange);
+    --success:       var(--color-success);
+    --warning:       var(--color-warning);
+    --danger:        var(--color-danger);
+    --info:          var(--color-info);
+    --warn:          var(--color-warning);
 
-    --unread-dot:    var(--v-ink);
-    --star:          var(--v-orange);
+    --unread-dot:    var(--color-cortex);
+    --star:          var(--color-star);
     --ember:         var(--v-red);
     --ember-soft:    var(--v-red-wash);
-    --violet:        var(--v-red);
-    --violet-soft:   var(--v-red-wash);
+    --violet:        var(--color-cortex);
+    --violet-soft:   var(--color-cortex-soft);
 
-    /* Category hues — red, green, orange, grey only */
-    --cat-assignment:   var(--v-red);
-    --cat-hackathon:    var(--v-orange);
-    --cat-placement:    var(--v-green);
-    --cat-internship:   var(--v-orange);
-    --cat-meeting:      var(--v-orange);
-    --cat-attendance:   var(--v-red);
-    --cat-announcement: var(--v-orange);
-    --cat-research:     var(--v-green);
-    --cat-finance:      var(--v-green);
-    --cat-personal:     var(--v-ink-3);
-    --cat-promotional:  var(--v-ink-3);
-    --cat-spam:         var(--v-red);
+    /* Category hues — map to badge tokens */
+    --cat-assignment:   #60A5FA;
+    --cat-hackathon:    #F472B6;
+    --cat-placement:    #A78BFA;
+    --cat-internship:   #818CF8;
+    --cat-meeting:      #2DD4BF;
+    --cat-attendance:   #2DD4BF;
+    --cat-announcement: #C4B5FD;
+    --cat-research:     #4ADE80;
+    --cat-finance:      #FBBF24;
+    --cat-personal:     #60A5FA;
+    --cat-promotional:  #94A3B8;
+    --cat-spam:         #F87171;
 
     --paper:      var(--v-ground);
     --paper-2:    var(--v-panel);
@@ -84,12 +84,12 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  html { color-scheme: light; }
+  html { color-scheme: dark; }
 
   body {
     margin: 0;
-    background-color: var(--v-ground);
-    color: var(--v-ink);
+    background-color: var(--color-bg-app);
+    color: var(--color-text-primary);
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
                  Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
@@ -107,7 +107,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--v-ink);
+    outline: 2px solid var(--color-cortex);
     outline-offset: 2px;
     border-radius: var(--r-sm);
   }
@@ -169,7 +169,7 @@
   height: 38px;
   padding: 0 16px;
   border-radius: var(--v-r-chip);
-  background: var(--v-signal);
+  background: var(--color-cortex);
   color: #fff;
   font-weight: 700;
   font-size: 13px;
@@ -190,15 +190,15 @@
   height: 38px;
   padding: 0 16px;
   border-radius: var(--v-r-chip);
-  background: var(--v-ember);
-  color: #150D00;
+  background: var(--color-cortex);
+  color: #FFFFFF;
   font-weight: 700;
   font-size: 13px;
   border: none;
   cursor: pointer;
   transition: all var(--v-fast);
 }
-.btn-violet:hover { filter: brightness(1.08); }
+.btn-violet:hover { background: var(--v-signal-dim); }
 
 .btn-outline {
   display: inline-flex;
@@ -241,26 +241,27 @@
   align-items: center;
   min-height: 52px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--v-hairline);
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
-  background: var(--v-panel);
+  background: var(--color-surface);
   transition: background var(--v-fast);
   font-size: 13px;
-  color: var(--v-ink);
+  color: var(--color-text-primary);
   position: relative;
   -webkit-user-select: none;
   user-select: none;
 }
-.gmail-row:hover { background: var(--v-panel-2); }
+.gmail-row:hover { background: var(--color-surface-elevated); }
 .gmail-row.unread { font-weight: 700; }
 .gmail-row.unread::before {
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 3px;
-  background: var(--v-ink);
+  background: var(--color-cortex);
+  opacity: 0.65;
 }
-.gmail-row.selected { background: var(--v-panel-2); }
+.gmail-row.selected { background: var(--color-surface-active); }
 .gmail-row .actions-cell { display: none; }
 .gmail-row:hover .actions-cell { display: flex; }
 .gmail-row:hover .date-cell { display: none; }
@@ -283,9 +284,14 @@
 }
 .gmail-tab:hover { color: var(--v-ink); }
 .gmail-tab.active {
-  color: var(--v-ink);
-  border-bottom-color: var(--v-ink);
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-text-primary);
   font-weight: 700;
+}
+
+.gmail-tab.cortex-tab.active {
+  color: var(--color-cortex-light);
+  border-bottom-color: var(--color-cortex);
 }
 
 /* Inbox category rail — scroll on small screens, no visible scrollbar */
@@ -377,8 +383,29 @@
 
 button:active { transform: scale(0.98); }
 
+/* Sanitized Gmail HTML — isolate from Cortex theme */
+.email-html-body {
+  background: var(--color-bg-app);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--r-sm);
+  padding: 16px;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.email-html-body img { max-width: 100%; height: auto; }
+.email-html-body a { color: #60A5FA; }
+.email-html-body table { border-collapse: collapse; }
+
 @media (max-width: 767px) {
   button, a[role='button'] { min-height: 44px; }
+}
+
+/* Top bar — app chrome */
+.app-topbar {
+  background: var(--color-bg-app);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {

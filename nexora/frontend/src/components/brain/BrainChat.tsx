@@ -103,29 +103,9 @@ export const BrainChat: React.FC<BrainChatProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '12px 20px',
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 8,
-            background: 'var(--accent-soft)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Brain size={18} style={{ color: 'var(--accent)' }} />
+      <div className="brain-header">
+        <div className="brain-header-icon">
+          <Brain size={18} />
         </div>
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', margin: 0, fontFamily: 'Google Sans, Roboto, sans-serif' }}>
@@ -201,14 +181,14 @@ const WelcomeState: React.FC<{ suggestions: string[]; onSend: (q: string) => voi
           width: 48,
           height: 48,
           borderRadius: 14,
-          background: 'var(--v-navy-soft)',
+          background: 'var(--color-cortex-soft)',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: 14,
         }}
       >
-        <Brain size={24} style={{ color: 'var(--v-navy)' }} />
+        <Brain size={24} style={{ color: 'var(--color-cortex-light)' }} />
       </div>
       <h3 style={{ fontSize: 24, fontWeight: 800, color: 'var(--v-ink)', margin: '0 0 8px', letterSpacing: '-0.03em' }}>
         Ask your inbox anything
@@ -219,7 +199,7 @@ const WelcomeState: React.FC<{ suggestions: string[]; onSend: (q: string) => voi
     </div>
 
     <div>
-      <p className="v-label" style={{ marginBottom: 12, color: 'var(--v-navy)' }}>Try asking</p>
+      <p className="v-label" style={{ marginBottom: 12, color: 'var(--color-cortex-light)' }}>Try asking</p>
       <div
         style={{
           display: 'grid',
@@ -232,19 +212,7 @@ const WelcomeState: React.FC<{ suggestions: string[]; onSend: (q: string) => voi
             key={q}
             type="button"
             onClick={() => onSend(q)}
-            style={{
-              textAlign: 'left',
-              padding: '14px 16px',
-              background: 'var(--v-panel)',
-              border: '1px solid color-mix(in srgb, var(--v-navy) 16%, transparent)',
-              borderRadius: 14,
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: 'var(--v-ink)',
-              cursor: 'pointer',
-              lineHeight: 1.4,
-              boxShadow: 'var(--v-lift-1)',
-            }}
+            className="brain-suggestion-card"
           >
             {q}
           </button>
@@ -256,30 +224,10 @@ const WelcomeState: React.FC<{ suggestions: string[]; onSend: (q: string) => voi
 
 const TypingIndicator: React.FC = () => (
   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-    <div
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        background: 'var(--accent-soft)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-      }}
-    >
-      <Brain size={16} style={{ color: 'var(--accent)' }} />
+    <div className="brain-header-icon" style={{ width: 32, height: 32, borderRadius: '50%' }}>
+      <Brain size={16} />
     </div>
-    <div
-      style={{
-        padding: '10px 14px',
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-        fontSize: 13,
-        color: 'var(--text-2)',
-      }}
-    >
+    <div className="brain-ai-bubble" style={{ padding: '10px 14px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
       Thinking...
     </div>
   </div>

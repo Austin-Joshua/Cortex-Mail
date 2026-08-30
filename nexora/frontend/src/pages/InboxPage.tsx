@@ -162,7 +162,7 @@ export const InboxPage: React.FC = () => {
                 <span
                   style={{
                     fontSize: 11,
-                    color: activeView === 'ALL' ? 'var(--accent)' : 'var(--text-3)',
+                    color: activeView === 'ALL' ? 'var(--color-text-secondary)' : 'var(--color-text-muted)',
                     fontWeight: 700,
                   }}
                 >
@@ -180,14 +180,14 @@ export const InboxPage: React.FC = () => {
                   key={key}
                   type="button"
                   onClick={() => handleTabClick(key)}
-                  className={`gmail-tab${isActive ? ' active' : ''}`}
+                  className={`gmail-tab cortex-tab${isActive ? ' active' : ''}`}
                 >
                   {label}
                   {key !== 'SENDERS' && count > 0 && (
                     <span
                       style={{
                         fontSize: 11,
-                        color: isActive ? 'var(--accent)' : 'var(--text-3)',
+                        color: isActive ? 'var(--color-cortex-light)' : 'var(--color-text-muted)',
                         fontWeight: 700,
                       }}
                     >

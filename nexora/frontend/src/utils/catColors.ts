@@ -1,20 +1,19 @@
-// Category colors — red, green, orange only (+ grey for neutral).
-// Used for mail category dots and tags.
+// Cortex category colors — expressive badges (Gmail layer stays neutral elsewhere).
 
-export const CAT_COLORS: Record<string, { label: string; color: string }> = {
-  ASSIGNMENT:    { label: 'Assignment',    color: '#DC2626' },  // red — urgent
-  ATTENDANCE:    { label: 'Attendance',    color: '#DC2626' },  // red
-  SPAM:          { label: 'Spam',          color: '#DC2626' },  // red
-  HACKATHON:     { label: 'Hackathon',     color: '#EA580C' },  // orange
-  MEETING:       { label: 'Meeting',       color: '#EA580C' },  // orange — calendar
-  INTERNSHIP:    { label: 'Internship',    color: '#EA580C' },  // orange
-  ANNOUNCEMENT:  { label: 'Announcement',  color: '#EA580C' },  // orange
-  PLACEMENT:     { label: 'Placement',     color: '#16A34A' },  // green
-  FINANCE:       { label: 'Finance',       color: '#16A34A' },  // green
-  RESEARCH:      { label: 'Research',      color: '#16A34A' },  // green
-  PERSONAL:      { label: 'Personal',      color: '#6B7280' },  // neutral grey
-  PROMOTIONAL:   { label: 'Promo',         color: '#6B7280' },
-  UNCATEGORIZED: { label: 'Other',         color: '#6B7280' },
+export const CAT_COLORS: Record<string, { label: string; bg: string; text: string }> = {
+  PLACEMENT:     { label: 'Placement',    bg: '#24173F', text: '#A78BFA' },
+  INTERNSHIP:    { label: 'Internship',   bg: '#1D1D45', text: '#818CF8' },
+  ASSIGNMENT:    { label: 'Assignment',   bg: '#14263D', text: '#60A5FA' },
+  ATTENDANCE:    { label: 'Attendance',   bg: '#102D2C', text: '#2DD4BF' },
+  HACKATHON:     { label: 'Hackathon',    bg: '#351B31', text: '#F472B6' },
+  MEETING:       { label: 'Meeting',      bg: '#102D2C', text: '#2DD4BF' },
+  ANNOUNCEMENT:  { label: 'Announcement', bg: '#24173F', text: '#C4B5FD' },
+  RESEARCH:      { label: 'Research',     bg: '#122D20', text: '#4ADE80' },
+  FINANCE:       { label: 'Finance',      bg: '#332A12', text: '#FBBF24' },
+  PERSONAL:      { label: 'Personal',     bg: '#14263D', text: '#60A5FA' },
+  PROMOTIONAL:   { label: 'Promo',        bg: '#202734', text: '#94A3B8' },
+  SPAM:          { label: 'Spam',         bg: '#35191D', text: '#F87171' },
+  UNCATEGORIZED: { label: 'Other',        bg: '#202734', text: '#9AA6B2' },
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -32,3 +31,13 @@ export const CATEGORY_LABELS: Record<string, string> = {
   SPAM:          'Spam',
   UNCATEGORIZED: 'Other',
 };
+
+/** Semantic score band colors for Cortex Score gauge. */
+export function scoreToneFor(value: number | null, ready: boolean): string {
+  if (!ready || value == null) return 'var(--color-text-muted)';
+  if (value >= 80) return 'var(--color-success)';
+  if (value >= 60) return '#84CC16';
+  if (value >= 40) return 'var(--color-warning)';
+  if (value >= 20) return '#FB923C';
+  return 'var(--color-danger)';
+}

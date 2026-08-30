@@ -21,10 +21,10 @@ const LEDGER = [
 ];
 
 const ZONES = [
-  { name: 'Deep Focus',    hours: '9 — 12', note: 'Notifications muted',  tone: 'var(--v-navy)' },
+  { name: 'Deep Focus',    hours: '9 — 12', note: 'Notifications muted',  tone: 'var(--color-cortex)' },
   { name: 'Collaboration', hours: '12 — 3', note: 'Notifications live',   tone: 'var(--v-orange)' },
   { name: 'Rapid Fire',    hours: '3 — 5',  note: 'Batch the quick ones', tone: 'var(--v-red)' },
-  { name: 'Reflection',    hours: '5 — 7',  note: 'Notifications muted',  tone: 'var(--v-navy-mid)' },
+  { name: 'Reflection',    hours: '5 — 7',  note: 'Notifications muted',  tone: 'var(--color-cortex-light)' },
 ];
 
 const CAPABILITIES = [
@@ -48,7 +48,7 @@ const CAPABILITIES = [
   },
   {
     icon: Brain,
-    tone: 'var(--v-navy)',
+    tone: 'var(--color-cortex)',
     title: 'It answers in your own words',
     body: 'Ask what the placement cell sent last week, or which deadlines land before Friday. Answers link straight back to the mail.',
   },
@@ -237,11 +237,11 @@ export const LandingPage: React.FC = () => {
         <Reveal variant="scale" i={2} className="lp-hero-art">
           <div className="lp-panel" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <span className="v-label" style={{ color: 'var(--v-navy)' }}>Cortex Score</span>
+              <span className="v-label" style={{ color: 'var(--color-cortex-light)' }}>Cortex Score</span>
               <span
                 style={{
                   fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
-                  background: 'var(--v-navy-soft)', color: 'var(--v-navy)',
+                  background: 'var(--color-cortex-soft)', color: 'var(--color-cortex-light)',
                 }}
               >
                 Backlog building
@@ -249,7 +249,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', paddingBlock: 4 }}>
-              <Gauge value={55} tone="var(--v-navy)" label="of 100" size={186} />
+              <Gauge value={55} tone="var(--color-cortex)" label="of 100" size={186} />
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
@@ -262,7 +262,7 @@ export const LandingPage: React.FC = () => {
                   key={s.k}
                   style={{
                     flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 13,
-                    background: 'var(--v-navy-soft)', border: '1px solid color-mix(in srgb, var(--v-navy) 14%, transparent)',
+                    background: 'var(--color-cortex-soft)', border: '1px solid var(--color-cortex-border)',
                   }}
                 >
                   <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: s.tone, fontVariantNumeric: 'tabular-nums' }}>
@@ -307,7 +307,7 @@ export const LandingPage: React.FC = () => {
                     fontWeight: 800,
                     letterSpacing: '-0.045em',
                     lineHeight: 1,
-                    color: 'var(--v-navy)',
+                    color: 'var(--color-cortex-light)',
                   }}
                 />
                 <p style={{ margin: '12px 0 0', fontSize: 13.5, color: 'var(--v-ink-2)', maxWidth: '26ch' }}>
@@ -497,7 +497,7 @@ export const LandingPage: React.FC = () => {
               const Icon = t.icon;
               return (
                 <div key={t.title}>
-                  <Icon size={19} style={{ color: 'var(--v-navy)' }} />
+                  <Icon size={19} style={{ color: 'var(--color-cortex-light)' }} />
                   <h3 style={{ fontSize: 15, fontWeight: 700, margin: '13px 0 0', letterSpacing: '-0.015em' }}>
                     {t.title}
                   </h3>

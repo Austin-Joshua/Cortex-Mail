@@ -225,7 +225,7 @@ export const TopBar: React.FC = () => {
                         setShowFilters(false);
                       }}
                     >
-                      <span className="dot" style={{ ['--dot' as string]: CAT_COLORS[cat].color } as React.CSSProperties} />
+                      <span className="dot" style={{ ['--dot' as string]: CAT_COLORS[cat].text } as React.CSSProperties} />
                       {CAT_COLORS[cat].label}
                     </button>
                   ))}
@@ -308,7 +308,7 @@ export const TopBar: React.FC = () => {
             width: 36,
             height: 36,
             padding: 0,
-            color: isSyncing ? 'var(--v-navy)' : 'var(--v-ink-2)',
+            color: isSyncing ? 'var(--color-cortex-light)' : 'var(--color-text-secondary)',
           }}
         >
           <RefreshCw
