@@ -2,9 +2,10 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Inbox, Sparkles, BarChart2, Settings,
-  Zap, Clock, Archive, FileText, Share2, HelpCircle,
+  Zap, Clock, Archive, FileText, HelpCircle,
 } from 'lucide-react';
 import { useInboxUnread } from '../../hooks/useInboxUnread';
+import { useMailPrefetch } from '../../hooks/useMailPrefetch';
 
 type Badge = 'unread' | 'hot';
 
@@ -16,14 +17,13 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/inbox',     icon: Inbox,           label: 'Inbox', badge: 'unread' },
   { to: '/priority',  icon: Zap,             label: 'Priority', badge: 'hot' },
-  { to: '/scheduled', icon: Clock,           label: 'Scheduled' },
+  { to: '/scheduled', icon: Clock,           label: 'Deadlines' },
   { to: '/brain',     icon: Sparkles,        label: 'Cortex Brain' },
   { to: '/drafts',    icon: FileText,        label: 'Drafts' },
   { to: '/archive',   icon: Archive,         label: 'Archive' },
-  { to: '/shared',    icon: Share2,          label: 'Shared' },
   { to: '/analytics', icon: BarChart2,       label: 'Analytics' },
 ];
 
@@ -35,6 +35,7 @@ const SYSTEM: NavItem[] = [
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const inboxUnread = useInboxUnread();
+  const { prefetchDrafts, prefetchArchive } = useMailPrefetch();
 
   const isOn = (to: string) =>
     location.pathname === to || (to !== '/dashboard' && location.pathname.startsWith(to));
@@ -43,6 +44,11 @@ export const Sidebar: React.FC = () => {
     if (badge === 'unread') return inboxUnread > 0 ? (inboxUnread > 99 ? '99+' : `${inboxUnread}`) : null;
     if (badge === 'hot')    return inboxUnread > 0 ? '!' : null;
     return null;
+  };
+
+  const intentPrefetch = (to: string) => {
+    if (to === '/drafts') prefetchDrafts();
+    if (to === '/archive') prefetchArchive();
   };
 
   const renderItem = ({ to, icon: Icon, label, badge }: NavItem) => {
@@ -59,6 +65,8 @@ export const Sidebar: React.FC = () => {
         to={to}
         aria-current={on ? 'page' : undefined}
         className={`rail-item${activeClass}`}
+        onMouseEnter={() => intentPrefetch(to)}
+        onFocus={() => intentPrefetch(to)}
       >
         <Icon size={17} />
         <span className="truncate">{label}</span>

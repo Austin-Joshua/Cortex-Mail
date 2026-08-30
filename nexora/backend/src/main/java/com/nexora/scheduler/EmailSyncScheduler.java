@@ -5,8 +5,10 @@ import com.nexora.repository.BrainConversationRepository;
 import com.nexora.repository.UserRepository;
 import com.nexora.service.GmailSyncService;
 import com.nexora.service.NotificationService;
+import com.nexora.service.PostSyncProcessingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,43 +16,57 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Background sync. In-memory {@link GmailSyncService} locks are single-JVM —
+ * run one backend instance (or accept duplicate-skip behavior across dynos).
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class EmailSyncScheduler {
 
-    private final GmailSyncService gmailSyncService;
+    private static final int MAX_USERS_PER_TICK = 5;
+
     private final NotificationService notificationService;
     private final BrainConversationRepository brainConversationRepository;
     private final UserRepository userRepository;
+    private final GmailSyncService gmailSyncService;
+    private final PostSyncProcessingService postSyncProcessingService;
 
     /**
-     * Sync inbox every 5 minutes for all users whose last sync was > 5 min ago.
-     * Uses unified syncInbox which prefers incremental (history.list) when a
-     * historyId is stored, and falls back to full sync on first sync / recovery.
+     * Sync inbox every 5 minutes for stale users — kick async so the scheduler
+     * thread is not blocked on Gmail I/O for minutes.
      */
     @Scheduled(fixedDelay = 300_000)
     public void syncAllUsers() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(5);
         List<User> users = userRepository.findAllByLastSyncedAtBeforeOrLastSyncedAtIsNull(threshold);
 
-        log.info("Email sync triggered for {} users (incremental preferred)", users.size());
-
+        int started = 0;
         for (User user : users) {
-            try {
-                gmailSyncService.syncInbox(user.getId());
-            } catch (Exception e) {
-                log.error("Sync failed for user {}: {}", user.getId(), e.getMessage());
+            if (started >= MAX_USERS_PER_TICK) {
+                log.info("Deferring remaining {} users to next scheduler tick", users.size() - started);
+                break;
             }
+            Long userId = user.getId();
+            if (userId == null || gmailSyncService.hasActiveSync(userId)) {
+                continue;
+            }
+            try {
+                postSyncProcessingService.syncAndProcess(userId);
+                started++;
+            } catch (Exception e) {
+                log.error("Scheduler sync kick failed for user {}: {}", userId, e.getMessage());
+            }
+        }
+        if (started > 0) {
+            log.info("Scheduler kicked background sync for {} users", started);
         }
     }
 
-    /**
-     * Daily notifications at 8:00 AM every day.
-     */
     @Scheduled(cron = "0 0 8 * * *")
     public void dailyNotifications() {
-        List<User> allUsers = userRepository.findAll();
+        List<User> allUsers = userRepository.findAll(PageRequest.of(0, 500)).getContent();
         log.info("Generating daily notifications for {} users", allUsers.size());
         for (User user : allUsers) {
             try {
@@ -61,9 +77,6 @@ public class EmailSyncScheduler {
         }
     }
 
-    /**
-     * Daily cleanup at 2:00 AM — delete BrainConversation records older than 30 days.
-     */
     @Scheduled(cron = "0 0 2 * * *")
     @Transactional
     public void cleanupOldConversations() {
@@ -77,4 +90,3 @@ public class EmailSyncScheduler {
         }
     }
 }
-

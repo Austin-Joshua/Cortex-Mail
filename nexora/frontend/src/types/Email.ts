@@ -7,9 +7,9 @@ export type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export type EmailReaction = 'NONE' | 'DONE' | 'IMPORTANT' | 'LATER' | 'IGNORE' | 'SNOOZED';
 
-export type ActionType = 'REGISTER' | 'REPLY' | 'SUBMIT' | 'UPLOAD' | 'REVIEW' | 'ATTEND' | 'OTHER';
+type ActionType = 'REGISTER' | 'REPLY' | 'SUBMIT' | 'UPLOAD' | 'REVIEW' | 'ATTEND' | 'OTHER';
 
-export interface ActionItem {
+interface ActionItem {
   id: number;
   actionType: ActionType;
   actionDescription: string;
@@ -27,7 +27,7 @@ export interface GmailLabelCount {
   threadsUnread?: number;
 }
 
-export interface EmailAttachment {
+interface EmailAttachment {
   id?: number;
   gmailAttachmentId?: string;
   filename?: string;
@@ -43,7 +43,7 @@ export interface GmailSyncResult {
   updatedCount: number;
   inboxMessagesProcessed: number;
   labelCounts: Record<string, GmailLabelCount>;
-  syncMode?: 'FULL' | 'INCREMENTAL' | 'SKIPPED';
+  syncMode?: 'FULL' | 'INCREMENTAL' | 'SKIPPED' | 'FAST_FIRST' | 'STARTED';
 }
 
 export interface Email {
@@ -88,4 +88,5 @@ export interface EmailPage {
   totalPages: number;
   number: number;
   size: number;
+  last?: boolean;
 }

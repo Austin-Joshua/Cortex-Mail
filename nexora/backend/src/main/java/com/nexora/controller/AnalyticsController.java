@@ -1,6 +1,6 @@
 package com.nexora.controller;
 
-import com.nexora.model.User;
+import com.nexora.security.UserPrincipal;
 import com.nexora.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +22,7 @@ public class AnalyticsController {
 
     @GetMapping("/volume")
     public ResponseEntity<List<Map<String, Object>>> getEmailVolume(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal UserPrincipal user,
             @RequestParam(defaultValue = "7") int days) {
         return ResponseEntity.ok(emailService.getEmailVolume(user.getId(), days));
     }

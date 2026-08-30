@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
 import { EmailList } from '../components/email/EmailList';
 import { EmailDetail } from '../components/email/EmailDetail';
@@ -8,19 +8,42 @@ import { SenderView } from '../components/email/SenderView';
 import { useEmailStore } from '../store/emailStore';
 import { useAuthStore } from '../store/authStore';
 import { emailApi } from '../api/emailApi';
+import { queryKeys } from '../api/queryKeys';
 import { useViewport } from '../hooks/useViewport';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import {
   getVisibleInboxDivisions,
   type InboxDivisionKey,
 } from '../utils/inboxDivisions';
-import type { Email, EmailCategory } from '../types/Email';
+import type { Email, EmailCategory, EmailPage } from '../types/Email';
 
 type ViewMode = EmailCategory | 'ALL' | 'SENDERS';
 
-const INBOX_FETCH_SIZE = 500;
+const INBOX_PAGE_SIZE = 60;
 
 function isCategoryView(view: ViewMode): view is EmailCategory {
   return view !== 'ALL' && view !== 'SENDERS';
+}
+
+function patchEmailReadInCache(old: unknown, emailId: number): unknown {
+  if (!old || typeof old !== 'object') return old;
+  const page = old as EmailPage & { pages?: EmailPage[] };
+  if (Array.isArray(page.pages)) {
+    return {
+      ...page,
+      pages: page.pages.map((p) => ({
+        ...p,
+        content: p.content.map((e) => (e.id === emailId ? { ...e, isRead: true } : e)),
+      })),
+    };
+  }
+  if (Array.isArray(page.content)) {
+    return {
+      ...page,
+      content: page.content.map((e) => (e.id === emailId ? { ...e, isRead: true } : e)),
+    };
+  }
+  return old;
 }
 
 export const InboxPage: React.FC = () => {
@@ -33,29 +56,45 @@ export const InboxPage: React.FC = () => {
 
   const { isMobile, isTablet } = useViewport();
   const { searchQuery, selectedEmail, setSelectedEmail } = useEmailStore();
+  const debouncedSearch = useDebouncedValue(searchQuery, 400);
   const userRole = useAuthStore((s) => s.user?.userRole);
 
   const categoryParam = isCategoryView(activeView) ? activeView : undefined;
 
-  const { data: emailPage, isLoading: listLoading } = useQuery({
-    queryKey: ['emails', 'inbox', activeView, searchQuery],
-    queryFn: () => emailApi.getEmails({
-      page: 0,
-      size: INBOX_FETCH_SIZE,
+  const {
+    data: emailPages,
+    isLoading: listLoading,
+    isError: listError,
+    refetch: refetchList,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.emailInbox(activeView, debouncedSearch),
+    queryFn: ({ pageParam }) => emailApi.getEmails({
+      page: pageParam,
+      size: INBOX_PAGE_SIZE,
       category: categoryParam,
-      search: searchQuery || undefined,
+      search: debouncedSearch || undefined,
     }),
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      if (last.last === true) return undefined;
+      if (last.totalPages > 0 && last.number + 1 >= last.totalPages) return undefined;
+      if (!last.content?.length) return undefined;
+      return last.number + 1;
+    },
     staleTime: 30_000,
   });
 
   const { data: categoryCounts = {} } = useQuery({
-    queryKey: ['email-categories'],
+    queryKey: queryKeys.emailCategories,
     queryFn: emailApi.getCategoryCounts,
     staleTime: 30_000,
   });
 
   const { data: labelCounts } = useQuery({
-    queryKey: ['gmail-label-counts'],
+    queryKey: queryKeys.gmailLabelCounts,
     queryFn: emailApi.getGmailLabelCounts,
     staleTime: 120_000,
   });
@@ -65,8 +104,11 @@ export const InboxPage: React.FC = () => {
     [userRole, categoryCounts],
   );
 
-  const displayedEmails = emailPage?.content ?? [];
-  const listTotal = emailPage?.totalElements ?? displayedEmails.length;
+  const displayedEmails = useMemo(
+    () => emailPages?.pages.flatMap((p) => p.content) ?? [],
+    [emailPages],
+  );
+  const listTotal = emailPages?.pages[0]?.totalElements ?? displayedEmails.length;
   const inboxTotal = categoryCounts
     ? Object.entries(categoryCounts).reduce((sum, [, n]) => sum + Number(n), 0)
     : listTotal;
@@ -75,9 +117,9 @@ export const InboxPage: React.FC = () => {
 
   const tabCount = (key: InboxDivisionKey | 'ALL'): number => {
     if (key === 'ALL') {
-      return searchQuery ? listTotal : inboxTotal;
+      return debouncedSearch ? listTotal : inboxTotal;
     }
-    if (searchQuery && activeView === key) {
+    if (debouncedSearch && activeView === key) {
       return listTotal;
     }
     return Number(categoryCounts[key] ?? 0);
@@ -85,20 +127,6 @@ export const InboxPage: React.FC = () => {
 
   const showDetail = !!(selectedEmail || urlEmailId);
   const mobileDetailOnly = isMobile && showDetail;
-
-  const classifyOnce = useRef(false);
-
-  useEffect(() => {
-    const unclassified = Number(categoryCounts.UNCATEGORIZED ?? 0);
-    if (unclassified <= 0 || classifyOnce.current) return;
-    classifyOnce.current = true;
-    emailApi.classifyInbox()
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['emails'] });
-        queryClient.invalidateQueries({ queryKey: ['email-categories'] });
-      })
-      .catch(() => { classifyOnce.current = false; });
-  }, [categoryCounts.UNCATEGORIZED, queryClient]);
 
   useEffect(() => {
     if (urlEmailId && displayedEmails.length > 0) {
@@ -120,19 +148,23 @@ export const InboxPage: React.FC = () => {
 
   const handleEmailSelect = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.isRead) {
-      try {
-        await emailApi.markRead(email.id);
-        queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-        queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
-        queryClient.invalidateQueries({ queryKey: ['emails'] });
-        queryClient.invalidateQueries({ queryKey: ['email-categories'] });
-      } catch { /* ignore */ }
+    if (email.isRead) return;
+
+    setSelectedEmail({ ...email, isRead: true });
+    queryClient.setQueriesData({ queryKey: queryKeys.emails }, (old) => patchEmailReadInCache(old, email.id));
+
+    try {
+      await emailApi.markRead(email.id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
+    } catch {
+      setSelectedEmail(email);
+      queryClient.invalidateQueries({ queryKey: queryKeys.emails });
     }
   };
 
   return (
-    <AppShell noScroll flush>
+    <AppShell noScroll flush title="Inbox" subtitle="Your Gmail, grouped by what each message is about">
       <div
         className="mail-workspace"
         style={{
@@ -219,11 +251,23 @@ export const InboxPage: React.FC = () => {
                     background: 'var(--bg)',
                   }}
                 >
-                  <EmailList
-                    emails={displayedEmails}
-                    isLoading={listLoading}
-                    onEmailSelect={handleEmailSelect}
-                  />
+                  {listError ? (
+                    <div style={{ padding: 24, textAlign: 'center' }}>
+                      <p className="v-body" style={{ marginBottom: 12 }}>Couldn’t load inbox.</p>
+                      <button type="button" className="vbtn vbtn-quiet" onClick={() => void refetchList()}>
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
+                    <EmailList
+                      emails={displayedEmails}
+                      isLoading={listLoading}
+                      onEmailSelect={handleEmailSelect}
+                      hasMore={Boolean(hasNextPage)}
+                      isLoadingMore={isFetchingNextPage}
+                      onLoadMore={() => { void fetchNextPage(); }}
+                    />
+                  )}
                 </div>
               )}
 

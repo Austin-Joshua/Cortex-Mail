@@ -38,23 +38,22 @@ npm run dev
 
 Open http://localhost:5173 → Sign in with Google → Dashboard sync.
 
+Production deploy notes (single backend instance, Flyway V2–V5, env checklist): [PRODUCTION.md](./PRODUCTION.md).
+
 ## What works now (Tranches 1–2)
 
 - Gmail OAuth + full / incremental sync (`history.list`)
 - Sanitized HTML bodies + attachment records
 - Gmail-first mutations (read, star, archive, trash)
 - Explainable Cortex Score on the dashboard
-- Classification (rules; Gemini/Claude if keys set)
+- Classification (rules; Gemini if key set)
 - Supabase schema via Flyway + RLS (Spring DB role only)
 
 ## Docs
 
-| Doc | Purpose |
-|-----|---------|
-| [PROJECT_REPORT.md](./PROJECT_REPORT.md) | Product + architecture report |
-| [PRODUCTION.md](./PRODUCTION.md) | Vercel + Render + Supabase deploy |
-| [CURRENT_SITUATION_AUDIT.md](./CURRENT_SITUATION_AUDIT.md) | Status + exact next actions |
+- [PRODUCTION.md](./PRODUCTION.md) — Vercel, Render, and Supabase deployment
+- [VERIFICATION_RUNBOOK.md](./VERIFICATION_RUNBOOK.md) — build and runtime checks
 
 ## Not done yet
 
-Pub/Sub Watch, Gmail search parity, Brain RAG, full Velocity/Nexora string cleanup in every legacy file, live production deploy until you finish [PRODUCTION.md](./PRODUCTION.md).
+Pub/Sub Watch, Gmail search parity, Brain RAG, and live production deployment remain deferred.

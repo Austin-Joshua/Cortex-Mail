@@ -12,11 +12,13 @@ public final class HtmlSanitizer {
 
     private static final Safelist MAIL_SAFELIST = Safelist.relaxed()
             .addTags("img", "hr", "div", "span", "table", "thead", "tbody", "tr", "td", "th", "center", "font")
-            .addAttributes(":all", "style", "class", "align", "valign", "width", "height", "bgcolor", "color")
+            .addAttributes(":all", "class", "align", "valign", "width", "height", "bgcolor", "color")
             .addAttributes("img", "src", "alt", "title")
-            .addAttributes("a", "href", "title", "target", "rel")
-            .addProtocols("img", "src", "http", "https", "cid", "data")
-            .addProtocols("a", "href", "http", "https", "mailto");
+            .addAttributes("a", "href", "title", "target")
+            .addProtocols("img", "src", "http", "https", "cid")
+            .addProtocols("a", "href", "http", "https", "mailto")
+            .addEnforcedAttribute("a", "rel", "noopener noreferrer")
+            .addEnforcedAttribute("a", "target", "_blank");
 
     private HtmlSanitizer() {}
 

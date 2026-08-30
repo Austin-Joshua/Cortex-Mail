@@ -8,15 +8,16 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
     hikari:
-      maximum-pool-size: 8
+      maximum-pool-size: 4
       minimum-idle: 1
-      connection-timeout: 30000
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 600000
+      leak-detection-threshold: 60000
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: ${DB_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
   flyway:
     enabled: true
     baseline-on-migrate: true

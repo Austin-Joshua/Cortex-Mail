@@ -6,6 +6,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { EmailList } from '../components/email/EmailList';
 import { EmailDetail } from '../components/email/EmailDetail';
 import { emailApi } from '../api/emailApi';
+import { queryKeys } from '../api/queryKeys';
 import { useEmailStore } from '../store/emailStore';
 import { useViewport } from '../hooks/useViewport';
 import { Placeholder } from '../components/bento/Placeholder';
@@ -22,7 +23,7 @@ export const ArchivePage: React.FC = () => {
   }, [setSelectedEmail]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['email-archived', search],
+    queryKey: queryKeys.emailArchived(search),
     queryFn: () => emailApi.getArchived({ search: search || undefined, page: 0, size: 100 }),
     staleTime: 60_000,
   });
@@ -37,7 +38,7 @@ export const ArchivePage: React.FC = () => {
     if (!email.isRead) {
       try {
         await emailApi.markRead(email.id);
-        queryClient.invalidateQueries({ queryKey: ['email-archived'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.emailArchived() });
       } catch { /* ignore */ }
     }
   };

@@ -22,10 +22,7 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user, isAuthenticated: true }),
 
-      setToken: (token) => {
-        localStorage.setItem('nexora_token', token);
-        set({ token });
-      },
+      setToken: (token) => set({ token }),
 
       setUserRole: (role) =>
         set((state) => ({
@@ -38,12 +35,11 @@ export const useAuthStore = create<AuthState>()(
         })),
 
       logout: () => {
-        localStorage.removeItem('nexora_token');
         set({ user: null, token: null, isAuthenticated: false });
       },
     }),
     {
-      name: 'nexora_auth',
+      name: 'cortex_auth',
       partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
     }
   )

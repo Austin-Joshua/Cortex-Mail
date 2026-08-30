@@ -67,6 +67,11 @@ public class User {
     @Builder.Default
     private Boolean calendarSyncEnabled = true;
 
+    /** Bumped on logout/revoke so outstanding JWTs become invalid. */
+    @Column(name = "token_version")
+    @Builder.Default
+    private Integer tokenVersion = 0;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Email> emails;

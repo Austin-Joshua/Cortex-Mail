@@ -15,6 +15,8 @@ public class SyncIntegrityResponse {
     private long unclassifiedInbox;
     private boolean inboxAligned;
     private boolean draftsAligned;
+    private boolean secondaryComplete;
+    private boolean syncInProgress;
     private List<String> notes;
     private List<Map<String, Object>> sampleInbox;
 
@@ -43,6 +45,13 @@ public class SyncIntegrityResponse {
 
     public boolean isDraftsAligned() { return draftsAligned; }
     public void setDraftsAligned(boolean draftsAligned) { this.draftsAligned = draftsAligned; }
+
+    /** True once FAST_FIRST background pass (or a full sync) has stored a Gmail historyId. */
+    public boolean isSecondaryComplete() { return secondaryComplete; }
+    public void setSecondaryComplete(boolean secondaryComplete) { this.secondaryComplete = secondaryComplete; }
+
+    public boolean isSyncInProgress() { return syncInProgress; }
+    public void setSyncInProgress(boolean syncInProgress) { this.syncInProgress = syncInProgress; }
 
     public List<String> getNotes() { return notes; }
     public void setNotes(List<String> notes) { this.notes = notes; }

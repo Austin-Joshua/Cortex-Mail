@@ -8,9 +8,19 @@ interface EmailListProps {
   emails: Email[];
   isLoading: boolean;
   onEmailSelect?: (email: Email) => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
-export const EmailList: React.FC<EmailListProps> = ({ emails, isLoading, onEmailSelect }) => {
+export const EmailList: React.FC<EmailListProps> = ({
+  emails,
+  isLoading,
+  onEmailSelect,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
+}) => {
   const { selectedEmail } = useEmailStore();
 
   if (isLoading) {
@@ -88,6 +98,19 @@ export const EmailList: React.FC<EmailListProps> = ({ emails, isLoading, onEmail
           onClick={() => onEmailSelect?.(email)}
         />
       ))}
+      {hasMore && (
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+          <button
+            type="button"
+            className="vbtn vbtn-quiet"
+            style={{ width: '100%', height: 36 }}
+            disabled={isLoadingMore}
+            onClick={() => onLoadMore?.()}
+          >
+            {isLoadingMore ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

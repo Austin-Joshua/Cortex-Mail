@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { emailApi } from '../../api/emailApi';
+import { queryKeys } from '../../api/queryKeys';
 import type { SenderSummary } from '../../api/emailApi';
 import { formatRelative } from '../../utils/formatDate';
 import { User } from 'lucide-react';
@@ -11,12 +12,12 @@ export const SenderView: React.FC = () => {
   const [selectedSender, setSelectedSender] = React.useState<SenderSummary | null>(null);
 
   const { data: senders = [], isLoading: sendersLoading } = useQuery({
-    queryKey: ['senders'],
+    queryKey: queryKeys.senders,
     queryFn: emailApi.getSenderSummary,
   });
 
   const { data: senderEmailsData, isLoading: emailsLoading } = useQuery({
-    queryKey: ['sender-emails', selectedSender?.senderEmail],
+    queryKey: queryKeys.senderEmails(selectedSender?.senderEmail),
     queryFn: () => emailApi.getEmailsFromSender(selectedSender!.senderEmail),
     enabled: !!selectedSender,
   });

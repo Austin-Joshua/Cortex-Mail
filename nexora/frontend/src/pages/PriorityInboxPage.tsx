@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Flame, Inbox } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
 import { Tile, TileHead } from '../components/bento/Tile';
 import { Placeholder } from '../components/bento/Placeholder';
-import { useEmails } from '../hooks/useEmails';
+import { priorityApi } from '../api/priorityApi';
+import { queryKeys } from '../api/queryKeys';
 import { CAT_COLORS } from '../utils/catColors';
 
 const BANDS = [
@@ -15,7 +17,11 @@ const BANDS = [
 
 export const PriorityInboxPage: React.FC = () => {
   const navigate = useNavigate();
-  const { emails, isLoading, totalElements } = useEmails(0, 80);
+  const { data: emails = [], isLoading, isError, refetch } = useQuery({
+    queryKey: [...queryKeys.emailPriority, 'page'],
+    queryFn: () => priorityApi.getPriority(80),
+    staleTime: 30_000,
+  });
 
   const banded = useMemo(() => {
     return BANDS.map((band) => ({
@@ -31,16 +37,31 @@ export const PriorityInboxPage: React.FC = () => {
 
   const total = banded.reduce((n, b) => n + b.items.length, 0);
 
-  if (!isLoading && totalElements === 0) {
+  if (isError) {
     return (
       <AppShell title="Priority" subtitle="Ranked by what actually needs you">
         <Placeholder
           icon={<Flame size={26} />}
           tone="var(--v-critical)"
-          headline="No mail synced yet"
-          body="Sync Gmail from the Dashboard or the sync icon in the title bar. Priority bands fill from your real inbox."
+          headline="Couldn’t load priority mail"
+          body="Check that the backend is running, then try again."
           points={['Act now', 'Today', 'When clear']}
-          action={{ label: 'Open dashboard', onClick: () => navigate('/dashboard') }}
+          action={{ label: 'Retry', onClick: () => void refetch() }}
+        />
+      </AppShell>
+    );
+  }
+
+  if (!isLoading && total === 0) {
+    return (
+      <AppShell title="Priority" subtitle="Ranked by what actually needs you">
+        <Placeholder
+          icon={<Flame size={26} />}
+          tone="var(--v-critical)"
+          headline="No prioritized mail yet"
+          body="Sync Gmail from Home. Priority bands fill as Cortex classifies your real inbox."
+          points={['Act now', 'Today', 'When clear']}
+          action={{ label: 'Open home', onClick: () => navigate('/dashboard') }}
         />
       </AppShell>
     );
@@ -49,7 +70,7 @@ export const PriorityInboxPage: React.FC = () => {
   return (
     <AppShell
       title="Priority"
-      subtitle={isLoading ? 'Loading inbox…' : `${total} messages ranked by urgency`}
+      subtitle={isLoading ? 'Loading priority…' : `${total} messages ranked by urgency`}
       actions={
         <button className="vbtn vbtn-quiet" onClick={() => navigate('/inbox')}>
           <Inbox size={16} /> All mail
@@ -95,9 +116,7 @@ export const PriorityInboxPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <p className="v-meta" style={{ paddingBlock: 12 }}>
-                {isLoading ? 'Loading…' : 'Clear.'}
-              </p>
+              <p className="v-meta" style={{ margin: '8px 0 0' }}>Nothing in this band yet.</p>
             )}
           </Tile>
         ))}

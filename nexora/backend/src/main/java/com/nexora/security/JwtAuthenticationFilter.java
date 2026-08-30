@@ -1,7 +1,5 @@
 package com.nexora.security;
 
-import com.nexora.model.User;
-import com.nexora.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,7 +20,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserRepository userRepository;
+    private final JwtRevocationRegistry revocationRegistry;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -32,13 +30,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             try {
-                Long userId = jwtTokenProvider.getUserIdFromToken(token);
-                User user = userRepository.findById(userId).orElse(null);
-
-                if (user != null) {
-                    var authority = new SimpleGrantedAuthority("ROLE_" + user.getUserRole().name());
+                UserPrincipal principal = jwtTokenProvider.toPrincipal(token);
+                if (principal != null
+                        && !revocationRegistry.isRevoked(principal.getId(), principal.getTokenVersion())) {
+                    var authority = new SimpleGrantedAuthority("ROLE_" + principal.getUserRole().name());
                     var authentication = new UsernamePasswordAuthenticationToken(
-                            user, null, List.of(authority));
+                            principal, null, List.of(authority));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {

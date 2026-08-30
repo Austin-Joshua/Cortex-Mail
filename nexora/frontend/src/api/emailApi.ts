@@ -40,6 +40,8 @@ export const emailApi = {
     unclassifiedInbox: number;
     inboxAligned: boolean;
     draftsAligned: boolean;
+    secondaryComplete?: boolean;
+    syncInProgress?: boolean;
     notes: string[];
     sampleInbox: Array<Record<string, unknown>>;
   }> => {
@@ -53,7 +55,9 @@ export const emailApi = {
   },
 
   syncEmails: async (): Promise<GmailSyncResult> => {
-    const { data } = await axiosInstance.post<GmailSyncResult>('/api/emails/sync');
+    const { data } = await axiosInstance.post<GmailSyncResult>('/api/emails/sync', null, {
+      timeout: 60_000,
+    });
     return data;
   },
 
@@ -83,10 +87,6 @@ export const emailApi = {
     await axiosInstance.patch(`/api/emails/${id}/read`);
   },
 
-  markAsRead: async (id: number): Promise<void> => {
-    await axiosInstance.patch(`/api/emails/${id}/read`);
-  },
-
   markUnread: async (id: number): Promise<void> => {
     await axiosInstance.patch(`/api/emails/${id}/unread`);
   },
@@ -113,11 +113,6 @@ export const emailApi = {
 
   updateReaction: async (id: number, reaction: EmailReaction): Promise<void> => {
     await axiosInstance.patch(`/api/emails/${id}/reaction`, { reaction });
-  },
-
-  sendReply: async (id: number, replyBody: string): Promise<{ message: string }> => {
-    const { data } = await axiosInstance.post(`/api/emails/${id}/reply`, { replyBody });
-    return data;
   },
 
   getSenderSummary: async (): Promise<SenderSummary[]> => {

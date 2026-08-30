@@ -1,13 +1,13 @@
 // Cortex category colors — expressive badges (Gmail layer stays neutral elsewhere).
 
 export const CAT_COLORS: Record<string, { label: string; bg: string; text: string }> = {
-  PLACEMENT:     { label: 'Placement',    bg: '#24173F', text: '#A78BFA' },
+  PLACEMENT:     { label: 'Opportunity',  bg: '#24173F', text: '#A78BFA' },
   INTERNSHIP:    { label: 'Internship',   bg: '#1D1D45', text: '#818CF8' },
-  ASSIGNMENT:    { label: 'Assignment',   bg: '#14263D', text: '#60A5FA' },
-  ATTENDANCE:    { label: 'Attendance',   bg: '#102D2C', text: '#2DD4BF' },
-  HACKATHON:     { label: 'Hackathon',    bg: '#351B31', text: '#F472B6' },
+  ASSIGNMENT:    { label: 'Task',         bg: '#14263D', text: '#60A5FA' },
+  ATTENDANCE:    { label: 'Check-in',     bg: '#102D2C', text: '#2DD4BF' },
+  HACKATHON:     { label: 'Event',        bg: '#351B31', text: '#F472B6' },
   MEETING:       { label: 'Meeting',      bg: '#102D2C', text: '#2DD4BF' },
-  ANNOUNCEMENT:  { label: 'Announcement', bg: '#24173F', text: '#C4B5FD' },
+  ANNOUNCEMENT:  { label: 'Update',       bg: '#24173F', text: '#C4B5FD' },
   RESEARCH:      { label: 'Research',     bg: '#122D20', text: '#4ADE80' },
   FINANCE:       { label: 'Finance',      bg: '#332A12', text: '#FBBF24' },
   PERSONAL:      { label: 'Personal',     bg: '#14263D', text: '#60A5FA' },
@@ -17,17 +17,17 @@ export const CAT_COLORS: Record<string, { label: string; bg: string; text: strin
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
-  ASSIGNMENT:    'Assignment',
-  ATTENDANCE:    'Attendance',
-  HACKATHON:     'Hackathon',
-  PLACEMENT:     'Placement',
-  INTERNSHIP:    'Internship',
-  MEETING:       'Meeting',
-  ANNOUNCEMENT:  'Announcement',
+  ASSIGNMENT:    'Tasks',
+  ATTENDANCE:    'Check-ins',
+  HACKATHON:     'Events',
+  PLACEMENT:     'Opportunities',
+  INTERNSHIP:    'Internships',
+  MEETING:       'Meetings',
+  ANNOUNCEMENT:  'Updates',
   RESEARCH:      'Research',
   FINANCE:       'Finance',
   PERSONAL:      'Personal',
-  PROMOTIONAL:   'Promotional',
+  PROMOTIONAL:   'Promotions',
   SPAM:          'Spam',
   UNCATEGORIZED: 'Other',
 };

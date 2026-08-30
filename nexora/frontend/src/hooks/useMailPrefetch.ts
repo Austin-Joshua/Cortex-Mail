@@ -1,36 +1,26 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { emailApi } from '../api/emailApi';
-import { useAuthStore } from '../store/authStore';
+import { queryKeys } from '../api/queryKeys';
 
-/** Warm mail list caches so Archive/Drafts/Inbox open instantly. */
+/** Prefetch drafts/archive only when the user intends to open those routes. */
 export function useMailPrefetch() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const queryClient = useQueryClient();
 
-  useQuery({
-    queryKey: ['emails', 'inbox', 'ALL', ''],
-    queryFn: () => emailApi.getEmails({ page: 0, size: 500 }),
-    staleTime: 90_000,
-    enabled: isAuthenticated,
-  });
+  const prefetchDrafts = () => {
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.emailDrafts(''),
+      queryFn: () => emailApi.getDrafts({ page: 0, size: 100 }),
+      staleTime: 90_000,
+    });
+  };
 
-  useQuery({
-    queryKey: ['email-archived', ''],
-    queryFn: () => emailApi.getArchived({ page: 0, size: 100 }),
-    staleTime: 90_000,
-    enabled: isAuthenticated,
-  });
+  const prefetchArchive = () => {
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.emailArchived(''),
+      queryFn: () => emailApi.getArchived({ page: 0, size: 100 }),
+      staleTime: 90_000,
+    });
+  };
 
-  useQuery({
-    queryKey: ['email-drafts', ''],
-    queryFn: () => emailApi.getDrafts({ page: 0, size: 100 }),
-    staleTime: 90_000,
-    enabled: isAuthenticated,
-  });
-
-  useQuery({
-    queryKey: ['email-categories'],
-    queryFn: emailApi.getCategoryCounts,
-    staleTime: 90_000,
-    enabled: isAuthenticated,
-  });
+  return { prefetchDrafts, prefetchArchive };
 }

@@ -1,124 +1,70 @@
 import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { emailApi } from '../api/emailApi';
-import { authApi } from '../api/authApi';
+import { invalidateAfterGmailSync, runGmailSync } from '../api/gmailSync';
+import { queryKeys } from '../api/queryKeys';
 import { useAuthStore } from '../store/authStore';
-import { useEmails } from './useEmails';
+import { resolveSyncChip, type PipelinePhase, type SyncChip } from '../utils/syncChip';
 
-export type PipelinePhase =
-  | 'idle'
-  | 'syncing'
-  | 'inbox_ready'
-  | 'scoring'
-  | 'extracting'
-  | 'grouped'
-  | 'busy'
-  | 'error';
+export type { PipelinePhase, SyncChip } from '../utils/syncChip';
 
-/** Dashboard pipeline: sync only when never synced, then classify in background. */
+/**
+ * Dashboard pipeline: kick Gmail sync, then poll sync-status.
+ * Status splits: pulling mail → grouping → enriching → ready.
+ */
 export function useInboxPipeline(autoStart = true) {
-  const { user, setUser, setLastSyncedAt } = useAuthStore();
+  const { user, setLastSyncedAt } = useAuthStore();
   const queryClient = useQueryClient();
-  const emailsState = useEmails(0, 80);
   const [phase, setPhase] = useState<PipelinePhase>('idle');
   const [status, setStatus] = useState('');
-  const [classified, setClassified] = useState(0);
   const started = useRef(false);
-  const classifyBgStarted = useRef(false);
+  const wasBusy = useRef(false);
+  const awaitingFirstSync = useRef(false);
+  const prevUnclassified = useRef<number | null>(null);
+  const prevSecondary = useRef<boolean | null>(null);
 
   const syncMutation = useMutation({
-    mutationFn: emailApi.syncEmails,
+    mutationKey: ['gmail-sync'],
+    mutationFn: () => runGmailSync(queryClient),
   });
-
-  const classifyMutation = useMutation({
-    mutationFn: emailApi.classifyInbox,
-  });
-
-  const refreshUser = async () => {
-    try {
-      const updatedUser = await authApi.getCurrentUser();
-      setUser({
-        userId: updatedUser.userId,
-        email: updatedUser.email,
-        name: updatedUser.name,
-        profilePictureUrl: updatedUser.profilePictureUrl ?? undefined,
-        userRole: updatedUser.userRole,
-        onboardingComplete: updatedUser.onboardingComplete,
-        calendarSyncEnabled: updatedUser.calendarSyncEnabled ?? true,
-        lastSyncedAt: updatedUser.lastSyncedAt,
-      });
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const runClassifyStep = async () => {
-    setPhase('extracting');
-    setStatus('Separating mail by source and content…');
-    const classifyResult = await classifyMutation.mutateAsync({});
-    setClassified(typeof classifyResult.classified === 'number' ? classifyResult.classified : 0);
-
-    queryClient.invalidateQueries({ queryKey: ['emails'] });
-    queryClient.invalidateQueries({ queryKey: ['email-categories'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-    queryClient.invalidateQueries({ queryKey: ['sync-status'] });
-
-    setPhase('grouped');
-    setStatus(
-      `Inbox ready · ${typeof classifyResult.classified === 'number' ? classifyResult.classified : 0} mails separated into groups.`,
-    );
-  };
 
   const runPipeline = async (force = false) => {
-    if (syncMutation.isPending || classifyMutation.isPending) return;
+    if (syncMutation.isPending) return;
 
     try {
       const needsSync = force || !user?.lastSyncedAt;
       if (needsSync) {
         setPhase('syncing');
-        setStatus('Extracting your real Gmail inbox…');
+        setStatus('Pulling your latest Gmail inbox…');
         const syncResult = await syncMutation.mutateAsync();
 
         if (syncResult.syncMode === 'SKIPPED') {
-          if (syncResult.labelCounts) {
-            queryClient.setQueryData(['gmail-label-counts'], syncResult.labelCounts);
-          }
-          queryClient.invalidateQueries({ queryKey: ['emails'] });
-          queryClient.invalidateQueries({ queryKey: ['sync-status'] });
-          setStatus(syncResult.message || 'Background sync already running — classifying local mail.');
-          if (!force) {
-            setPhase('grouped');
-            return;
-          }
-        } else {
-          if (syncResult.labelCounts) {
-            queryClient.setQueryData(['gmail-label-counts'], syncResult.labelCounts);
-          }
-          setLastSyncedAt(new Date().toISOString());
-          await refreshUser();
-          queryClient.invalidateQueries({ queryKey: ['emails'] });
-          queryClient.invalidateQueries({ queryKey: ['email-drafts'] });
-          queryClient.invalidateQueries({ queryKey: ['email-archived'] });
-          queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-          queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
-          queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+          setPhase('busy');
+          setStatus(syncResult.message || 'Sync already running — showing stored mail.');
+          return;
         }
+
+        if (syncResult.syncMode === 'STARTED') {
+          awaitingFirstSync.current = true;
+          setStatus(syncResult.message || 'Gmail sync started — inbox will appear shortly…');
+          return;
+        }
+
+        setLastSyncedAt(new Date().toISOString());
       }
 
-      setPhase('inbox_ready');
-      setStatus('Inbox loaded. Computing Cortex Score…');
-      setPhase('scoring');
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-
-      await runClassifyStep();
+      awaitingFirstSync.current = false;
+      setPhase('grouped');
+      setStatus('Inbox ready — organizing mail in the background…');
     } catch (err: unknown) {
       console.error('Inbox pipeline failed', err);
+      awaitingFirstSync.current = false;
       setPhase('error');
       const message = err && typeof err === 'object' && 'response' in err
         ? (err as { response?: { data?: { message?: string } }; message?: string }).response?.data?.message
           ?? (err as { message?: string }).message
         : undefined;
-      setStatus(message || 'Gmail pipeline failed');
+      setStatus(message || 'Gmail sync failed');
     }
   };
 
@@ -134,29 +80,151 @@ export function useInboxPipeline(autoStart = true) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.userId]);
 
+  const pullingMail = phase === 'syncing' || syncMutation.isPending || awaitingFirstSync.current;
+
+  const { data: syncStatus } = useQuery({
+    queryKey: queryKeys.syncStatus,
+    queryFn: emailApi.getSyncStatus,
+    enabled: Boolean(user),
+    staleTime: 8_000,
+    refetchInterval: (query) => {
+      if (pullingMail || awaitingFirstSync.current) return 2000;
+      const data = query.state.data;
+      if (data?.syncInProgress) return 2500;
+      const unclassified = Number(data?.unclassifiedInbox ?? 0);
+      // Poll while grouping; do NOT poll forever just because historyId is missing.
+      if (unclassified > 0) return 3500;
+      return false;
+    },
+  });
+
   useEffect(() => {
-    if (!user?.lastSyncedAt || classifyBgStarted.current || classifyMutation.isPending) return;
-    const unclassified = Number(emailsState.categoryCounts?.UNCATEGORIZED ?? 0);
-    if (unclassified <= 0) return;
-    classifyBgStarted.current = true;
-    void (async () => {
-      try {
-        await runClassifyStep();
-      } catch {
-        classifyBgStarted.current = false;
-      }
-    })();
+    if (!awaitingFirstSync.current) return;
+    const inbox = Number(syncStatus?.localCounts?.inboxTotal ?? 0);
+    if (syncStatus?.lastSyncedAt || inbox > 0) {
+      awaitingFirstSync.current = false;
+      setLastSyncedAt(syncStatus?.lastSyncedAt || new Date().toISOString());
+      setPhase('grouped');
+      setStatus('Inbox ready — organizing mail in the background…');
+      void invalidateAfterGmailSync(queryClient);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.lastSyncedAt, emailsState.categoryCounts?.UNCATEGORIZED]);
+  }, [syncStatus?.lastSyncedAt, syncStatus?.localCounts?.inboxTotal]);
+
+  const unclassified = Number(syncStatus?.unclassifiedInbox ?? 0);
+  const secondaryComplete = syncStatus?.secondaryComplete === true;
+  const syncInProgress = syncStatus?.syncInProgress === true;
+  const hasSyncedMail = Boolean(user?.lastSyncedAt || syncStatus?.lastSyncedAt)
+    || Number(syncStatus?.localCounts?.inboxTotal ?? 0) > 0
+    || Number(syncStatus?.localCounts?.allStored ?? 0) > 0;
+
+  const classifyingInBackground = hasSyncedMail && unclassified > 0;
+  const enrichingInBackground = hasSyncedMail
+    && !secondaryComplete
+    && unclassified === 0
+    && syncInProgress;
+
+  const isPipelineRunning = pullingMail;
+  const backgroundBusy = classifyingInBackground || enrichingInBackground || isPipelineRunning || syncInProgress;
+
+  const syncChip: SyncChip = resolveSyncChip({
+    phase,
+    isPipelineRunning,
+    hasSyncedMail,
+    syncInProgress,
+    classifyingInBackground,
+    enrichingInBackground,
+  });
+
+  useEffect(() => {
+    if (phase === 'error') return;
+
+    if (awaitingFirstSync.current || phase === 'syncing') {
+      setStatus(hasSyncedMail
+        ? 'Updating inbox from Gmail…'
+        : 'Pulling your latest Gmail inbox…');
+      return;
+    }
+    if (classifyingInBackground) {
+      setStatus(`${unclassified} messages still being grouped…`);
+      return;
+    }
+    if (enrichingInBackground) {
+      setStatus('Finishing full sync — score and drafts warm up next…');
+      return;
+    }
+    if (phase === 'busy' && !syncInProgress) {
+      setPhase('grouped');
+      setStatus(hasSyncedMail ? 'Inbox ready.' : 'Waiting for mail…');
+      return;
+    }
+    if (hasSyncedMail && unclassified === 0 && !syncInProgress) {
+      setStatus('Inbox ready.');
+      if (phase === 'idle' || phase === 'busy') setPhase('grouped');
+    }
+  }, [
+    classifyingInBackground,
+    enrichingInBackground,
+    unclassified,
+    secondaryComplete,
+    phase,
+    syncInProgress,
+    hasSyncedMail,
+  ]);
+
+  // Refresh lists as categories fill in.
+  useEffect(() => {
+    if (prevUnclassified.current == null) {
+      prevUnclassified.current = unclassified;
+      return;
+    }
+    if (unclassified !== prevUnclassified.current) {
+      void invalidateAfterGmailSync(queryClient);
+    }
+    prevUnclassified.current = unclassified;
+  }, [unclassified, queryClient]);
+
+  // Refresh when secondary enrichment finishes (historyId lands).
+  useEffect(() => {
+    if (prevSecondary.current == null) {
+      prevSecondary.current = secondaryComplete;
+      return;
+    }
+    if (!prevSecondary.current && secondaryComplete) {
+      void invalidateAfterGmailSync(queryClient);
+    }
+    prevSecondary.current = secondaryComplete;
+  }, [secondaryComplete, queryClient]);
+
+  useEffect(() => {
+    if (backgroundBusy) {
+      wasBusy.current = true;
+      return;
+    }
+    if (!wasBusy.current) return;
+    wasBusy.current = false;
+    void invalidateAfterGmailSync(queryClient);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backgroundBusy]);
+
+  const categoryCounts = syncStatus?.categoryGroups ?? {};
+  const inboxUnread = Number(syncStatus?.gmailCounts?.inboxUnread ?? syncStatus?.localCounts?.inboxUnread ?? 0);
 
   return {
-    ...emailsState,
     phase,
     status,
-    classified,
+    syncChip,
     runPipeline,
-    isPipelineRunning:
-      phase === 'syncing' || phase === 'extracting' || phase === 'scoring'
-      || syncMutation.isPending || classifyMutation.isPending,
+    syncStatus,
+    unclassified,
+    secondaryComplete,
+    categoryCounts,
+    inboxUnread,
+    labelCounts: undefined as undefined,
+    isPipelineRunning,
+    isClassifyingInBackground: classifyingInBackground,
+    isEnrichingInBackground: enrichingInBackground,
+    isBackgroundBusy: backgroundBusy,
+    hasSyncedMail,
   };
 }

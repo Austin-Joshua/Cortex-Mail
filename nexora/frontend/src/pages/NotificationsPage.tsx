@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
 import { NotificationItem } from '../components/notifications/NotificationItem';
 import { notificationApi } from '../api/notificationApi';
+import { queryKeys } from '../api/queryKeys';
 import { useNotificationStore } from '../store/notificationStore';
 import { Bell, CheckCheck } from 'lucide-react';
 
@@ -10,13 +11,13 @@ export const NotificationsPage: React.FC = () => {
   const { notifications, setNotifications, markAllRead } = useNotificationStore();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['notifications-page'],
+    queryKey: queryKeys.notificationsPage,
     queryFn: notificationApi.getNotifications,
   });
 
   useEffect(() => {
     if (data) setNotifications(data);
-  }, [data]);
+  }, [data, setNotifications]);
 
   const unread = notifications.filter(n => !n.isRead);
   const read   = notifications.filter(n =>  n.isRead);

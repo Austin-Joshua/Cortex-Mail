@@ -1,14 +1,14 @@
 import axiosInstance from './axiosInstance';
 import type { GmailLabelCount } from '../types/Email';
 
-export interface CortexScoreFactor {
+interface CortexScoreFactor {
   key: string;
   label: string;
   points: number;
   detail: string;
 }
 
-export interface CortexScore {
+interface CortexScore {
   score?: number | null;
   band: string;
   factors: CortexScoreFactor[];

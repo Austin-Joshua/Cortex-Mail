@@ -7,6 +7,7 @@ import com.nexora.exception.NexoraException;
 import com.nexora.model.User;
 import com.nexora.model.User.UserRole;
 import com.nexora.repository.UserRepository;
+import com.nexora.security.JwtRevocationRegistry;
 import com.nexora.security.JwtTokenProvider;
 import com.nexora.security.TokenEncryptor;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Objects;
 
 
@@ -32,7 +32,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
-    private final EmailClassificationService classificationService;
+    private final JwtRevocationRegistry jwtRevocationRegistry;
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -106,6 +106,7 @@ public class AuthService {
                 .name(user.getName())
                 .profilePictureUrl(user.getProfilePictureUrl())
                 .userRole(user.getUserRole())
+                // Common app: no profession onboarding; welcome screen optional via updateProfile.
                 .onboardingComplete(!isNew)
                 .calendarSyncEnabled(user.getCalendarSyncEnabled())
                 .lastSyncedAt(user.getLastSyncedAt())
@@ -120,6 +121,37 @@ public class AuthService {
     public AuthResponse buildAuthResponse(String token, boolean onboardingComplete) {
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
         User user = getCurrentUser(userId);
+        return toAuthResponse(user, token, onboardingComplete);
+    }
+
+    /** Issue a fresh JWT after opaque OAuth code exchange — JWT never touched the DB. */
+    public AuthResponse issueSession(long userId, boolean onboardingComplete) {
+        User user = getCurrentUser(userId);
+        String jwt = jwtTokenProvider.generateToken(user);
+        return toAuthResponse(user, jwt, onboardingComplete);
+    }
+
+    /** Read-only profile for /me — no DB write and no JWT rotation. */
+    public AuthResponse getProfile(Long userId) {
+        User user = getCurrentUser(userId);
+        return toAuthResponse(user, null, true);
+    }
+
+    public AuthResponse updateProfile(Long userId, UserRole role, Boolean calendarSyncEnabled) {
+        User user = getCurrentUser(userId);
+        if (role != null) {
+            // Stored for JWT compatibility only — classification is mailbox-personalized, not role-driven.
+            user.setUserRole(role);
+        }
+        if (calendarSyncEnabled != null) {
+            user.setCalendarSyncEnabled(calendarSyncEnabled);
+        }
+        user = userRepository.save(user);
+        String jwt = jwtTokenProvider.generateToken(user);
+        return toAuthResponse(user, jwt, true);
+    }
+
+    private AuthResponse toAuthResponse(User user, String token, boolean onboardingComplete) {
         return AuthResponse.builder()
                 .token(token)
                 .tokenType("Bearer")
@@ -134,83 +166,15 @@ public class AuthService {
                 .build();
     }
 
-    public AuthResponse updateProfile(Long userId, UserRole role, Boolean calendarSyncEnabled) {
-        User user = getCurrentUser(userId);
-        UserRole previousRole = user.getUserRole();
-        if (role != null) {
-            user.setUserRole(role);
-        }
-        if (calendarSyncEnabled != null) {
-            user.setCalendarSyncEnabled(calendarSyncEnabled);
-        }
-        user = userRepository.save(user);
-        if (role != null && role != previousRole) {
-            classificationService.reclassifyInboxForPreferencesAsync(userId);
-        }
-        String jwt = jwtTokenProvider.generateToken(user);
-        return AuthResponse.builder()
-                .token(jwt)
-                .tokenType("Bearer")
-                .userId(user.getId())
-                .email(user.getEmail())
-                .name(user.getName())
-                .profilePictureUrl(user.getProfilePictureUrl())
-                .userRole(user.getUserRole())
-                .onboardingComplete(true)
-                .calendarSyncEnabled(user.getCalendarSyncEnabled())
-                .lastSyncedAt(user.getLastSyncedAt())
-                .build();
-    }
-
     public void revokeAccess(Long userId) {
         User user = getCurrentUser(userId);
         user.setGmailAccessToken(null);
         user.setGmailRefreshToken(null);
         user.setTokenExpiry(null);
+        int next = (user.getTokenVersion() != null ? user.getTokenVersion() : 0) + 1;
+        user.setTokenVersion(next);
         userRepository.save(user);
-    }
-
-    public AuthResponse handleBypassLogin() {
-        String googleId = "mock-google-id-123456";
-        String email = "austinjoshuamj@gmail.com";
-        String name = "Austin Joshua";
-        String picture = "https://lh3.googleusercontent.com/a/default-user=s96-c";
-
-        User user = userRepository.findByGoogleId(googleId)
-                .orElseGet(() -> userRepository.findByEmail(email).orElse(null));
-        if (user == null) {
-            user = User.builder()
-                    .googleId(googleId)
-                    .email(email)
-                    .name(name)
-                    .profilePictureUrl(picture)
-                    .userRole(UserRole.STUDENT)
-                    .gmailAccessToken(tokenEncryptor.encrypt("mock-access-token"))
-                    .gmailRefreshToken(tokenEncryptor.encrypt("mock-refresh-token"))
-                    .tokenExpiry(LocalDateTime.now().plusHours(24))
-                    .build();
-        } else {
-            user.setName(name);
-            user.setProfilePictureUrl(picture);
-            user.setGmailAccessToken(tokenEncryptor.encrypt("mock-access-token"));
-            user.setTokenExpiry(LocalDateTime.now().plusHours(24));
-            user.setGoogleId(googleId);
-        }
-        user = userRepository.save(user);
-
-        String jwt = jwtTokenProvider.generateToken(user);
-        return AuthResponse.builder()
-                .token(jwt)
-                .tokenType("Bearer")
-                .userId(user.getId())
-                .email(user.getEmail())
-                .name(user.getName())
-                .profilePictureUrl(user.getProfilePictureUrl())
-                .userRole(user.getUserRole())
-                .onboardingComplete(true)
-                .calendarSyncEnabled(user.getCalendarSyncEnabled())
-                .lastSyncedAt(user.getLastSyncedAt())
-                .build();
+        jwtRevocationRegistry.revokeAtLeast(userId, next);
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────
@@ -240,7 +204,7 @@ public class AuthService {
             ResponseEntity<String> response = restTemplate.postForEntity(TOKEN_ENDPOINT, request, String.class);
             return objectMapper.readTree(response.getBody());
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
-            log.error("Failed to exchange code for tokens. Status: {}, Response: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Failed to exchange code for tokens. Status: {}", e.getStatusCode());
             throw new NexoraException("Failed to authenticate with Google", 401);
         } catch (Exception e) {
             log.error("Failed to exchange code for tokens: {}", e.getMessage());
@@ -263,36 +227,4 @@ public class AuthService {
         }
     }
 
-    @jakarta.annotation.PostConstruct
-    public void init() {
-        migrateTokenEncryption();
-    }
-
-    @org.springframework.transaction.annotation.Transactional
-    public void migrateTokenEncryption() {
-        log.info("Checking token encryption compatibility...");
-        List<User> users = userRepository.findAll();
-        int migratedCount = 0;
-        for (User user : users) {
-            if (user.getGmailAccessToken() != null) {
-                try {
-                    // Try to decrypt with new random IV method.
-                    // If it succeeded, token is compatible.
-                    tokenEncryptor.decrypt(user.getGmailAccessToken());
-                } catch (Exception e) {
-                    // Encryption mismatch (old static IV token) -> clear to force user re-auth
-                    user.setGmailAccessToken(null);
-                    user.setGmailRefreshToken(null);
-                    user.setTokenExpiry(null);
-                    userRepository.save(user);
-                    migratedCount++;
-                }
-            }
-        }
-        if (migratedCount > 0) {
-            log.info("Token migration complete — cleared {} incompatible tokens. Users must reconnect Gmail.", migratedCount);
-        } else {
-            log.info("Token migration check complete — all tokens compatible.");
-        }
-    }
 }

@@ -4,11 +4,16 @@ import { Send, Sparkles } from 'lucide-react';
 interface BrainInputProps {
   onSend: (query: string) => void;
   isLoading: boolean;
+  initialValue?: string | null;
 }
 
-export const BrainInput: React.FC<BrainInputProps> = ({ onSend, isLoading }) => {
-  const [query, setQuery] = useState('');
+export const BrainInput: React.FC<BrainInputProps> = ({ onSend, isLoading, initialValue = null }) => {
+  const [query, setQuery] = useState(initialValue ?? '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (initialValue) setQuery(initialValue);
+  }, [initialValue]);
 
   useEffect(() => {
     if (textareaRef.current) {

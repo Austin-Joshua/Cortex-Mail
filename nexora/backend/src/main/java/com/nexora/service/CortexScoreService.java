@@ -4,8 +4,10 @@ import com.nexora.dto.response.CortexScoreResponse;
 import com.nexora.dto.response.GmailLabelCountResponse;
 import com.nexora.model.Email.EmailCategory;
 import com.nexora.model.EmailAction;
+import com.nexora.model.User;
 import com.nexora.repository.EmailActionRepository;
 import com.nexora.repository.EmailRepository;
+import com.nexora.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,7 @@ public class CortexScoreService {
     private final GmailSyncService gmailSyncService;
     private final EmailActionRepository actionRepository;
     private final EmailRepository emailRepository;
+    private final UserRepository userRepository;
 
     public CortexScoreResponse compute(Long userId) {
         long localInbox = emailRepository.countByUserIdAndInInboxTrue(userId);
@@ -38,6 +41,17 @@ public class CortexScoreService {
             return scorePending(
                     "Classifying",
                     unclassified + " inbox messages still being analyzed — score appears when classification finishes.");
+        }
+
+        User user = userRepository.findById(userId).orElse(null);
+        boolean secondaryComplete = user != null
+                && SyncStatusFlags.secondaryComplete(user.getGmailHistoryId());
+        // Only hold the score for enrichment while a sync is actually running —
+        // never leave Cortex Score on "Enriching…" forever after a failed secondary pass.
+        if (SyncStatusFlags.enrichingInBackground(true, secondaryComplete, gmailSyncService.hasActiveSync(userId))) {
+            return scorePending(
+                    "Enriching",
+                    "Finishing full message sync so actions and deadlines are included in your score.");
         }
 
         Map<String, GmailLabelCountResponse> labels = gmailSyncService.getLabelCounts(userId);
@@ -54,12 +68,10 @@ public class CortexScoreService {
 
         List<EmailAction> pending = actionRepository.findByUserIdAndIsCompletedFalseOrderByDeadlineAsc(userId);
         LocalDateTime now = LocalDateTime.now();
-        long overdue = emailRepository.findUpcomingDeadlines(userId, now.minusYears(5), now).stream()
-                .filter(e -> e.getDeadlineDetected() != null && e.getDeadlineDetected().isBefore(now))
-                .count();
+        long overdue = emailRepository.countOverdueDeadlines(userId, now);
         LocalDateTime todayStart = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime todayEnd = now.withHour(23).withMinute(59).withSecond(59).withNano(999_999_999);
-        long meetingsToday = emailRepository.findTodaysMeetings(userId, todayStart, todayEnd).size();
+        long meetingsToday = emailRepository.countTodaysMeetings(userId, todayStart, todayEnd);
 
         List<CortexScoreResponse.Factor> factors = new ArrayList<>();
 

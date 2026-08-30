@@ -2,6 +2,11 @@ package com.nexora.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
+import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.*;
@@ -16,14 +21,15 @@ import com.nexora.repository.EmailRepository;
 import com.nexora.repository.UserRepository;
 import com.nexora.security.TokenEncryptor;
 import com.nexora.util.HtmlSanitizer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
@@ -33,7 +39,6 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GmailSyncService {
 
@@ -42,36 +47,48 @@ public class GmailSyncService {
     private final EmailRepository emailRepository;
     private final TokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
-
+    private final TransactionTemplate persistTransaction;
     private final java.util.concurrent.ConcurrentHashMap<Long, Long> activeSyncs =
             new java.util.concurrent.ConcurrentHashMap<>();
+
     private static final long SYNC_LOCK_TTL_MS = 20 * 60 * 1000L;
 
+    public GmailSyncService(GmailConfig gmailConfig,
+                            UserRepository userRepository,
+                            EmailRepository emailRepository,
+                            TokenEncryptor tokenEncryptor,
+                            ObjectMapper objectMapper,
+                            PlatformTransactionManager transactionManager) {
+        this.gmailConfig = gmailConfig;
+        this.userRepository = userRepository;
+        this.emailRepository = emailRepository;
+        this.tokenEncryptor = tokenEncryptor;
+        this.objectMapper = objectMapper;
+        this.persistTransaction = new TransactionTemplate(transactionManager);
+    }
+
     private static final int PAGE_SIZE = 100;
-    /** Newest-first page cap so first sync finishes; incremental history covers the rest. */
+    /** First sign-in: newest inbox only — rest loads in background. */
+    private static final int MAX_INBOX_FIRST_SYNC = 100;
+    /** Subsequent full sync inbox cap. */
     private static final int MAX_INBOX_FULL_SYNC = 500;
     private static final int MAX_DRAFT_FULL_SYNC = 200;
     private static final int MAX_ARCHIVE_FULL_SYNC = 300;
+    private static final int GMAIL_BATCH_SIZE = 50;
     private static final int MAX_RETRIES = 3;
     private static final Pattern HTML_TAGS = Pattern.compile("<[^>]+>");
+    private static final Pattern CHARSET_PATTERN = Pattern.compile("charset\\s*=\\s*\"?([^\\s;\"]+)\"?", Pattern.CASE_INSENSITIVE);
 
     /**
      * Unified sync entry: prefers incremental when a historyId is stored;
      * falls back to full sync on first sync or invalid/expired history.
+     * Not @Transactional — Gmail calls must not hold a JDBC connection open.
      */
-    @Transactional
     public GmailSyncResponse syncInbox(Long userId) {
-        long now = System.currentTimeMillis();
-        Long lockStarted = activeSyncs.get(userId);
-        if (lockStarted != null) {
-            if (now - lockStarted < SYNC_LOCK_TTL_MS) {
-                log.info("Gmail sync already in progress for user {} — skipping concurrent request", userId);
-                return skippedResponse(userId, "Sync already in progress — try again in a moment");
-            }
-            log.warn("Stale Gmail sync lock for user {} — allowing new sync", userId);
-            activeSyncs.remove(userId);
+        if (!tryAcquireSyncLock(userId)) {
+            log.info("Gmail sync already in progress for user {} — skipping concurrent request", userId);
+            return skippedResponse(userId, "Sync already in progress — try again in a moment");
         }
-        activeSyncs.put(userId, now);
 
         try {
             User user = userRepository.findById(userId)
@@ -83,76 +100,190 @@ public class GmailSyncService {
             }
 
             ensureFreshToken(user);
-            Gmail gmail = buildGmailClient(user);
-
-            if (user.getGmailHistoryId() != null && !user.getGmailHistoryId().isBlank()) {
-                try {
-                    return syncIncremental(gmail, user);
-                } catch (HistoryOutOfDateException e) {
-                    log.warn("History ID invalid for user {} — falling back to full sync: {}",
-                            userId, e.getMessage());
-                    return fullSync(gmail, user);
+            try {
+                return runSync(user);
+            } catch (GoogleJsonResponseException e) {
+                if (e.getStatusCode() == 401) {
+                    log.warn("Gmail returned 401 for user {} — refreshing token and retrying once", userId);
+                    refreshUserAccessToken(user);
+                    return runSync(user);
                 }
+                throw e;
             }
 
-            return fullSync(gmail, user);
-
+        } catch (NexoraException e) {
+            throw e;
+        } catch (GoogleJsonResponseException e) {
+            if (e.getStatusCode() == 401) {
+                throw new NexoraException("Gmail authorization expired — reconnect your account", 401);
+            }
+            log.error("Gmail sync failed for user {}: {}", userId, e.getMessage());
+            throw new NexoraException("Gmail sync failed: " + e.getMessage(), 502);
         } catch (GeneralSecurityException | IOException e) {
             log.error("Gmail sync failed for user {}: {}", userId, e.getMessage());
-            throw new NexoraException("Gmail sync failed: " + e.getMessage(), 400);
+            throw new NexoraException("Gmail sync failed: " + e.getMessage(), 502);
         } finally {
-            activeSyncs.remove(userId);
+            releaseSyncLock(userId);
         }
+    }
+
+    /** True while this JVM holds an active sync lock for the user (TTL-aware). */
+    public boolean hasActiveSync(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        Long started = activeSyncs.get(userId);
+        if (started == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() - started >= SYNC_LOCK_TTL_MS) {
+            activeSyncs.remove(userId, started);
+            return false;
+        }
+        return true;
+    }
+
+    private GmailSyncResponse runSync(User user) throws IOException, GeneralSecurityException {
+        Gmail gmail = buildGmailClient(user);
+        if (user.getGmailHistoryId() != null && !user.getGmailHistoryId().isBlank()) {
+            try {
+                return syncIncremental(gmail, user);
+            } catch (HistoryOutOfDateException e) {
+                log.warn("History ID invalid for user {} — falling back to full sync: {}",
+                        user.getId(), e.getMessage());
+                return fullSync(gmail, user);
+            }
+        }
+        return fullSync(gmail, user);
     }
 
     private GmailSyncResponse fullSync(Gmail gmail, User user) throws IOException {
         Long userId = user.getId();
+        boolean fastFirstLoad = user.getLastSyncedAt() == null;
+        int inboxCap = fastFirstLoad ? MAX_INBOX_FIRST_SYNC : MAX_INBOX_FULL_SYNC;
 
         Map<String, GmailLabelCountResponse> labelCounts = fetchAndCacheLabelCounts(gmail, user);
 
-        List<Message> inboxMessages = listMessagesByLabel(gmail, "INBOX", MAX_INBOX_FULL_SYNC);
-        log.info("Fetched {} INBOX message refs for user {} (cap {})",
-                inboxMessages.size(), userId, MAX_INBOX_FULL_SYNC);
+        List<Message> inboxMessages = listMessagesByLabel(gmail, "INBOX", inboxCap);
+        log.info("Fetched {} INBOX message refs for user {} (cap {}, fastFirst={})",
+                inboxMessages.size(), userId, inboxCap, fastFirstLoad);
 
         int newCount = 0;
         int updatedCount = 0;
 
         Set<String> seenInboxIds = new HashSet<>();
-        int[] inboxStats = upsertMessageBatch(gmail, user, inboxMessages, MailboxKind.INBOX, seenInboxIds);
+        int[] inboxStats = upsertMessageBatch(gmail, user, inboxMessages, MailboxKind.INBOX, seenInboxIds, fastFirstLoad);
         newCount += inboxStats[0];
         updatedCount += inboxStats[1];
 
-        updatedCount += markRemovedFromInbox(userId, seenInboxIds);
+        if (!fastFirstLoad) {
+            if (inboxMessages.size() < inboxCap) {
+                updatedCount += markRemovedFromInbox(userId, seenInboxIds);
+            } else {
+                log.info("Skipping inbox prune for user {} — listing hit cap {}", userId, inboxCap);
+            }
 
-        List<Message> draftMessages = listMessagesByLabel(gmail, "DRAFT", MAX_DRAFT_FULL_SYNC);
-        log.info("Fetched {} DRAFT message refs for user {}", draftMessages.size(), userId);
-        int[] draftStats = upsertMessageBatch(gmail, user, draftMessages, MailboxKind.DRAFT, null);
-        newCount += draftStats[0];
-        updatedCount += draftStats[1];
+            List<Message> draftMessages = listMessagesByLabel(gmail, "DRAFT", MAX_DRAFT_FULL_SYNC);
+            log.info("Fetched {} DRAFT message refs for user {}", draftMessages.size(), userId);
+            int[] draftStats = upsertMessageBatch(gmail, user, draftMessages, MailboxKind.DRAFT, null, false);
+            newCount += draftStats[0];
+            updatedCount += draftStats[1];
 
-        List<Message> archivedMessages = listMessagesByQuery(
-                gmail, "-in:inbox -in:trash -in:spam -in:drafts", MAX_ARCHIVE_FULL_SYNC);
-        log.info("Fetched {} archived message refs for user {}", archivedMessages.size(), userId);
-        int[] archiveStats = upsertMessageBatch(gmail, user, archivedMessages, MailboxKind.ARCHIVE, null);
-        newCount += archiveStats[0];
-        updatedCount += archiveStats[1];
+            List<Message> archivedMessages = listMessagesByQuery(
+                    gmail, "-in:inbox -in:trash -in:spam -in:drafts", MAX_ARCHIVE_FULL_SYNC);
+            log.info("Fetched {} archived message refs for user {}", archivedMessages.size(), userId);
+            int[] archiveStats = upsertMessageBatch(gmail, user, archivedMessages, MailboxKind.ARCHIVE, null, false);
+            newCount += archiveStats[0];
+            updatedCount += archiveStats[1];
+        }
 
-        storeProfileHistoryId(gmail, user);
+        // FAST_FIRST must not persist historyId. Incremental after a failed
+        // background pass would skip remaining inbox, drafts, and archive.
+        if (!fastFirstLoad) {
+            storeProfileHistoryId(gmail, user);
+        }
         user.setLastSyncedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        log.info("Full sync complete for user {}: {} new, {} updated (inbox={}, drafts={}, archive={})",
-                userId, newCount, updatedCount,
-                inboxMessages.size(), draftMessages.size(), archivedMessages.size());
+        String syncMode = fastFirstLoad ? "FAST_FIRST" : "FULL";
+        String message = fastFirstLoad
+                ? "Fast inbox sync complete — remaining mail loads in background"
+                : "Full sync completed successfully";
+
+        log.info("{} sync complete for user {}: {} new, {} updated (inbox={})",
+                syncMode, userId, newCount, updatedCount, inboxMessages.size());
 
         return new GmailSyncResponse(
-                "Full sync completed successfully",
+                message,
                 newCount,
                 updatedCount,
                 inboxMessages.size(),
                 labelCounts,
-                "FULL"
+                syncMode
         );
+    }
+
+    /**
+     * Background pass after FAST_FIRST: full inbox remainder, drafts, and archive.
+     */
+    public void syncSecondaryMailboxes(Long userId) {
+        if (!tryAcquireSyncLock(userId)) {
+            log.info("Secondary mailbox sync skipped for user {} — another sync is running", userId);
+            return;
+        }
+        try {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null || user.getGmailAccessToken() == null) {
+                return;
+            }
+            ensureFreshToken(user);
+            Gmail gmail = buildGmailClient(user);
+
+            List<Message> inboxMessages = listMessagesByLabel(gmail, "INBOX", MAX_INBOX_FULL_SYNC);
+            Set<String> seenInboxIds = new HashSet<>();
+            int[] inboxStats = upsertMessageBatch(gmail, user, inboxMessages, MailboxKind.INBOX, seenInboxIds, false);
+            if (inboxMessages.size() < MAX_INBOX_FULL_SYNC) {
+                markRemovedFromInbox(userId, seenInboxIds);
+            } else {
+                log.info("Skipping inbox prune on secondary sync for user {} — listing hit cap", userId);
+            }
+
+            touchSyncLock(userId);
+            List<Message> draftMessages = listMessagesByLabel(gmail, "DRAFT", MAX_DRAFT_FULL_SYNC);
+            int[] draftStats = upsertMessageBatch(gmail, user, draftMessages, MailboxKind.DRAFT, null, false);
+
+            touchSyncLock(userId);
+            List<Message> archivedMessages = listMessagesByQuery(
+                    gmail, "-in:inbox -in:trash -in:spam -in:drafts", MAX_ARCHIVE_FULL_SYNC);
+            int[] archiveStats = upsertMessageBatch(gmail, user, archivedMessages, MailboxKind.ARCHIVE, null, false);
+
+            storeProfileHistoryId(gmail, user);
+            user.setLastSyncedAt(LocalDateTime.now());
+            userRepository.save(user);
+
+            log.info("Secondary mailbox sync for user {}: inbox +{} ~{}, drafts +{} ~{}, archive +{} ~{}",
+                    userId, inboxStats[0], inboxStats[1], draftStats[0], draftStats[1], archiveStats[0], archiveStats[1]);
+        } catch (Exception e) {
+            log.error("Secondary mailbox sync failed for user {}: {}", userId, e.getMessage());
+            // Still capture historyId when possible so the UI does not stay on "enriching" forever.
+            try {
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null && user.getGmailAccessToken() != null) {
+                    ensureFreshToken(user);
+                    Gmail gmail = buildGmailClient(user);
+                    storeProfileHistoryId(gmail, user);
+                    if (user.getLastSyncedAt() == null) {
+                        user.setLastSyncedAt(LocalDateTime.now());
+                    }
+                    userRepository.save(user);
+                }
+            } catch (Exception nested) {
+                log.warn("Could not store historyId after secondary failure for user {}: {}",
+                        userId, nested.getMessage());
+            }
+        } finally {
+            releaseSyncLock(userId);
+        }
     }
 
     private GmailSyncResponse syncIncremental(Gmail gmail, User user)
@@ -176,7 +307,7 @@ public class GmailSyncService {
         do {
             ListHistoryResponse response;
             try {
-                var request = gmail.users().history().list("me")
+                Gmail.Users.History.List request = gmail.users().history().list("me")
                         .setStartHistoryId(startHistoryId)
                         .setMaxResults((long) PAGE_SIZE);
                 if (pageToken != null) {
@@ -184,27 +315,24 @@ public class GmailSyncService {
                 }
                 response = request.execute();
             } catch (GoogleJsonResponseException e) {
-                if (e.getStatusCode() == 404) {
-                    throw new HistoryOutOfDateException("history.list returned 404");
+                if (e.getStatusCode() == 404 || isInvalidHistoryId(e)) {
+                    throw new HistoryOutOfDateException("history.list rejected startHistoryId ("
+                            + e.getStatusCode() + ")");
                 }
                 throw e;
             }
 
+            // Gmail's next cursor is response.historyId — never a per-record id.
             if (response.getHistoryId() != null) {
                 latestHistoryId = response.getHistoryId();
             }
 
             List<History> histories = response.getHistory();
-            if (histories != null) {
-                for (History history : histories) {
-                    if (history.getId() != null) {
-                        latestHistoryId = history.getId();
-                    }
-                    int[] counts = processHistoryRecord(gmail, user, history);
-                    newCount += counts[0];
-                    updatedCount += counts[1];
-                    deletedCount += counts[2];
-                }
+            if (histories != null && !histories.isEmpty()) {
+                int[] counts = processHistoryRecords(gmail, user, histories);
+                newCount += counts[0];
+                updatedCount += counts[1];
+                deletedCount += counts[2];
             }
 
             pageToken = response.getNextPageToken();
@@ -230,87 +358,149 @@ public class GmailSyncService {
     }
 
     /** @return int[]{newCount, updatedCount, deletedCount} */
-    private int[] processHistoryRecord(Gmail gmail, User user, History history) {
+    private int[] processHistoryRecords(Gmail gmail, User user, List<History> histories) {
+        Long userId = user.getId();
+        Set<String> addIds = new LinkedHashSet<>();
+        Set<String> deleteIds = new LinkedHashSet<>();
+        Set<String> labelIds = new LinkedHashSet<>();
+
+        for (History history : histories) {
+            if (history.getMessagesAdded() != null) {
+                for (HistoryMessageAdded added : history.getMessagesAdded()) {
+                    if (added.getMessage() != null && added.getMessage().getId() != null) {
+                        addIds.add(added.getMessage().getId());
+                    }
+                }
+            }
+            if (history.getMessagesDeleted() != null) {
+                for (HistoryMessageDeleted deleted : history.getMessagesDeleted()) {
+                    if (deleted.getMessage() != null && deleted.getMessage().getId() != null) {
+                        deleteIds.add(deleted.getMessage().getId());
+                    }
+                }
+            }
+            if (history.getLabelsAdded() != null) {
+                for (HistoryLabelAdded labelsAdded : history.getLabelsAdded()) {
+                    if (labelsAdded.getMessage() != null && labelsAdded.getMessage().getId() != null) {
+                        labelIds.add(labelsAdded.getMessage().getId());
+                    }
+                }
+            }
+            if (history.getLabelsRemoved() != null) {
+                for (HistoryLabelRemoved labelsRemoved : history.getLabelsRemoved()) {
+                    if (labelsRemoved.getMessage() != null && labelsRemoved.getMessage().getId() != null) {
+                        labelIds.add(labelsRemoved.getMessage().getId());
+                    }
+                }
+            }
+        }
+
+        // Adds already upsert full state; deletes remove the row — skip redundant work.
+        labelIds.removeAll(addIds);
+        deleteIds.removeAll(addIds);
+        labelIds.removeAll(deleteIds);
+
         int newCount = 0;
         int updatedCount = 0;
         int deletedCount = 0;
-        Long userId = user.getId();
-        Set<String> processedAdds = new HashSet<>();
-        Set<String> processedLabelTouch = new HashSet<>();
 
-        if (history.getMessagesAdded() != null) {
-            for (HistoryMessageAdded added : history.getMessagesAdded()) {
-                if (added.getMessage() == null || added.getMessage().getId() == null) continue;
-                String msgId = added.getMessage().getId();
-                if (!processedAdds.add(msgId)) continue;
-                try {
-                    Message full = fetchWithRetry(gmail, msgId);
-                    if (full == null) continue;
-                    boolean created = upsertFullMessage(user, full, null);
-                    if (created) newCount++;
-                    else updatedCount++;
-                } catch (Exception e) {
-                    log.error("Failed to process messagesAdded {}: {}", msgId, e.getMessage());
+        List<String> toFetch = new ArrayList<>(addIds.size() + labelIds.size());
+        toFetch.addAll(addIds);
+        toFetch.addAll(labelIds);
+
+        Map<String, Message> fetched = Map.of();
+        if (!toFetch.isEmpty()) {
+            try {
+                fetched = fetchMessagesInBatches(gmail, toFetch, false);
+            } catch (IOException e) {
+                log.warn("Batch history fetch failed — falling back to sequential: {}", e.getMessage());
+            }
+        }
+
+        Map<String, Email> existingByMessageId = new HashMap<>();
+        if (!toFetch.isEmpty()) {
+            for (Email existing : emailRepository.findByUserIdAndGmailMessageIdIn(userId, toFetch)) {
+                existingByMessageId.put(existing.getGmailMessageId(), existing);
+            }
+        }
+
+        List<Email> toSave = new ArrayList<>();
+        for (String messageId : addIds) {
+            try {
+                Message full = fetched.get(messageId);
+                if (full == null) {
+                    full = fetchWithRetry(gmail, messageId);
+                }
+                if (full == null) continue;
+
+                Email existing = existingByMessageId.get(messageId);
+                if (existing != null) {
+                    applyFullMessageUpdate(existing, full, null);
+                    toSave.add(existing);
+                    updatedCount++;
+                } else {
+                    Email email = parseMessage(full, user);
+                    toSave.add(email);
+                    existingByMessageId.put(messageId, email);
+                    newCount++;
+                }
+            } catch (Exception e) {
+                log.error("Failed to process messagesAdded {}: {}", messageId, e.getMessage());
+            }
+        }
+
+        for (String messageId : labelIds) {
+            try {
+                Message full = fetched.get(messageId);
+                if (full == null) {
+                    full = fetchWithRetry(gmail, messageId);
+                }
+                if (full == null) {
+                    log.warn("Could not fetch message {} for label history; skipping local update", messageId);
+                    continue;
+                }
+
+                Email existing = existingByMessageId.get(messageId);
+                if (existing == null) {
+                    Email email = parseMessage(full, user);
+                    toSave.add(email);
+                    existingByMessageId.put(messageId, email);
+                    newCount++;
+                } else {
+                    List<String> labelIdList = full.getLabelIds() != null ? full.getLabelIds() : List.of();
+                    applyLabelFields(existing, labelIdList);
+                    existing.setGmailLabelIds(labelsToJson(labelIdList));
+                    toSave.add(existing);
+                    updatedCount++;
+                }
+            } catch (Exception e) {
+                log.error("Failed to process label history {}: {}", messageId, e.getMessage());
+            }
+        }
+
+        if (!toSave.isEmpty()) {
+            try {
+                emailRepository.saveAll(toSave);
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                log.warn("Bulk history save hit a concurrent duplicate; retrying individually");
+                for (Email email : toSave) {
+                    try {
+                        emailRepository.save(email);
+                    } catch (org.springframework.dao.DataIntegrityViolationException duplicate) {
+                        log.debug("Message {} was already saved concurrently", email.getGmailMessageId());
+                    }
                 }
             }
         }
 
-        if (history.getMessagesDeleted() != null) {
-            for (HistoryMessageDeleted deleted : history.getMessagesDeleted()) {
-                if (deleted.getMessage() == null || deleted.getMessage().getId() == null) continue;
-                String msgId = deleted.getMessage().getId();
-                Optional<Email> existing = emailRepository.findByUserIdAndGmailMessageId(userId, msgId);
-                if (existing.isPresent()) {
-                    emailRepository.delete(existing.get());
-                    deletedCount++;
-                }
-            }
-        }
-
-        if (history.getLabelsAdded() != null) {
-            for (HistoryLabelAdded labelsAdded : history.getLabelsAdded()) {
-                if (labelsAdded.getMessage() == null || labelsAdded.getMessage().getId() == null) continue;
-                String msgId = labelsAdded.getMessage().getId();
-                if (!processedLabelTouch.add("add:" + msgId) && processedAdds.contains(msgId)) continue;
-                updatedCount += applyLabelHistoryChange(gmail, user, msgId);
-            }
-        }
-
-        if (history.getLabelsRemoved() != null) {
-            for (HistoryLabelRemoved labelsRemoved : history.getLabelsRemoved()) {
-                if (labelsRemoved.getMessage() == null || labelsRemoved.getMessage().getId() == null) continue;
-                String msgId = labelsRemoved.getMessage().getId();
-                if (!processedLabelTouch.add("rem:" + msgId) && processedAdds.contains(msgId)) continue;
-                updatedCount += applyLabelHistoryChange(gmail, user, msgId);
-            }
+        if (!deleteIds.isEmpty()) {
+            deletedCount = Objects.requireNonNullElse(
+                    persistTransaction.execute(status ->
+                            emailRepository.deleteByUserIdAndGmailMessageIdIn(userId, deleteIds)),
+                    0);
         }
 
         return new int[]{newCount, updatedCount, deletedCount};
-    }
-
-    /**
-     * Prefer authoritative FULL fetch for label changes.
-     * Do not invent full mailbox state from partial history stub labels.
-     * @return 1 if updated, 0 otherwise
-     */
-    private int applyLabelHistoryChange(Gmail gmail, User user, String messageId) {
-        Optional<Email> existingOpt = emailRepository.findByUserIdAndGmailMessageId(user.getId(), messageId);
-        Message full = fetchWithRetry(gmail, messageId);
-        if (full != null) {
-            if (existingOpt.isEmpty()) {
-                upsertFullMessage(user, full, null);
-            } else {
-                Email email = existingOpt.get();
-                List<String> labelIds = full.getLabelIds() != null ? full.getLabelIds() : List.of();
-                applyLabelFields(email, labelIds);
-                email.setGmailLabelIds(labelsToJson(labelIds));
-                emailRepository.save(email);
-            }
-            return 1;
-        }
-        // No FULL message — refuse to invent state from partial history stubs
-        log.warn("Could not fetch message {} for label history; skipping local update", messageId);
-        return 0;
     }
 
     private void storeProfileHistoryId(Gmail gmail, User user) {
@@ -330,22 +520,6 @@ public class GmailSyncService {
         return parseLabelCountsJson(user.getGmailLabelCounts());
     }
 
-    public Map<String, GmailLabelCountResponse> refreshLabelCounts(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NexoraException("User not found", 404));
-        if (user.getGmailAccessToken() == null) {
-            return Map.of();
-        }
-        try {
-            ensureFreshToken(user);
-            Gmail gmail = buildGmailClient(user);
-            return fetchAndCacheLabelCounts(gmail, user);
-        } catch (Exception e) {
-            log.error("Failed to refresh label counts for user {}: {}", userId, e.getMessage());
-            throw new NexoraException("Failed to fetch Gmail label counts: " + e.getMessage(), 400);
-        }
-    }
-
     public long getInboxUnreadCount(Long userId) {
         Map<String, GmailLabelCountResponse> counts = getLabelCounts(userId);
         GmailLabelCountResponse inbox = counts.get("INBOX");
@@ -357,24 +531,52 @@ public class GmailSyncService {
 
     // ─── Gmail API helpers ───────────────────────────────────────────────────
 
+    private static final List<String> LABEL_COUNT_IDS = List.of(
+            "INBOX", "DRAFT", "IMPORTANT", "SPAM", "TRASH", "STARRED", "UNREAD",
+            "CATEGORY_PERSONAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES",
+            "CATEGORY_FORUMS", "CATEGORY_SOCIAL"
+    );
+
+    /**
+     * labels.list does not return message/thread counts — those require labels.get.
+     * Batch-get the system labels we surface in the UI / integrity checks.
+     */
     private Map<String, GmailLabelCountResponse> fetchAndCacheLabelCounts(Gmail gmail, User user)
             throws IOException {
-        ListLabelsResponse response = gmail.users().labels().list("me").execute();
         Map<String, GmailLabelCountResponse> counts = new LinkedHashMap<>();
+        BatchRequest batch = gmail.batch();
 
-        if (response.getLabels() != null) {
-            for (Label label : response.getLabels()) {
-                if (label.getId() == null) continue;
-                counts.put(label.getId(), new GmailLabelCountResponse(
-                        label.getId(),
-                        label.getName(),
-                        label.getType(),
-                        toLong(label.getMessagesTotal()),
-                        toLong(label.getMessagesUnread()),
-                        toLong(label.getThreadsTotal()),
-                        toLong(label.getThreadsUnread())
-                ));
-            }
+        for (String labelId : LABEL_COUNT_IDS) {
+            batch.queue(
+                    gmail.users().labels().get("me", labelId).buildHttpRequest(),
+                    Label.class,
+                    GoogleJsonErrorContainer.class,
+                    new JsonBatchCallback<Label>() {
+                        @Override
+                        public void onSuccess(Label label, HttpHeaders responseHeaders) {
+                            if (label == null || label.getId() == null) return;
+                            counts.put(label.getId(), new GmailLabelCountResponse(
+                                    label.getId(),
+                                    label.getName(),
+                                    label.getType(),
+                                    toLong(label.getMessagesTotal()),
+                                    toLong(label.getMessagesUnread()),
+                                    toLong(label.getThreadsTotal()),
+                                    toLong(label.getThreadsUnread())
+                            ));
+                        }
+
+                        @Override
+                        public void onFailure(GoogleJsonError error, HttpHeaders responseHeaders) {
+                            log.debug("Label get skipped for {}: {}", labelId,
+                                    error != null ? error.getMessage() : "unknown");
+                        }
+                    });
+        }
+        try {
+            batch.execute();
+        } catch (IOException e) {
+            log.warn("Label count batch failed for user {}: {}", user.getId(), e.getMessage());
         }
 
         try {
@@ -391,67 +593,135 @@ public class GmailSyncService {
 
     /** @return int[]{newCount, updatedCount} */
     private int[] upsertMessageBatch(Gmail gmail, User user, List<Message> stubs,
-                                     MailboxKind kind, Set<String> collectIds) {
+                                     MailboxKind kind, Set<String> collectIds,
+                                     boolean metadataOnly) {
         int newCount = 0;
         int updatedCount = 0;
         Set<String> seen = new HashSet<>();
+        List<String> idsToFetch = new ArrayList<>();
 
         for (Message stub : stubs) {
             if (stub.getId() == null || !seen.add(stub.getId())) continue;
             if (collectIds != null) collectIds.add(stub.getId());
+            idsToFetch.add(stub.getId());
+        }
 
+        Map<String, Message> fetched = Map.of();
+        if (!idsToFetch.isEmpty()) {
             try {
-                var existingOpt = emailRepository.findByUserIdAndGmailMessageId(user.getId(), stub.getId());
-                if (existingOpt.isPresent()) {
-                    Email existing = existingOpt.get();
-                    Message full = fetchWithRetry(gmail, stub.getId());
-                    if (full != null) {
-                        applyFullMessageUpdate(existing, full, kind);
-                        emailRepository.save(existing);
-                        updatedCount++;
-                    } else {
-                        applyMailboxKind(existing, kind);
-                        applyStubMetadata(existing, stub);
-                        emailRepository.save(existing);
-                        updatedCount++;
-                    }
+                fetched = fetchMessagesInBatches(gmail, idsToFetch, metadataOnly);
+            } catch (IOException e) {
+                log.warn("Batch Gmail fetch failed — falling back to sequential: {}", e.getMessage());
+            }
+        }
+
+        Map<String, Email> existingByMessageId = new HashMap<>();
+        if (!idsToFetch.isEmpty()) {
+            for (Email existing : emailRepository.findByUserIdAndGmailMessageIdIn(user.getId(), idsToFetch)) {
+                existingByMessageId.put(existing.getGmailMessageId(), existing);
+            }
+        }
+
+        List<Email> toSave = new ArrayList<>(idsToFetch.size());
+        for (String messageId : idsToFetch) {
+            try {
+                Message full = fetched.get(messageId);
+                if (full == null) {
+                    full = fetchWithRetry(gmail, messageId);
+                }
+                if (full == null) continue;
+
+                Email existing = existingByMessageId.get(messageId);
+                if (existing != null) {
+                    applyFullMessageUpdate(existing, full, kind);
+                    toSave.add(existing);
+                    updatedCount++;
                     continue;
                 }
 
-                Message fullMessage = fetchWithRetry(gmail, stub.getId());
-                if (fullMessage == null) continue;
-
-                Email email = parseMessage(fullMessage, user);
-                applyMailboxKind(email, kind);
-                emailRepository.save(email);
+                Email email = parseMessage(full, user);
+                applyMailboxKindIfNoLabels(email, full, kind);
+                toSave.add(email);
                 newCount++;
-            } catch (org.springframework.dao.DataIntegrityViolationException e) {
-                log.warn("Constraint violation saving message {}, skipping: {}", stub.getId(), e.getMessage());
             } catch (Exception e) {
-                log.error("Failed to sync message {}: {}", stub.getId(), e.getMessage());
+                log.error("Failed to sync message {}: {}", messageId, e.getMessage());
+            }
+        }
+
+        if (!toSave.isEmpty()) {
+            try {
+                emailRepository.saveAll(toSave);
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                log.warn("Bulk message save encountered a concurrent duplicate; retrying individually");
+                newCount = 0;
+                updatedCount = 0;
+                for (Email email : toSave) {
+                    try {
+                        boolean existed = existingByMessageId.containsKey(email.getGmailMessageId());
+                        emailRepository.save(email);
+                        if (existed) updatedCount++; else newCount++;
+                    } catch (org.springframework.dao.DataIntegrityViolationException duplicate) {
+                        log.debug("Message {} was already saved concurrently", email.getGmailMessageId());
+                    }
+                }
             }
         }
         return new int[]{newCount, updatedCount};
     }
 
-    /**
-     * Upsert from a FULL Gmail message. Returns true if newly created.
-     */
-    private boolean upsertFullMessage(User user, Message full, MailboxKind kind) {
-        Optional<Email> existingOpt =
-                emailRepository.findByUserIdAndGmailMessageId(user.getId(), full.getId());
-        if (existingOpt.isPresent()) {
-            Email existing = existingOpt.get();
-            applyFullMessageUpdate(existing, full, kind);
-            emailRepository.save(existing);
-            return false;
+    private Map<String, Message> fetchMessagesInBatches(Gmail gmail, List<String> messageIds, boolean metadataOnly)
+            throws IOException {
+        Map<String, Message> out = new HashMap<>();
+        if (messageIds == null || messageIds.isEmpty()) {
+            return out;
         }
-        Email email = parseMessage(full, user);
-        if (kind != null) {
-            applyMailboxKind(email, kind);
+
+        for (int offset = 0; offset < messageIds.size(); offset += GMAIL_BATCH_SIZE) {
+            List<String> chunk = messageIds.subList(offset, Math.min(offset + GMAIL_BATCH_SIZE, messageIds.size()));
+            int attempt = 0;
+            while (true) {
+                BatchRequest batch = gmail.batch();
+                for (String id : chunk) {
+                    Gmail.Users.Messages.Get get = gmail.users().messages().get("me", id);
+                    if (metadataOnly) {
+                        get.setFormat("METADATA");
+                        get.setMetadataHeaders(Arrays.asList(
+                                "Subject", "From", "To", "Cc", "Bcc", "Reply-To", "Date", "Message-ID"));
+                    } else {
+                        get.setFormat("FULL");
+                    }
+                    batch.queue(get.buildHttpRequest(), Message.class, GoogleJsonErrorContainer.class,
+                            new JsonBatchCallback<Message>() {
+                        @Override
+                        public void onSuccess(Message message, HttpHeaders responseHeaders) {
+                            if (message != null && message.getId() != null) {
+                                out.put(message.getId(), message);
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(GoogleJsonError error, HttpHeaders responseHeaders) {
+                            log.warn("Batch fetch failed for message {}: {}", id,
+                                    error != null ? error.getMessage() : "unknown");
+                        }
+                            });
+                }
+                try {
+                    batch.execute();
+                    break;
+                } catch (GoogleJsonResponseException e) {
+                    if (isRateLimited(e) && attempt < MAX_RETRIES) {
+                        attempt++;
+                        long waitMs = (long) Math.pow(2, attempt) * 1000;
+                        log.warn("Gmail message batch rate-limited — waiting {}ms before retry {}", waitMs, attempt);
+                        sleep(waitMs);
+                        continue;
+                    }
+                    throw e;
+                }
+            }
         }
-        emailRepository.save(email);
-        return true;
+        return out;
     }
 
     private void applyFullMessageUpdate(Email email, Message full, MailboxKind kind) {
@@ -474,6 +744,16 @@ public class GmailSyncService {
                     ? payload.getHeaders() : List.of();
             String subject = getHeader(headers, "Subject");
             if (!subject.isBlank()) email.setSubject(subject);
+            String from = getHeader(headers, "From");
+            if (!from.isBlank()) {
+                String[] fromParts = parseFrom(from);
+                if (fromParts[0] != null && !fromParts[0].isBlank()) {
+                    email.setSenderName(fromParts[0]);
+                }
+                if (fromParts[1] != null && !fromParts[1].isBlank()) {
+                    email.setSenderEmail(fromParts[1].trim());
+                }
+            }
             String to = getHeader(headers, "To");
             if (!to.isBlank()) email.setRecipientTo(to);
             String cc = getHeader(headers, "Cc");
@@ -484,36 +764,68 @@ public class GmailSyncService {
             if (!replyTo.isBlank()) email.setReplyTo(replyTo);
 
             BodyContent body = extractBodyContent(payload);
-            email.setBodyHtml(body.html);
-            email.setBodyFull(body.plain);
+            boolean hasStoredBody = (email.getBodyFull() != null && !email.getBodyFull().isBlank())
+                    || (email.getBodyHtml() != null && !email.getBodyHtml().isBlank());
+            boolean incomingEmpty = (body.plain == null || body.plain.isBlank())
+                    && (body.html == null || body.html.isBlank());
+            // METADATA fetches have no payload body — never wipe a previously stored FULL body.
+            if (!(hasStoredBody && incomingEmpty)) {
+                if (body.html != null && !body.html.isBlank()) {
+                    email.setBodyHtml(body.html);
+                }
+                String plain = body.plain;
+                if (plain == null || plain.isBlank()) {
+                    plain = full.getSnippet() != null ? full.getSnippet() : email.getBodyFull();
+                }
+                if (plain != null && !plain.isBlank()) {
+                    email.setBodyFull(plain);
+                }
+            }
 
             List<EmailAttachment> attachments = collectAttachments(payload);
-            replaceAttachments(email, attachments);
-            email.setHasAttachments(!attachments.isEmpty());
+            if (!attachments.isEmpty() || !hasStoredBody) {
+                replaceAttachments(email, attachments);
+                email.setHasAttachments(!attachments.isEmpty());
+            }
         }
 
-        if (kind != null) {
+        applyMailboxKindIfNoLabels(email, full, kind);
+    }
+
+    /** Gmail labelIds are authoritative. MailboxKind is only a fallback when labels are missing. */
+    private void applyMailboxKindIfNoLabels(Email email, Message full, MailboxKind kind) {
+        if (kind == null) return;
+        List<String> labelIds = full.getLabelIds();
+        if (labelIds == null || labelIds.isEmpty()) {
             applyMailboxKind(email, kind);
         }
     }
 
     private void applyMailboxKind(Email email, MailboxKind kind) {
         switch (kind) {
-            case INBOX -> {
+            case INBOX:
                 email.setInInbox(true);
                 email.setIsDraft(false);
                 email.setIsArchived(false);
-            }
-            case DRAFT -> {
+                email.setIsTrash(false);
+                email.setIsSpam(false);
+                break;
+            case DRAFT:
                 email.setInInbox(false);
                 email.setIsDraft(true);
                 email.setIsArchived(false);
-            }
-            case ARCHIVE -> {
+                email.setIsTrash(false);
+                email.setIsSpam(false);
+                break;
+            case ARCHIVE:
                 email.setInInbox(false);
                 email.setIsDraft(false);
                 email.setIsArchived(true);
-            }
+                email.setIsTrash(false);
+                email.setIsSpam(false);
+                break;
+            default:
+                break;
         }
     }
 
@@ -522,10 +834,13 @@ public class GmailSyncService {
         String nextPageToken = null;
 
         do {
-            var request = gmail.users().messages()
+            long pageSize = Math.min(PAGE_SIZE, maxTotal - all.size());
+            if (pageSize <= 0) break;
+
+            Gmail.Users.Messages.List request = gmail.users().messages()
                     .list("me")
                     .setLabelIds(Collections.singletonList(labelId))
-                    .setMaxResults((long) PAGE_SIZE);
+                    .setMaxResults(pageSize);
             if (nextPageToken != null) {
                 request.setPageToken(nextPageToken);
             }
@@ -551,7 +866,7 @@ public class GmailSyncService {
             long pageSize = Math.min(PAGE_SIZE, maxTotal - all.size());
             if (pageSize <= 0) break;
 
-            var request = gmail.users().messages()
+            Gmail.Users.Messages.List request = gmail.users().messages()
                     .list("me")
                     .setQ(query)
                     .setMaxResults(pageSize);
@@ -566,56 +881,30 @@ public class GmailSyncService {
             nextPageToken = response.getNextPageToken();
         } while (nextPageToken != null && all.size() < maxTotal);
 
+        if (all.size() > maxTotal) {
+            return all.subList(0, maxTotal);
+        }
         return all;
     }
 
     private int markRemovedFromInbox(Long userId, Set<String> currentInboxIds) {
-        List<Email> candidates = emailRepository.findByUserIdAndInInboxTrue(userId);
-        int changed = 0;
-        for (Email email : candidates) {
-            if (email.getGmailMessageId() != null && !currentInboxIds.contains(email.getGmailMessageId())) {
-                if (Boolean.TRUE.equals(email.getIsDraft())) continue;
-                email.setInInbox(false);
-                email.setIsArchived(true);
-                emailRepository.save(email);
-                changed++;
-            }
+        if (currentInboxIds == null || currentInboxIds.isEmpty()) {
+            return 0;
         }
-        List<Email> legacy = emailRepository.findByUserIdWithNullInInbox(userId);
-        for (Email email : legacy) {
-            if (email.getGmailMessageId() != null && !currentInboxIds.contains(email.getGmailMessageId())) {
-                email.setInInbox(false);
-                if (!Boolean.TRUE.equals(email.getIsDraft())) {
-                    email.setIsArchived(true);
-                }
-                emailRepository.save(email);
-                changed++;
-            } else if (email.getGmailMessageId() != null && currentInboxIds.contains(email.getGmailMessageId())) {
-                email.setInInbox(true);
-                email.setIsArchived(false);
-                email.setIsDraft(false);
-                emailRepository.save(email);
-                changed++;
-            }
-        }
-        return changed;
-    }
-
-    private boolean applyStubMetadata(Email email, Message stub) {
-        List<String> labelIds = stub.getLabelIds() != null ? stub.getLabelIds() : List.of();
-        boolean changed = applyLabelFields(email, labelIds);
-        if (!labelIds.isEmpty()) {
-            String newLabelsJson = labelsToJson(labelIds);
-            if (!Objects.equals(email.getGmailLabelIds(), newLabelsJson)) {
-                email.setGmailLabelIds(newLabelsJson);
-                changed = true;
-            }
-        }
-        return changed;
+        // Bulk UPDATE — never SELECT body TEXT / attachments into memory for prune.
+        Integer changed = persistTransaction.execute(status -> {
+            int archived = emailRepository.archiveInboxMissingFromGmail(userId, currentInboxIds);
+            archived += emailRepository.archiveLegacyNullInboxMissingFromGmail(userId, currentInboxIds);
+            archived += emailRepository.restoreLegacyNullInboxPresentInGmail(userId, currentInboxIds);
+            return archived;
+        });
+        return changed != null ? changed : 0;
     }
 
     private boolean applyLabelFields(Email email, List<String> labelIds) {
-        if (labelIds == null || labelIds.isEmpty()) return false;
+        if (labelIds == null) {
+            labelIds = List.of();
+        }
 
         boolean changed = false;
         boolean isRead = !labelIds.contains("UNREAD");
@@ -693,6 +982,8 @@ public class GmailSyncService {
             } else {
                 throw new NexoraException("Google token endpoint response did not contain access_token", 401);
             }
+        } catch (NexoraException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error refreshing token from Google API: {}", e.getMessage());
             throw new NexoraException("Failed to refresh Gmail access token: " + e.getMessage(), 401);
@@ -706,6 +997,17 @@ public class GmailSyncService {
                 return gmail.users().messages().get("me", messageId)
                         .setFormat("FULL").execute();
             } catch (GoogleJsonResponseException e) {
+                if (e.getStatusCode() == 404) {
+                    log.debug("Gmail message {} no longer exists", messageId);
+                    return null;
+                }
+                if (isRateLimited(e)) {
+                    attempt++;
+                    long waitMs = (long) Math.pow(2, attempt) * 1000;
+                    log.warn("Rate limited — waiting {}ms before retry {} for {}", waitMs, attempt, messageId);
+                    sleep(waitMs);
+                    continue;
+                }
                 if (e.getStatusCode() == 403) {
                     log.warn("Gmail API rejected FULL format for message {}. Retrying in METADATA format...", messageId);
                     try {
@@ -718,18 +1020,16 @@ public class GmailSyncService {
                         log.error("Failed to fetch message in METADATA format: {}", ex.getMessage());
                         return null;
                     }
-                } else if (e.getStatusCode() == 429) {
-                    attempt++;
-                    long waitMs = (long) Math.pow(2, attempt) * 1000;
-                    log.warn("Rate limited — waiting {}ms before retry {}", waitMs, attempt);
-                    sleep(waitMs);
-                } else {
-                    log.error("Gmail API error for message {}: {}", messageId, e.getMessage());
+                }
+                log.error("Gmail API error for message {}: {}", messageId, e.getMessage());
+                return null;
+            } catch (IOException e) {
+                attempt++;
+                if (attempt >= MAX_RETRIES) {
+                    log.error("IO error fetching message {}: {}", messageId, e.getMessage());
                     return null;
                 }
-            } catch (IOException e) {
-                log.error("IO error fetching message {}: {}", messageId, e.getMessage());
-                return null;
+                sleep((long) Math.pow(2, attempt) * 500);
             }
         }
         return null;
@@ -762,6 +1062,10 @@ public class GmailSyncService {
         BodyContent body = payload != null ? extractBodyContent(payload) : BodyContent.empty();
         List<EmailAttachment> attachments = payload != null ? collectAttachments(payload) : List.of();
         String snippet = message.getSnippet();
+        String bodyFull = body.plain;
+        if (bodyFull == null || bodyFull.isBlank()) {
+            bodyFull = snippet != null ? snippet : "";
+        }
 
         Email email = Email.builder()
                 .user(user)
@@ -771,7 +1075,7 @@ public class GmailSyncService {
                 .senderEmail(senderEmail)
                 .subject(subject)
                 .bodySnippet(truncate(snippet, 500))
-                .bodyFull(body.plain)
+                .bodyFull(bodyFull)
                 .bodyHtml(body.html)
                 .receivedAt(received)
                 .hasAttachments(!attachments.isEmpty())
@@ -947,9 +1251,14 @@ public class GmailSyncService {
     }
 
     private String[] parseFrom(String from) {
-        if (from.contains("<")) {
-            String name = from.substring(0, from.indexOf("<")).trim().replaceAll("\"", "");
-            String email = from.substring(from.indexOf("<") + 1, from.indexOf(">")).trim();
+        if (from == null || from.isBlank()) {
+            return new String[]{"", ""};
+        }
+        int lt = from.indexOf('<');
+        int gt = from.indexOf('>', lt + 1);
+        if (lt >= 0 && gt > lt) {
+            String name = from.substring(0, lt).trim().replace("\"", "");
+            String email = from.substring(lt + 1, gt).trim();
             return new String[]{name, email};
         }
         return new String[]{"", from.trim()};
@@ -968,9 +1277,11 @@ public class GmailSyncService {
     private String extractPart(MessagePart payload, String mimeType) {
         if (payload == null) return null;
 
-        if (mimeType.equalsIgnoreCase(payload.getMimeType()) && payload.getBody() != null) {
+        String partMime = payload.getMimeType();
+        if (partMime != null && partMime.toLowerCase(Locale.ROOT).startsWith(mimeType.toLowerCase(Locale.ROOT))
+                && payload.getBody() != null) {
             String data = payload.getBody().getData();
-            if (data != null) return decode(data);
+            if (data != null) return decode(data, charsetOf(payload));
         }
 
         if (payload.getParts() != null) {
@@ -982,10 +1293,34 @@ public class GmailSyncService {
         return null;
     }
 
-    private String decode(String data) {
+    private Charset charsetOf(MessagePart part) {
+        String contentType = "";
+        if (part.getHeaders() != null) {
+            contentType = getHeader(part.getHeaders(), "Content-Type");
+        }
+        if (contentType.isBlank() && part.getMimeType() != null) {
+            contentType = part.getMimeType();
+        }
+        java.util.regex.Matcher matcher = CHARSET_PATTERN.matcher(contentType);
+        if (matcher.find()) {
+            try {
+                return Charset.forName(matcher.group(1).trim());
+            } catch (Exception ignored) {
+                // fall through to UTF-8
+            }
+        }
+        return StandardCharsets.UTF_8;
+    }
+
+    private String decode(String data, Charset charset) {
         try {
-            byte[] decoded = Base64.getUrlDecoder().decode(data);
-            return new String(decoded, StandardCharsets.UTF_8);
+            String padded = data;
+            int remainder = padded.length() % 4;
+            if (remainder > 0) {
+                padded = padded + "====".substring(remainder);
+            }
+            byte[] decoded = Base64.getUrlDecoder().decode(padded);
+            return new String(decoded, charset != null ? charset : StandardCharsets.UTF_8);
         } catch (Exception e) {
             return "";
         }
@@ -1053,20 +1388,28 @@ public class GmailSyncService {
         return modifyLabelsInGmail(userId, gmailMessageId, null, List.of("STARRED"));
     }
 
+    public Message markImportantInGmail(Long userId, String gmailMessageId) {
+        return modifyLabelsInGmail(userId, gmailMessageId, List.of("IMPORTANT"), null);
+    }
+
+    public Message unmarkImportantInGmail(Long userId, String gmailMessageId) {
+        return modifyLabelsInGmail(userId, gmailMessageId, null, List.of("IMPORTANT"));
+    }
+
     public Message archiveInGmail(Long userId, String gmailMessageId) {
         return modifyLabelsInGmail(userId, gmailMessageId, null, List.of("INBOX"));
     }
 
     public Message moveToInboxInGmail(Long userId, String gmailMessageId) {
-        return modifyLabelsInGmail(userId, gmailMessageId, List.of("INBOX"), List.of("TRASH"));
+        return modifyLabelsInGmail(userId, gmailMessageId, List.of("INBOX"), List.of("TRASH", "SPAM"));
     }
 
     public Message trashInGmail(Long userId, String gmailMessageId) {
-        return modifyLabelsInGmail(userId, gmailMessageId, List.of("TRASH"), List.of("INBOX"));
+        return modifyLabelsInGmail(userId, gmailMessageId, List.of("TRASH"), List.of("INBOX", "SPAM"));
     }
 
     public Message restoreFromTrashInGmail(Long userId, String gmailMessageId) {
-        return modifyLabelsInGmail(userId, gmailMessageId, List.of("INBOX"), List.of("TRASH"));
+        return modifyLabelsInGmail(userId, gmailMessageId, List.of("INBOX"), List.of("TRASH", "SPAM"));
     }
 
     /**
@@ -1084,14 +1427,57 @@ public class GmailSyncService {
         return value != null ? value.longValue() : null;
     }
 
-    private void sleep(long ms) {
-        try { java.lang.Thread.sleep(ms); } catch (InterruptedException e) { java.lang.Thread.currentThread().interrupt(); }
+    private boolean tryAcquireSyncLock(Long userId) {
+        long now = System.currentTimeMillis();
+        Long existing = activeSyncs.putIfAbsent(userId, now);
+        if (existing == null) {
+            return true;
+        }
+        if (now - existing >= SYNC_LOCK_TTL_MS) {
+            log.warn("Stale Gmail sync lock for user {} — allowing new sync", userId);
+            return activeSyncs.replace(userId, existing, now);
+        }
+        return false;
     }
 
-    /** Signals that stored historyId is invalid/expired and a full sync is required. */
-    private static class HistoryOutOfDateException extends Exception {
-        HistoryOutOfDateException(String message) {
-            super(message);
+    private void releaseSyncLock(Long userId) {
+        activeSyncs.remove(userId);
+    }
+
+    private void touchSyncLock(Long userId) {
+        activeSyncs.replace(userId, System.currentTimeMillis());
+    }
+
+    private boolean isRateLimited(GoogleJsonResponseException e) {
+        if (e.getStatusCode() == 429) {
+            return true;
+        }
+        if (e.getStatusCode() != 403) {
+            return false;
+        }
+        String details = e.getDetails() != null ? String.valueOf(e.getDetails()) : "";
+        String message = e.getMessage() != null ? e.getMessage() : "";
+        String combined = (details + " " + message).toLowerCase(Locale.ROOT);
+        return combined.contains("ratelimitexceeded")
+                || combined.contains("userratelimitexceeded")
+                || combined.contains("quotaexceeded");
+    }
+
+    private boolean isInvalidHistoryId(GoogleJsonResponseException e) {
+        if (e.getStatusCode() != 400) {
+            return false;
+        }
+        String details = e.getDetails() != null ? String.valueOf(e.getDetails()) : "";
+        String message = e.getMessage() != null ? e.getMessage() : "";
+        String combined = (details + " " + message).toLowerCase(Locale.ROOT);
+        return combined.contains("historyid") || combined.contains("start history");
+    }
+
+    private void sleep(long ms) {
+        try {
+            java.lang.Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            java.lang.Thread.currentThread().interrupt();
         }
     }
 }

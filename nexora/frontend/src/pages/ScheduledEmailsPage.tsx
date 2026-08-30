@@ -6,12 +6,13 @@ import { AppShell } from '../components/layout/AppShell';
 import { Placeholder } from '../components/bento/Placeholder';
 import { Tile, TileHead } from '../components/bento/Tile';
 import { dashboardApi } from '../api/dashboardApi';
+import { queryKeys } from '../api/queryKeys';
 
 export const ScheduledEmailsPage: React.FC = () => {
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-summary'],
+    queryKey: queryKeys.dashboardSummary,
     queryFn: dashboardApi.getSummary,
     staleTime: 60_000,
   });
@@ -32,12 +33,12 @@ export const ScheduledEmailsPage: React.FC = () => {
 
   if (!isLoading && deadlines.length === 0) {
     return (
-      <AppShell title="Scheduled" subtitle="Deadlines and send-later mail">
+      <AppShell title="Deadlines" subtitle="Dates extracted from your synced mail">
         <Placeholder
           icon={<Clock size={26} />}
           tone="var(--v-ember)"
-          headline="Nothing scheduled"
-          body="Dates extracted from your synced mail appear here — assignment due dates, meeting times, and other commitments Cortex Mail found in message bodies."
+          headline="No upcoming deadlines"
+          body="When Cortex finds due dates in your mail, they show up here. Send-later mail is not available yet."
           points={['Extracted from real Gmail', 'Updates after sync + classify', 'Tap a row to open the mail']}
           action={{ label: 'Sync inbox', onClick: () => navigate('/dashboard') }}
         />
@@ -47,7 +48,7 @@ export const ScheduledEmailsPage: React.FC = () => {
 
   return (
     <AppShell
-      title="Scheduled"
+      title="Deadlines"
       subtitle={isLoading ? 'Loading deadlines…' : `${deadlines.length} upcoming from your mail`}
     >
       <Tile span={12} index={0}>

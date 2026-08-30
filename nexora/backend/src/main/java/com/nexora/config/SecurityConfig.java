@@ -1,7 +1,7 @@
 package com.nexora.config;
 
-import com.nexora.repository.UserRepository;
 import com.nexora.security.JwtAuthenticationFilter;
+import com.nexora.security.JwtRevocationRegistry;
 import com.nexora.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,7 +28,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserRepository userRepository;
+    private final JwtRevocationRegistry jwtRevocationRegistry;
 
     @Value("${app.cors-allowed-origins}")
     private String corsAllowedOrigins;
@@ -42,7 +42,6 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/google", "/api/auth/google/callback", "/api/auth/token").permitAll()
-                .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
@@ -61,7 +60,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenProvider, userRepository);
+        return new JwtAuthenticationFilter(jwtTokenProvider, jwtRevocationRegistry);
     }
 
     @Bean

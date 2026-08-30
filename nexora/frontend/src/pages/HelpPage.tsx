@@ -15,7 +15,7 @@ const CATEGORIES = [
       },
       {
         q: 'Where is my data stored?',
-        a: 'Your messages are stored in your own Cortex Mail workspace and your Google tokens are encrypted with AES-256 at rest. Nothing is shared with third parties.',
+        a: 'Your messages are stored in your own Cortex Mail workspace and your Google tokens are encrypted with AES-256-GCM at rest. Nothing is shared with third parties.',
       },
       {
         q: 'Which providers work?',
@@ -49,7 +49,7 @@ const CATEGORIES = [
     items: [
       {
         q: 'What can I ask it?',
-        a: 'Questions about your own inbox — "what did the placement cell send last week", "which deadlines land before Friday". Answers link back to the messages they came from.',
+        a: 'Questions about your own inbox — "what did recruiters send last week", "which deadlines land before Friday". Answers link back to the messages they came from.',
       },
       {
         q: 'Does it read my whole mailbox?',

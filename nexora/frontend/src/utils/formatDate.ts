@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns';
 
-export function formatDate(dateStr?: string, fmt = 'MMM d, yyyy'): string {
+function formatDate(dateStr?: string, fmt = 'MMM d, yyyy'): string {
   if (!dateStr) return '—';
   try {
     const d = parseISO(dateStr);

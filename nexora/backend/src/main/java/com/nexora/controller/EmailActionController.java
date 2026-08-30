@@ -1,6 +1,6 @@
 package com.nexora.controller;
 
-import com.nexora.model.User;
+import com.nexora.security.UserPrincipal;
 import com.nexora.repository.EmailActionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,7 @@ public class EmailActionController {
     @PatchMapping("/{id}/complete")
     public ResponseEntity<Void> completeAction(
             @PathVariable Long id,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal UserPrincipal user) {
         emailActionRepository.findByIdAndUserId(id, user.getId())
             .ifPresent(action -> {
                 action.setIsCompleted(true);

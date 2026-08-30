@@ -1,4 +1,4 @@
-export type NotificationType = 'DEADLINE' | 'ACTION_REQUIRED' | 'IMPORTANT_EMAIL' | 'DAILY_DIGEST';
+type NotificationType = 'DEADLINE' | 'ACTION_REQUIRED' | 'IMPORTANT_EMAIL' | 'DAILY_DIGEST';
 
 export interface Notification {
   id: number;

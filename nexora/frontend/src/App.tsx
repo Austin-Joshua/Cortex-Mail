@@ -1,42 +1,51 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
-import { LandingPage }       from './pages/LandingPage';
-import { OnboardingPage }    from './pages/OnboardingPage';
-import { DashboardPageNew }  from './pages/DashboardPageNew';
-import { InboxPage }         from './pages/InboxPage';
-import { BrainPage }         from './pages/BrainPage';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { SettingsPage }      from './pages/SettingsPage';
-import { AuthCallbackPage }  from './pages/AuthCallbackPage';
-import { EmailDetailPage }   from './pages/EmailDetailPage';
-import { AnalyticsPage }     from './pages/AnalyticsPage';
 import { ErrorBoundary }     from './components/common/ErrorBoundary';
-import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
-import { PriorityInboxPage } from './pages/PriorityInboxPage';
-import { DraftsPage }        from './pages/DraftsPage';
-import { ScheduledEmailsPage } from './pages/ScheduledEmailsPage';
+import { LoadingSpinner } from './components/common/LoadingSpinner';
 
-import { ArchivePage } from './pages/ArchivePage';
-import { SharedPage } from './pages/SharedPage';
-import { HelpPage } from './pages/HelpPage';
+const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
+const DashboardPageNew = lazy(() => import('./pages/DashboardPageNew').then((m) => ({ default: m.DashboardPageNew })));
+const InboxPage = lazy(() => import('./pages/InboxPage').then((m) => ({ default: m.InboxPage })));
+const BrainPage = lazy(() => import('./pages/BrainPage').then((m) => ({ default: m.BrainPage })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })));
+const EmailDetailPage = lazy(() => import('./pages/EmailDetailPage').then((m) => ({ default: m.EmailDetailPage })));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })));
+const PriorityInboxPage = lazy(() => import('./pages/PriorityInboxPage').then((m) => ({ default: m.PriorityInboxPage })));
+const DraftsPage = lazy(() => import('./pages/DraftsPage').then((m) => ({ default: m.DraftsPage })));
+const ScheduledEmailsPage = lazy(() => import('./pages/ScheduledEmailsPage').then((m) => ({ default: m.ScheduledEmailsPage })));
+const ArchivePage = lazy(() => import('./pages/ArchivePage').then((m) => ({ default: m.ArchivePage })));
+const SharedPage = lazy(() => import('./pages/SharedPage').then((m) => ({ default: m.SharedPage })));
+const HelpPage = lazy(() => import('./pages/HelpPage').then((m) => ({ default: m.HelpPage })));
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuthStore();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
+const ProtectedRoute: React.FC<{ children: React.ReactNode; requireOnboarding?: boolean }> = ({
+  children,
+  requireOnboarding = true,
+}) => {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+  if (requireOnboarding && user && !user.onboardingComplete) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return <>{children}</>;
 };
 
 function App() {
   return (
     <ErrorBoundary>
-      <Routes>
+      <Suspense fallback={<LoadingSpinner fullScreen label="Loading Cortex Mail…" />}>
+        <Routes>
         {/* Public Routes */}
         <Route path="/"                element={<LandingPage />} />
         <Route path="/auth/callback"   element={<AuthCallbackPage />} />
         <Route path="/privacy"         element={<PrivacyPolicyPage />} />
 
         {/* Protected Routes */}
-        <Route path="/onboarding"      element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+        <Route path="/onboarding"      element={<ProtectedRoute requireOnboarding={false}><OnboardingPage /></ProtectedRoute>} />
 
         {/* Main Navigation */}
         <Route path="/dashboard"       element={<ProtectedRoute><DashboardPageNew /></ProtectedRoute>} />
@@ -63,7 +72,8 @@ function App() {
 
         {/* Catch All */}
         <Route path="*"                element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </ErrorBoundary>
   );
 }

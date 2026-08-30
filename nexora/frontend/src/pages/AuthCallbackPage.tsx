@@ -47,13 +47,15 @@ export const AuthCallbackPage: React.FC = () => {
             calendarSyncEnabled: authResponse.calendarSyncEnabled ?? true,
             lastSyncedAt: authResponse.lastSyncedAt,
           });
-          navigate('/dashboard', { replace: true });
+          navigate(authResponse.onboardingComplete ? '/dashboard' : '/onboarding', { replace: true });
         })
         .catch((err) => {
           clearTimeout(timeout);
           console.error('Failed to exchange code:', err);
           navigate('/?auth_error=exchange_failed', { replace: true });
         });
+
+      return () => clearTimeout(timeout);
     } else if (!hasCalled.current) {
       // No code and no error — something unexpected, go home
       navigate('/', { replace: true });

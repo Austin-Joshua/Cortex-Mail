@@ -16,6 +16,9 @@ Thumbs.db
 .env.development
 .env.production
 .env.*.local
+# Keep tracked templates (placeholders only — no secrets)
+!.env.example
+!**/.env.example
 
 # ──────────────────────────────────────────────────
 # Frontend (Node / Vite / React)

@@ -6,7 +6,8 @@ import {
   CalendarClock, Flame, Gauge as GaugeIcon,
 } from 'lucide-react';
 import { dashboardApi } from '../api/dashboardApi';
-import { emailApi } from '../api/emailApi';
+import { priorityApi } from '../api/priorityApi';
+import { queryKeys } from '../api/queryKeys';
 import { AppShell } from '../components/layout/AppShell';
 import { useAuthStore } from '../store/authStore';
 import { useInboxPipeline } from '../hooks/useInboxPipeline';
@@ -27,27 +28,28 @@ const FLOW_ZONES = [
 export const DashboardPageNew: React.FC = () => {
   const { user } = useAuthStore();
   const {
-    emails, categoryCounts, labelCounts, inboxUnread, isLoading,
-    phase, status, runPipeline, isPipelineRunning,
+    phase, status, syncChip, runPipeline, isPipelineRunning,
+    isEnrichingInBackground, isBackgroundBusy, syncStatus, unclassified: pipelineUnclassified,
+    categoryCounts, inboxUnread, hasSyncedMail: pipelineHasMail,
   } = useInboxPipeline(true);
   const navigate = useNavigate();
 
-  const { data: syncStatus } = useQuery({
-    queryKey: ['sync-status'],
-    queryFn: emailApi.getSyncStatus,
-    staleTime: 15_000,
-    refetchInterval: isPipelineRunning ? 5000 : false,
-  });
-
   const { data } = useQuery({
-    queryKey: ['dashboard-summary'],
+    queryKey: queryKeys.dashboardSummary,
     queryFn: dashboardApi.getSummary,
     staleTime: 60_000,
-    refetchInterval: isPipelineRunning || (syncStatus?.unclassifiedInbox ?? 0) > 0 ? 5000 : false,
+    refetchInterval: isBackgroundBusy ? 10_000 : false,
+  });
+
+  const { data: priorityEmails = [], isLoading: priorityLoading, isError: priorityError, refetch: refetchPriority } = useQuery({
+    queryKey: queryKeys.emailPriority,
+    queryFn: () => priorityApi.getPriority(12),
+    staleTime: 30_000,
+    enabled: Boolean(user?.lastSyncedAt || syncStatus?.lastSyncedAt),
   });
 
   const { data: volumeHistory } = useQuery({
-    queryKey: ['email-volume', 7],
+    queryKey: queryKeys.emailVolume(7),
     queryFn: () => dashboardApi.getEmailVolume(7),
     staleTime: 60_000,
   });
@@ -59,16 +61,16 @@ export const DashboardPageNew: React.FC = () => {
 
   const labelsReady = syncStatus?.gmailCounts
     && Object.keys(syncStatus.gmailCounts).length > 0;
-  const unclassified = syncStatus?.unclassifiedInbox
+  const unclassified = pipelineUnclassified
     ?? Number(categoryCounts.UNCATEGORIZED ?? 0);
+  const emails = useMemo(() => priorityEmails, [priorityEmails]);
+  const isLoading = priorityLoading && emails.length === 0;
 
   const unread = data?.unreadCount ?? (labelsReady ? inboxUnread : null);
   const inboxTotal = syncStatus?.localCounts?.inboxTotal
     ?? data?.gmailLabelCounts?.INBOX?.messagesTotal
-    ?? labelCounts?.INBOX?.messagesTotal
     ?? null;
   const importantUnread = data?.gmailLabelCounts?.IMPORTANT?.messagesUnread
-    ?? labelCounts?.IMPORTANT?.messagesUnread
     ?? 0;
   const deadlines = useMemo(() => data?.upcomingDeadlines ?? [], [data]);
   const actions = useMemo(() => data?.pendingActions ?? [], [data]);
@@ -83,7 +85,8 @@ export const DashboardPageNew: React.FC = () => {
   );
 
   const cortex = data?.cortexScore;
-  const hasSyncedMail = Boolean(user?.lastSyncedAt)
+  const hasSyncedMail = pipelineHasMail
+    || Boolean(user?.lastSyncedAt)
     || (syncStatus?.localCounts?.allStored ?? 0) > 0;
   const scoreReady = cortex?.ready === true
     && !isPipelineRunning
@@ -91,10 +94,10 @@ export const DashboardPageNew: React.FC = () => {
   const score = scoreReady && cortex?.score != null ? cortex.score : null;
   const scoreBand = scoreReady ? cortex?.band : undefined;
   const scorePendingMessage = cortex?.statusMessage
-    ?? (unclassified > 0
-      ? `${unclassified} inbox messages still being classified — score updates when analysis finishes.`
-      : isPipelineRunning
-        ? 'Analyzing your Gmail inbox — score appears when sync and classification finish.'
+    ?? (isPipelineRunning
+      ? 'Pulling your Gmail inbox — dashboard fills in as mail arrives.'
+      : unclassified > 0
+        ? `${unclassified} inbox messages still being grouped — score updates in a few seconds.`
         : !hasSyncedMail
           ? 'Sync Gmail to compute your score from real inbox data.'
           : 'Waiting for score from Gmail and stored mail.');
@@ -103,20 +106,13 @@ export const DashboardPageNew: React.FC = () => {
     ? (scoreBand ?? 'Scored')
     : unclassified > 0
       ? 'Classifying'
+      : isEnrichingInBackground
+        ? 'Enriching…'
       : isPipelineRunning
         ? 'Analyzing…'
         : !hasSyncedMail
           ? 'Sync Gmail to score'
           : (cortex?.band ?? 'Pending');
-
-  const syncChip =
-    phase === 'error' ? 'error'
-      : phase === 'syncing' ? 'syncing'
-      : isPipelineRunning || phase === 'extracting' || phase === 'scoring' || unclassified > 0
-        ? 'classifying'
-        : phase === 'busy' || phase === 'grouped' || user?.lastSyncedAt
-          ? 'synced'
-          : 'idle';
 
   const lastSyncedLabel = (() => {
     const raw = syncStatus?.lastSyncedAt || user?.lastSyncedAt;
@@ -195,7 +191,7 @@ export const DashboardPageNew: React.FC = () => {
     : scorePendingMessage;
 
   return (
-    <AppShell title={`${greeting}, ${firstName}`} subtitle={pageSubtitle}>
+    <AppShell title="Home" subtitle={`${greeting}, ${firstName} · ${pageSubtitle}`}>
       <div
         className="sync-toolbar"
       >
@@ -203,7 +199,7 @@ export const DashboardPageNew: React.FC = () => {
           Sync:{' '}
           <strong style={{
             color: syncChip === 'error' ? 'var(--color-danger)'
-              : syncChip === 'syncing' || syncChip === 'classifying' ? 'var(--color-cortex)'
+              : syncChip === 'syncing' || syncChip === 'classifying' || syncChip === 'enriching' || syncChip === 'busy' ? 'var(--color-cortex)'
               : syncChip === 'synced' ? 'var(--color-success)'
                 : 'var(--color-text-primary)',
           }}>
@@ -216,12 +212,20 @@ export const DashboardPageNew: React.FC = () => {
         </button>
       </div>
 
-      {(isPipelineRunning || phase === 'grouped' || phase === 'busy' || phase === 'error') && status && (
+      {(status && (isBackgroundBusy || phase === 'error' || phase === 'grouped' || phase === 'busy')) && (
         <div
           className="status-banner"
           style={{
-            background: phase === 'error' ? 'var(--color-danger-soft)' : phase === 'busy' ? 'var(--color-cortex-soft)' : 'var(--color-surface-elevated)',
-            color: phase === 'error' ? 'var(--color-danger)' : phase === 'busy' ? 'var(--color-cortex-light)' : 'var(--color-text-secondary)',
+            background: phase === 'error'
+              ? 'var(--color-danger-soft)'
+              : syncChip === 'classifying' || syncChip === 'enriching' || syncChip === 'busy' || syncChip === 'syncing'
+                ? 'var(--color-cortex-soft)'
+                : 'var(--color-surface-elevated)',
+            color: phase === 'error'
+              ? 'var(--color-danger)'
+              : syncChip === 'classifying' || syncChip === 'enriching' || syncChip === 'busy' || syncChip === 'syncing'
+                ? 'var(--color-cortex-light)'
+                : 'var(--color-text-secondary)',
           }}
         >
           <span>{status}</span>
@@ -230,7 +234,7 @@ export const DashboardPageNew: React.FC = () => {
               Retry
             </button>
           )}
-          {phase === 'grouped' && (
+          {(syncChip === 'synced' || phase === 'grouped') && !isBackgroundBusy && (
             <button type="button" className="vbtn vbtn-bare" onClick={() => navigate('/inbox')}>
               Open inbox
             </button>
@@ -367,7 +371,14 @@ export const DashboardPageNew: React.FC = () => {
             }
           />
 
-          {priorityStream.length > 0 ? (
+          {priorityError ? (
+            <div style={{ padding: '12px 0' }}>
+              <p className="v-meta" style={{ marginBottom: 8 }}>Couldn’t load priority mail.</p>
+              <button type="button" className="vbtn vbtn-quiet" onClick={() => void refetchPriority()}>
+                Retry
+              </button>
+            </div>
+          ) : priorityStream.length > 0 ? (
             <div className="stream">
               {priorityStream.map((e) => (
                 <div key={e.id} className="stream-row" onClick={() => navigate(`/emails/${e.id}`)}>

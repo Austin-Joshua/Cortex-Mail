@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { emailApi } from '../../api/emailApi';
+import { queryKeys } from '../../api/queryKeys';
 import axiosInstance from '../../api/axiosInstance';
 import { CategoryTag } from '../common/CategoryTag';
 import { PriorityBars } from '../common/PriorityBars';
@@ -32,23 +33,26 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
   const { setSelectedEmail } = useEmailStore();
 
   const { data: email, isLoading } = useQuery({
-    queryKey: ['email', emailId],
+    queryKey: queryKeys.emailDetail(emailId),
     queryFn: () => emailApi.getEmail(emailId),
   });
 
   React.useEffect(() => {
-    if (email && !email.isRead) {
-      emailApi.markAsRead(email.id)
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ['emails'] });
-          queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-        })
-        .catch(() => {});
-    }
-  }, [email, email?.id, email?.isRead, queryClient]);
+    // Deep-link / refresh only — list selection already marks read optimistically.
+    if (!email || email.isRead) return;
+    const id = email.id;
+    emailApi.markRead(id)
+      .then(() => {
+        queryClient.setQueryData(['email', emailId], (prev: typeof email) =>
+          prev ? { ...prev, isRead: true } : prev,
+        );
+        queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
+      })
+      .catch(() => {});
+  }, [email, emailId, queryClient]);
 
   const { data: threadEmails = [], isLoading: isThreadLoading } = useQuery({
-    queryKey: ['email-thread', email?.gmailThreadId],
+    queryKey: queryKeys.emailThread(email?.gmailThreadId),
     queryFn: () => emailApi.getEmailThread(email!.gmailThreadId!),
     enabled: !!email?.gmailThreadId && showThread,
   });
@@ -101,11 +105,21 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
   const attachments = (email.attachments || []).filter((a: any) => !a.isInline);
 
   const invalidateMail = () => {
-    queryClient.invalidateQueries({ queryKey: ['emails'] });
-    queryClient.invalidateQueries({ queryKey: ['email', emailId] });
-    queryClient.invalidateQueries({ queryKey: ['email-archived'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-    queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.emails });
+    queryClient.invalidateQueries({ queryKey: queryKeys.emailDetail(emailId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.emailArchived() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
+    queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
+    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+  };
+
+  const runMailboxAction = (action: Promise<unknown>, closeAfter = false) => {
+    action.then(() => {
+      invalidateMail();
+      if (closeAfter) onClose?.();
+    }).catch(() => {
+      /* Gmail mutation failed — leave the panel open with current state */
+    });
   };
 
   const handleDraftReply = async () => {
@@ -131,8 +145,8 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
     setCompletingActions(prev => new Set(prev).add(actionId));
     try {
       await axiosInstance.patch(`/api/email-actions/${actionId}/complete`);
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['email', emailId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
+      queryClient.invalidateQueries({ queryKey: queryKeys.emailDetail(emailId) });
     } finally {
       setCompletingActions(prev => {
         const s = new Set(prev);
@@ -234,28 +248,28 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
-            onClick={() => emailApi.setStarred(email.id, !email.isStarred).then(invalidateMail)}>
+            onClick={() => runMailboxAction(emailApi.setStarred(email.id, !email.isStarred))}>
             {email.isStarred ? 'Unstar' : 'Star'}
           </button>
           {email.inInbox !== false && (
             <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
-              onClick={() => emailApi.archive(email.id).then(() => { invalidateMail(); onClose?.(); })}>
+              onClick={() => runMailboxAction(emailApi.archive(email.id), true)}>
               Archive
             </button>
           )}
           {email.isArchived && (
             <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
-              onClick={() => emailApi.moveToInbox(email.id).then(invalidateMail)}>
+              onClick={() => runMailboxAction(emailApi.moveToInbox(email.id))}>
               Move to inbox
             </button>
           )}
           <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
-            onClick={() => emailApi.trash(email.id).then(() => { invalidateMail(); onClose?.(); })}>
+            onClick={() => runMailboxAction(emailApi.trash(email.id), true)}>
             Trash
           </button>
           {email.isRead ? (
             <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
-              onClick={() => emailApi.markUnread(email.id).then(invalidateMail)}>
+              onClick={() => runMailboxAction(emailApi.markUnread(email.id))}>
               Mark unread
             </button>
           ) : null}
@@ -331,7 +345,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
                   {a.id && (
                     <input
                       type="checkbox"
-                      checked={completingActions.has(a.id)}
+                      checked={Boolean(a.isCompleted) || completingActions.has(a.id)}
                       onChange={() => handleCompleteAction(a.id)}
                       style={{ cursor: 'pointer', accentColor: 'var(--color-cortex)' }}
                     />

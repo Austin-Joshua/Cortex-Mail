@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { emailApi } from '../api/emailApi';
+import { queryKeys } from '../api/queryKeys';
 import { useEmailStore } from '../store/emailStore';
 
 export interface UseEmailsOptions {
@@ -9,37 +10,39 @@ export interface UseEmailsOptions {
   useGlobalSearch?: boolean;
   /** Skip category/label count queries (lighter for list-only pages). */
   skipCounts?: boolean;
+  /** Ignore TopBar category/priority so dashboard/priority see the full inbox. */
+  ignoreStoreFilters?: boolean;
 }
 
 export function useEmails(page = 0, size = 80, options: UseEmailsOptions = {}) {
-  const { useGlobalSearch = true, skipCounts = false } = options;
+  const { useGlobalSearch = true, skipCounts = false, ignoreStoreFilters = false } = options;
   const { activeCategory, activePriority, searchQuery } = useEmailStore();
   const queryClient = useQueryClient();
 
   const params = {
-    category: activeCategory !== 'ALL' ? activeCategory : undefined,
-    priority: activePriority !== 'ALL' ? activePriority : undefined,
+    category: !ignoreStoreFilters && activeCategory !== 'ALL' ? activeCategory : undefined,
+    priority: !ignoreStoreFilters && activePriority !== 'ALL' ? activePriority : undefined,
     search: useGlobalSearch && searchQuery ? searchQuery : undefined,
     page,
     size,
   };
 
   const emailsQuery = useQuery({
-    queryKey: ['emails', params],
+    queryKey: queryKeys.emailList(params),
     queryFn: () => emailApi.getEmails(params),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
 
   const categoryCountsQuery = useQuery({
-    queryKey: ['email-categories'],
+    queryKey: queryKeys.emailCategories,
     queryFn: emailApi.getCategoryCounts,
     staleTime: 120_000,
     enabled: !skipCounts,
   });
 
   const labelCountsQuery = useQuery({
-    queryKey: ['gmail-label-counts'],
+    queryKey: queryKeys.gmailLabelCounts,
     queryFn: emailApi.getGmailLabelCounts,
     staleTime: 120_000,
     enabled: !skipCounts,
@@ -48,8 +51,8 @@ export function useEmails(page = 0, size = 80, options: UseEmailsOptions = {}) {
   const markReadMutation = useMutation({
     mutationFn: emailApi.markRead,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['emails'] });
-      queryClient.invalidateQueries({ queryKey: ['gmail-label-counts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.emails });
+      queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
     },
   });
 

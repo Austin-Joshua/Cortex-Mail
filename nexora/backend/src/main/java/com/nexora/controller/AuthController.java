@@ -2,10 +2,12 @@ package com.nexora.controller;
 
 import com.nexora.dto.request.ProfileUpdateRequest;
 import com.nexora.dto.response.AuthResponse;
-import com.nexora.model.User;
+import com.nexora.security.UserPrincipal;
 import com.nexora.service.AuthService;
+import com.nexora.service.OauthExchangeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,14 +16,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private final AuthService authService;
+    private final OauthExchangeService oauthExchangeService;
 
     @Value("${app.cors-allowed-origins}")
     private String corsAllowedOrigins;
-
-    private final java.util.Map<String, String> pendingTokens = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Frontend redirects user to:
@@ -84,13 +86,8 @@ public class AuthController {
 
             AuthResponse authResponse = authService.handleGoogleCallback(code, dynamicRedirectUri);
 
-            String exchangeCode = java.util.UUID.randomUUID().toString();
-            String valueToStore = authResponse.getToken() + ";" + authResponse.isOnboardingComplete();
-            pendingTokens.put(exchangeCode, valueToStore);
-
-            // Auto-expire after 60 seconds
-            java.util.concurrent.CompletableFuture.delayedExecutor(60, java.util.concurrent.TimeUnit.SECONDS)
-                    .execute(() -> pendingTokens.remove(exchangeCode));
+            String exchangeCode = oauthExchangeService.store(
+                    authResponse.getUserId(), authResponse.isOnboardingComplete());
 
             String redirectUrl = org.springframework.web.util.UriComponentsBuilder
                     .fromHttpUrl(frontendBase + "/auth/callback")
@@ -99,10 +96,10 @@ public class AuthController {
 
             response.sendRedirect(redirectUrl);
         } catch (Exception ex) {
+            log.error("OAuth callback failed: {}", ex.getMessage());
             String redirectUrl = org.springframework.web.util.UriComponentsBuilder
                     .fromHttpUrl(frontendBase + "/")
                     .queryParam("auth_error", "oauth_failed")
-                    .queryParam("error_description", ex.getMessage() != null ? ex.getMessage() : "Login failed")
                     .build().toUriString();
             response.sendRedirect(redirectUrl);
         }
@@ -117,42 +114,29 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Developer bypass removed from public access — real Gmail OAuth only.
-     */
-    @GetMapping("/bypass")
-    public ResponseEntity<Void> developerBypass() {
-        return ResponseEntity.notFound().build();
-    }
-
     @GetMapping("/token")
     public ResponseEntity<AuthResponse> exchangeCode(@RequestParam String code) {
-        String value = pendingTokens.remove(code);
-        if (value == null) {
-            return ResponseEntity.status(401).build();
-        }
-        String[] parts = value.split(";");
-        String jwt = parts[0];
-        boolean onboardingComplete = Boolean.parseBoolean(parts[1]);
-        return ResponseEntity.ok(authService.buildAuthResponse(jwt, onboardingComplete));
+        return oauthExchangeService.consume(code)
+                .map(payload -> ResponseEntity.ok(
+                        authService.issueSession(payload.userId(), payload.onboardingComplete())))
+                .orElseGet(() -> ResponseEntity.status(401).build());
     }
 
     @GetMapping("/me")
-    public ResponseEntity<AuthResponse> getCurrentUser(@AuthenticationPrincipal User user) {
-        AuthResponse response = authService.updateProfile(user.getId(), null, null);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> getCurrentUser(@AuthenticationPrincipal UserPrincipal user) {
+        return ResponseEntity.ok(authService.getProfile(user.getId()));
     }
 
     @PutMapping("/profile")
     public ResponseEntity<AuthResponse> updateProfile(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal UserPrincipal user,
             @Valid @RequestBody ProfileUpdateRequest request) {
         AuthResponse response = authService.updateProfile(user.getId(), request.getUserRole(), request.getCalendarSyncEnabled());
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/revoke")
-    public ResponseEntity<Void> revokeAccess(@AuthenticationPrincipal User user) {
+    public ResponseEntity<Void> revokeAccess(@AuthenticationPrincipal UserPrincipal user) {
         authService.revokeAccess(user.getId());
         return ResponseEntity.ok().build();
     }

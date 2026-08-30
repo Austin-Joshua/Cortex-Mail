@@ -5,6 +5,7 @@ import { PriorityBars } from '../common/PriorityBars';
 import { Star, Mail, MailOpen, Brain } from 'lucide-react';
 import { useEmailStore } from '../../store/emailStore';
 import { emailApi } from '../../api/emailApi';
+import { queryKeys } from '../../api/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,23 +43,33 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
   const isHighPriority = email.priority === 'HIGH';
 
   const handleClick = async () => {
-    setSelectedEmail({ ...email, isRead: true });
     onClick?.();
     if (!email.isRead) {
       try {
         await emailApi.markRead(email.id);
-        queryClient.invalidateQueries({ queryKey: ['emails'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-      } catch {}
+        setSelectedEmail({ ...email, isRead: true });
+        queryClient.invalidateQueries({ queryKey: queryKeys.emails });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
+        queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
+      } catch {
+        setSelectedEmail(email);
+      }
+    } else {
+      setSelectedEmail(email);
     }
   };
 
   const handleToggleRead = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await emailApi.markRead(email.id);
-      queryClient.invalidateQueries({ queryKey: ['emails'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      if (email.isRead) {
+        await emailApi.markUnread(email.id);
+      } else {
+        await emailApi.markRead(email.id);
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.emails });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
+      queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
     } catch {}
   };
 

@@ -6,10 +6,10 @@ import com.nexora.model.Email;
 import com.nexora.model.EmailAction;
 import com.nexora.repository.EmailActionRepository;
 import com.nexora.repository.EmailRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class DashboardService {
 
@@ -27,32 +26,42 @@ public class DashboardService {
     private final GmailSyncService gmailSyncService;
     private final CortexScoreService cortexScoreService;
 
+    public DashboardService(EmailRepository emailRepository,
+                            EmailActionRepository actionRepository,
+                            EmailService emailService,
+                            GmailSyncService gmailSyncService,
+                            CortexScoreService cortexScoreService) {
+        this.emailRepository = emailRepository;
+        this.actionRepository = actionRepository;
+        this.emailService = emailService;
+        this.gmailSyncService = gmailSyncService;
+        this.cortexScoreService = cortexScoreService;
+    }
+
+    @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary(Long userId) {
-        // Priority emails (top 5 HIGH unread)
         List<Email> highPriority = emailRepository
                 .findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
                         userId, Email.Priority.HIGH, PageRequest.of(0, 5));
 
-        // Upcoming deadlines (next 7 days)
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime weekOut = now.plusDays(7);
         List<Email> deadlines = emailRepository.findUpcomingDeadlines(userId, now, weekOut);
 
-        // Pending action items
         List<EmailAction> pendingActions = actionRepository
                 .findByUserIdAndIsCompletedFalseOrderByDeadlineAsc(userId);
 
-        // Unread count from Gmail INBOX label (matches real Gmail account)
         long unreadCount = gmailSyncService.getInboxUnreadCount(userId);
         Map<String, GmailLabelCountResponse> gmailLabelCounts = gmailSyncService.getLabelCounts(userId);
-
-        // Category counts
         Map<String, Long> categoryCounts = emailService.getCategoryCounts(userId);
 
-        // Today's meetings
-        LocalDateTime todayStart = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
-        LocalDateTime todayEnd = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59).withNano(999999999);
-        List<Email> todaysMeetings = emailRepository.findTodaysMeetings(userId, todayStart, todayEnd);
+        LocalDateTime todayStart = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime todayEnd = now.withHour(23).withMinute(59).withSecond(59).withNano(999_999_999);
+        // Cap meeting list for summary payload — score uses COUNT separately.
+        List<Email> todaysMeetings = emailRepository.findTodaysMeetings(userId, todayStart, todayEnd)
+                .stream()
+                .limit(10)
+                .collect(Collectors.toList());
 
         return DashboardSummaryResponse.builder()
                 .priorityEmails(highPriority.stream()

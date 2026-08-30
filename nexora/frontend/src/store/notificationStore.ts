@@ -44,13 +44,13 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   markAllRead: async () => {
     try {
       await notificationApi.markAllRead();
+      set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
+        unreadCount: 0,
+      }));
     } catch (err) {
       console.error('Failed to mark all read in backend:', err);
     }
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
-      unreadCount: 0,
-    }));
   },
 
   togglePanel: () => set((state) => ({ isPanelOpen: !state.isPanelOpen })),

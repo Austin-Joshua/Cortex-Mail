@@ -6,6 +6,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { EmailList } from '../components/email/EmailList';
 import { EmailDetail } from '../components/email/EmailDetail';
 import { emailApi } from '../api/emailApi';
+import { queryKeys } from '../api/queryKeys';
 import { useEmailStore } from '../store/emailStore';
 import { useViewport } from '../hooks/useViewport';
 import { Placeholder } from '../components/bento/Placeholder';
@@ -21,8 +22,8 @@ export const DraftsPage: React.FC = () => {
     setSelectedEmail(null);
   }, [setSelectedEmail]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['email-drafts', search],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.emailDrafts(search),
     queryFn: () => emailApi.getDrafts({ search: search || undefined, page: 0, size: 100 }),
     staleTime: 60_000,
   });
@@ -37,7 +38,7 @@ export const DraftsPage: React.FC = () => {
     if (!email.isRead) {
       try {
         await emailApi.markRead(email.id);
-        queryClient.invalidateQueries({ queryKey: ['email-drafts'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.emailDrafts() });
       } catch { /* ignore */ }
     }
   };
@@ -75,7 +76,14 @@ export const DraftsPage: React.FC = () => {
               </div>
             </div>
 
-            {emails.length === 0 && !isLoading ? (
+            {isError ? (
+              <div style={{ padding: 24, textAlign: 'center' }}>
+                <p className="v-body" style={{ marginBottom: 12 }}>Couldn’t load drafts.</p>
+                <button type="button" className="vbtn vbtn-quiet" onClick={() => void refetch()}>
+                  Retry
+                </button>
+              </div>
+            ) : emails.length === 0 && !isLoading ? (
               <Placeholder
                 icon={<FileText size={26} />}
                 headline="No drafts in Gmail"

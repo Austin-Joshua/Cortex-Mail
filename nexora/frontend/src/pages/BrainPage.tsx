@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { BrainChat } from '../components/brain/BrainChat';
 import { brainApi } from '../api/brainApi';
-import type { BrainConversation } from '../types/Brain';
+import { queryKeys } from '../api/queryKeys';
 import { History, Clock, Plus, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useViewport } from '../hooks/useViewport';
 
@@ -22,23 +24,39 @@ const formatRelativeTime = (dateStr?: string) => {
   }
 };
 
+function parseEmailContext(raw: string | null): number | null {
+  if (!raw) return null;
+  const match = /^email:(\d+)$/i.exec(raw.trim());
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isFinite(id) ? id : null;
+}
+
 export const BrainPage: React.FC = () => {
   const { isMobile } = useViewport();
+  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const contextEmailId = parseEmailContext(searchParams.get('context'));
   const [historyOpen, setHistoryOpen] = useState(!isMobile);
-  const [conversations, setConversations] = useState<BrainConversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
 
   useEffect(() => {
     setHistoryOpen(!isMobile);
   }, [isMobile]);
 
-  const fetchHistory = () => {
-    brainApi.getHistory().then(setConversations).catch(() => {});
-  };
+  const {
+    data: conversations = [],
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useQuery({
+    queryKey: queryKeys.brainHistory,
+    queryFn: brainApi.getHistory,
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
+  const refreshHistory = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.brainHistory });
+  };
 
   return (
     <AppShell title="Cortex Brain" subtitle="Ask questions about your synced Gmail — answers cite real messages" noScroll flush>
@@ -82,9 +100,18 @@ export const BrainPage: React.FC = () => {
             </button>
 
             <div className="v-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 10px 12px' }}>
-              {conversations.length === 0 ? (
+              {historyError ? (
+                <div style={{ padding: '12px 6px' }}>
+                  <p style={{ fontSize: 12.5, color: 'var(--color-danger)', margin: '0 0 8px', lineHeight: 1.45 }}>
+                    Couldn’t load history.
+                  </p>
+                  <button type="button" className="vbtn vbtn-quiet" onClick={() => void refetchHistory()}>
+                    Retry
+                  </button>
+                </div>
+              ) : conversations.length === 0 ? (
                 <p style={{ fontSize: 12.5, color: 'var(--v-ink-3)', padding: '12px 6px', margin: 0, lineHeight: 1.45 }}>
-                  No conversations yet. Ask about deadlines, placements, or today’s important mail.
+                  No conversations yet. Ask about deadlines, opportunities, or today’s important mail.
                 </p>
               ) : (
                 conversations.map((conv) => {
@@ -149,7 +176,8 @@ export const BrainPage: React.FC = () => {
           <BrainChat
             selectedConversationId={selectedConversationId}
             setSelectedConversationId={setSelectedConversationId}
-            onNewConversationSaved={fetchHistory}
+            onNewConversationSaved={refreshHistory}
+            contextEmailId={contextEmailId}
           />
         </div>
       </div>

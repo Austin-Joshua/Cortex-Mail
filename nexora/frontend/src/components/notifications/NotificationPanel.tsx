@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { notificationApi } from '../../api/notificationApi';
+import { queryKeys } from '../../api/queryKeys';
 import { useNotificationStore } from '../../store/notificationStore';
 import { NotificationItem } from './NotificationItem';
 import { Bell, X, CheckCheck, ExternalLink } from 'lucide-react';
@@ -11,14 +12,14 @@ export const NotificationPanel: React.FC = () => {
   const navigate = useNavigate();
 
   const { data } = useQuery({
-    queryKey: ['notifications'],
+    queryKey: queryKeys.notifications,
     queryFn: notificationApi.getNotifications,
     enabled: isPanelOpen,
   });
 
   useEffect(() => {
     if (data) setNotifications(data);
-  }, [data]);
+  }, [data, setNotifications]);
 
   if (!isPanelOpen) return null;
 

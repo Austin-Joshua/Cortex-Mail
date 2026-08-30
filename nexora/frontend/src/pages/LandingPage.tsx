@@ -50,7 +50,7 @@ const CAPABILITIES = [
     icon: Brain,
     tone: 'var(--color-cortex)',
     title: 'It answers in your own words',
-    body: 'Ask what the placement cell sent last week, or which deadlines land before Friday. Answers link straight back to the mail.',
+    body: 'Ask what recruiters sent last week, or which deadlines land before Friday. Answers link straight back to the mail.',
   },
 ];
 
@@ -91,6 +91,7 @@ export const LandingPage: React.FC = () => {
   const { handleGoogleLogin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('auth_error');
+  const errorDescription = searchParams.get('error_description') ?? '';
   const [showError, setShowError] = useState(!!authError);
   const [stuck, setStuck] = useState(false);
   const progress = useScrollProgress();
@@ -125,8 +126,18 @@ export const LandingPage: React.FC = () => {
         return 'Google OAuth is not configured. Add your Client ID and Secret, then try Connect Gmail again.';
       case 'missing_code':
         return 'Sign-in did not return an authorization code. Try Connect Gmail again.';
-      case 'oauth_failed':
+      case 'oauth_failed': {
+        const detail = errorDescription.toLowerCase();
+        if (
+          detail.includes('jdbc') ||
+          detail.includes('hikari') ||
+          detail.includes('connection is not available') ||
+          detail.includes('database')
+        ) {
+          return 'Sign-in reached Google, but the server could not reach the database. Stop any extra backend instances, wait a few seconds, then try Connect Gmail again.';
+        }
         return 'Google sign-in failed. Check your Client ID, Secret, and redirect URI.';
+      }
       default:
         return 'Sign-in did not complete. Please try Connect Gmail again.';
     }

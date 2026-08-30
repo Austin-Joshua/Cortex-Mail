@@ -165,9 +165,7 @@
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    scrollbar-width: none;
     -ms-overflow-style: none;
-    -webkit-overflow-scrolling: touch;
   }
 
   .inbox-tab-rail::-webkit-scrollbar {
@@ -230,33 +228,6 @@
 
 /* --- Settings --- */
 
-.settings-layout {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.settings-nav {
-  width: 200px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  background: var(--bg);
-  padding: 16px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.settings-panel {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  max-width: 720px;
-  overscroll-behavior: contain;
-}
-
 /* --- Brain layout --- */
 
 .brain-layout {
@@ -303,6 +274,218 @@
   padding-inline: var(--shell-pad-x);
   padding-top: env(safe-area-inset-top, 0px);
   box-sizing: border-box;
+  position: relative;
+}
+
+.skip-to-main {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 8px 12px;
+  background: var(--v-signal);
+  color: var(--v-on-signal, #fff);
+  font-weight: 700;
+  border-radius: 0 0 8px 0;
+}
+
+.skip-to-main:focus {
+  left: 0;
+  outline: 2px solid var(--v-ink);
+  outline-offset: 2px;
+}
+
+.app-topbar-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(46vw, 220px);
+  margin: 0;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--v-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  text-align: center;
+  pointer-events: none;
+}
+
+.app-avatar-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  border-radius: 50%;
+  padding: 0;
+  border: none;
+  background: var(--v-signal);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.app-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.app-avatar-initials {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+/* --- Settings (remodeled stack) --- */
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 720px;
+  width: 100%;
+  padding-bottom: 24px;
+}
+
+.settings-card {
+  background: var(--v-panel);
+  border: 1px solid var(--v-hairline);
+  border-radius: var(--v-r-tile);
+  padding: 18px 18px 16px;
+  box-shadow: var(--v-lift-1);
+}
+
+.settings-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--v-signal);
+  margin-bottom: 12px;
+}
+
+.settings-card-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: var(--v-ink);
+}
+
+.settings-profile-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.settings-avatar {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: var(--v-signal);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.settings-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.settings-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 750;
+  color: var(--v-ink);
+}
+
+.settings-email {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--v-ink-3);
+  word-break: break-all;
+}
+
+.settings-hint,
+.settings-copy {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--v-ink-3);
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.settings-toggle-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--v-ink);
+}
+
+.settings-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--v-ink-3);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.settings-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--v-signal);
+}
+
+.settings-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.settings-nav {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  max-width: 720px;
+  overscroll-behavior: contain;
 }
 
 /* --- Email list performance --- */
@@ -330,14 +513,6 @@
   text-align: center;
 }
 
-/* --- Settings role grid --- */
-
-.role-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-}
-
 /* ==========================================================================
    MOBILE ≤767
    ========================================================================== */
@@ -346,6 +521,14 @@
   .shell-header {
     margin-bottom: 14px;
     gap: 12px;
+  }
+
+  .shell-header--mobile-chrome .shell-header-copy h1 {
+    display: none;
+  }
+
+  .shell-header--mobile-chrome .shell-header-copy .v-body {
+    margin-top: 0 !important;
   }
 
   .shell-header .v-body {
@@ -403,7 +586,6 @@
     width: 100%;
     flex-direction: row;
     overflow-x: auto;
-    scrollbar-width: none;
     border-right: none;
     border-bottom: 1px solid var(--border);
     padding: 8px 12px;

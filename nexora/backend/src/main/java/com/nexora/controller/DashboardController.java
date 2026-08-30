@@ -1,12 +1,15 @@
 package com.nexora.controller;
 
 import com.nexora.dto.response.DashboardSummaryResponse;
-import com.nexora.model.User;
+import com.nexora.exception.NexoraException;
+import com.nexora.security.UserPrincipal;
 import com.nexora.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -16,7 +19,11 @@ public class DashboardController {
     private final DashboardService dashboardService;
 
     @GetMapping("/summary")
-    public ResponseEntity<DashboardSummaryResponse> getSummary(@AuthenticationPrincipal User user) {
+    public ResponseEntity<DashboardSummaryResponse> getSummary(
+            @AuthenticationPrincipal UserPrincipal user) {
+        if (user == null || user.getId() == null) {
+            throw new NexoraException("Unauthorized", 401);
+        }
         return ResponseEntity.ok(dashboardService.getSummary(user.getId()));
     }
 }

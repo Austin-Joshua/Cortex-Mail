@@ -70,7 +70,7 @@ export const PrivacyPolicyPage: React.FC = () => {
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
               Cortex Mail does not sell or rent your email content for advertising. Optional AI providers
-              (Gemini/Claude) may receive excerpts only when those features are enabled and used.
+              Google Gemini may receive excerpts only when those features are enabled and used.
             </p>
           </section>
 

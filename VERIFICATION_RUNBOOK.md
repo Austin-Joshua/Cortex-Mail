@@ -46,7 +46,7 @@ Re-check `users.gmail_history_id` and `last_synced_at` after a successful Dashbo
 
 ## 3. AI / security
 
-- **AI key:** optional. Leave empty for rules-only classify/Brain. Add `GEMINI_API_KEY` or `CLAUDE_API_KEY` to `nexora/backend/.env` only if you need better AI quality — **do not commit**.
+- **AI key:** optional. Leave empty for rules-only classify/Brain. Add `GEMINI_API_KEY` to `nexora/backend/.env` only if you need better AI quality — **do not commit**.
 - **DB password:** if the Supabase password was ever pasted into chat or a screenshot, rotate it now:
   1. Supabase → Project Settings → Database → reset password
   2. Update local `nexora/backend/.env` `DB_PASSWORD` / JDBC URL
@@ -61,13 +61,11 @@ Follow **[PRODUCTION.md](./PRODUCTION.md)**:
 2. **Vercel** — Import same repo, root `nexora/frontend`, set `VITE_API_BASE_URL` to Render URL + `VITE_GOOGLE_CLIENT_ID`.
 3. Google Cloud — production redirect URI + JS origin.
 
-## 6. Docs / privacy — in progress this pass
+## 6. Docs / privacy
 
 Fixed / aligned:
 
-- Root README, `PRODUCTION.md`, privacy HTML, Help/Settings/PrivacyPolicy pages, `deployment_guide.md`
-
-Still legacy (historical, non-blocking): `nexora/nexora-audit-report.md`, `nexora/nexora-complete-redesign-prompt.md` (old prompts/reports). Optional cleanup later.
+- Root README, `PRODUCTION.md`, privacy HTML, and Help/Settings/PrivacyPolicy pages
 
 ## 7. Explicitly deferred
 

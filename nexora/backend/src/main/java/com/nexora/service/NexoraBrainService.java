@@ -1,5 +1,6 @@
 package com.nexora.service;
 
+import com.nexora.dto.response.BrainConversationResponse;
 import com.nexora.dto.response.BrainQueryResponse;
 import com.nexora.dto.response.EmailResponse;
 import com.nexora.model.BrainConversation;
@@ -8,7 +9,6 @@ import com.nexora.repository.BrainConversationRepository;
 import com.nexora.repository.EmailRepository;
 import com.nexora.repository.UserRepository;
 import com.nexora.exception.NexoraException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class NexoraBrainService {
 
@@ -28,6 +27,18 @@ public class NexoraBrainService {
     private final EmailService emailService;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm");
+
+    public NexoraBrainService(EmailRepository emailRepository,
+                              BrainConversationRepository conversationRepository,
+                              UserRepository userRepository,
+                              EmailClassificationService classificationService,
+                              EmailService emailService) {
+        this.emailRepository = emailRepository;
+        this.conversationRepository = conversationRepository;
+        this.userRepository = userRepository;
+        this.classificationService = classificationService;
+        this.emailService = emailService;
+    }
 
     public BrainQueryResponse query(Long userId, String userQuery) {
         if (!userRepository.existsById(userId)) {
@@ -40,7 +51,7 @@ public class NexoraBrainService {
         // Step 2: Build context
         String emailContext = buildEmailContext(recentEmails);
 
-        // Step 3: Call LLM dynamically (Claude or Gemini)
+        // Step 3: Call Gemini (keyword fallback if key unset)
         String systemPrompt = """
 You are Cortex Mail Brain, a personal communication assistant. You have access to the user's recent emails (summarized below). Answer the user's question based ONLY on the information in these emails. Be specific — mention sender names, dates, and subject lines when relevant. If the answer is not found in the emails, say so clearly. Never invent emails, deadlines, or events that are not present.
 
@@ -57,8 +68,10 @@ User's email history:
         List<Email> referenced = findReferencedEmails(recentEmails, userQuery, answer);
 
         // Step 5: Save conversation
-        @SuppressWarnings("null")
-        List<Long> refIds = referenced.stream().map(Email::getId).collect(Collectors.toList());
+        List<Long> refIds = referenced.stream()
+                .map(email -> email.getId())
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
         BrainConversation conversation = BrainConversation.builder()
                 .userId(userId)
                 .userQuery(userQuery)
@@ -78,9 +91,19 @@ User's email history:
                 .build();
     }
 
-    public List<BrainConversation> getHistory(Long userId) {
+    public List<BrainConversationResponse> getHistory(Long userId) {
         return conversationRepository.findByUserIdOrderByCreatedAtDesc(userId,
-                org.springframework.data.domain.PageRequest.of(0, 20));
+                org.springframework.data.domain.PageRequest.of(0, 20)).stream()
+                .map(c -> {
+                    BrainConversationResponse r = new BrainConversationResponse();
+                    r.setId(c.getId());
+                    r.setUserQuery(c.getUserQuery());
+                    r.setAiResponse(c.getAiResponse());
+                    r.setReferencedEmailIds(c.getReferencedEmailIds());
+                    r.setCreatedAt(c.getCreatedAt());
+                    return r;
+                })
+                .collect(Collectors.toList());
     }
 
     private String buildEmailContext(List<Email> emails) {

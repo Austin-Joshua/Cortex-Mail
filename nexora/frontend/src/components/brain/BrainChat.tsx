@@ -3,54 +3,56 @@ import type { BrainMessage } from '../../types/Brain';
 import { BrainMessageComponent } from './BrainMessage';
 import { BrainInput } from './BrainInput';
 import { useBrain } from '../../hooks/useBrain';
-import { useAuthStore } from '../../store/authStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { brainApi } from '../../api/brainApi';
+import { queryKeys } from '../../api/queryKeys';
 import { Brain, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const SUGGESTED_QUERIES: Record<string, string[]> = {
-  STUDENT: [
-    'What assignments are due this week?',
-    'Any hackathons I should register for?',
-    "What's my attendance status?",
-    'Any placement opportunities?',
-    'Summarize today\'s important emails',
-  ],
-  PROFESSOR: [
-    'Any student queries I haven\'t responded to?',
-    'What meetings do I have coming up?',
-    'Summarize my research collaboration emails',
-  ],
-  DEFAULT: [
-    'What are my most important emails today?',
-    'Any upcoming deadlines I should know about?',
-    'Summarize my recent communications',
-  ],
-};
+const SUGGESTED_QUERIES = [
+  'What are my most important emails today?',
+  'Any upcoming deadlines I should know about?',
+  'Summarize my recent communications',
+  'Who have I been emailing the most?',
+  'What needs a reply this week?',
+];
 
 interface BrainChatProps {
   selectedConversationId: number | null;
   setSelectedConversationId: (id: number | null) => void;
   onNewConversationSaved: () => void;
+  /** Prefill from /brain?context=email:123 */
+  contextEmailId?: number | null;
 }
 
 export const BrainChat: React.FC<BrainChatProps> = ({
   selectedConversationId,
   setSelectedConversationId,
   onNewConversationSaved,
+  contextEmailId = null,
 }) => {
   const { messages, isLoading, sendQuery, clearMessages } = useBrain();
-  const { user } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const bottomRef = React.useRef<HTMLDivElement>(null);
+  const seededContext = React.useRef<number | null>(null);
 
   const { data: history = [] } = useQuery({
-    queryKey: ['brain-history'],
+    queryKey: queryKeys.brainHistory,
     queryFn: brainApi.getHistory,
     staleTime: 60_000,
   });
+
+  const contextPrompt = contextEmailId
+    ? `Summarize email #${contextEmailId} and tell me what I should do next.`
+    : null;
+
+  React.useEffect(() => {
+    if (!contextEmailId || seededContext.current === contextEmailId) return;
+    seededContext.current = contextEmailId;
+    setSelectedConversationId(null);
+    clearMessages();
+  }, [contextEmailId, setSelectedConversationId, clearMessages]);
 
   const displayedMessages = React.useMemo(() => {
     if (selectedConversationId) {
@@ -81,10 +83,10 @@ export const BrainChat: React.FC<BrainChatProps> = ({
 
   React.useEffect(() => {
     if (messages.length > 0 && messages.length % 2 === 0) {
-      queryClient.invalidateQueries({ queryKey: ['brain-history'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.brainHistory });
       onNewConversationSaved();
     }
-  }, [messages.length, queryClient]);
+  }, [messages.length, queryClient, onNewConversationSaved]);
 
   const handleSend = (query: string) => {
     if (selectedConversationId) {
@@ -99,7 +101,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
     clearMessages();
   };
 
-  const suggestions = SUGGESTED_QUERIES[user?.userRole ?? 'DEFAULT'] ?? SUGGESTED_QUERIES.DEFAULT;
+  const suggestions = SUGGESTED_QUERIES;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
@@ -112,7 +114,11 @@ export const BrainChat: React.FC<BrainChatProps> = ({
             {selectedConversationId ? 'Archive View' : 'Cortex Brain'}
           </p>
           <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '2px 0 0' }}>
-            {selectedConversationId ? 'Viewing past conversation thread' : 'Natural language Q&A over your entire inbox'}
+            {selectedConversationId
+              ? 'Viewing past conversation thread'
+              : contextEmailId
+                ? `Focused on email #${contextEmailId}`
+                : 'Natural language Q&A over your entire inbox'}
           </p>
         </div>
         {(displayedMessages.length > 0 || selectedConversationId) && (
@@ -129,7 +135,14 @@ export const BrainChat: React.FC<BrainChatProps> = ({
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {displayedMessages.length === 0 ? (
-          <WelcomeState suggestions={suggestions} onSend={handleSend} />
+          <WelcomeState
+            suggestions={
+              contextPrompt
+                ? [contextPrompt, ...suggestions.filter((s) => s !== contextPrompt)].slice(0, 5)
+                : suggestions
+            }
+            onSend={handleSend}
+          />
         ) : (
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 900, margin: '0 auto' }}>
             {displayedMessages.map((msg: BrainMessage) => (
@@ -150,7 +163,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
         }}
       >
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <BrainInput onSend={handleSend} isLoading={isLoading} />
+          <BrainInput onSend={handleSend} isLoading={isLoading} initialValue={contextPrompt} />
         </div>
       </div>
     </div>

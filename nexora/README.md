@@ -8,7 +8,7 @@ Application code for **Cortex Mail**. Folder/package name `nexora` / `com.nexora
 | Backend | Spring Boot 3 + Java 17 |
 | Database | H2 (default) / **Supabase Postgres** (`SPRING_PROFILES_ACTIVE=prod` + Flyway) |
 | Email | Gmail API (sync + label mutations: read/star/archive/trash) |
-| AI | Optional Gemini / Claude; keyword fallback |
+| AI | Optional Gemini; keyword fallback |
 | Calendar | Google Calendar API |
 
 ## Quick start
@@ -16,14 +16,17 @@ Application code for **Cortex Mail**. Folder/package name `nexora` / `com.nexora
 ```bash
 # Backend — http://localhost:8080
 cd backend
-cp .env.example .env
+cp .env.example .env   # fill Google OAuth + secrets (never commit .env)
 ./mvnw spring-boot:run        # Windows: mvnw.cmd spring-boot:run
 
 # Frontend — http://localhost:5173
 cd ../frontend
-cp .env.example .env
+cp .env.example .env   # VITE_API_BASE_URL + VITE_GOOGLE_CLIENT_ID
 npm install && npm run dev
 ```
+
+> **Env files:** `.env.example` is tracked (placeholders only). Real `.env` files are gitignored — never commit secrets.  
+> **Prod:** Prefer a **single** backend instance — sync locks and JWT revoke are JVM-local (see root `PRODUCTION.md`).
 
 ## Google OAuth
 

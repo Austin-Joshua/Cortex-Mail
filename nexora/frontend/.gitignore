@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Secrets — real values live only on your machine
+.env
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

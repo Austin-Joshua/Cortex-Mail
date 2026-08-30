@@ -5,6 +5,7 @@ import com.nexora.model.Email.EmailCategory;
 import com.nexora.model.Email.Priority;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,21 +22,65 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
 
     boolean existsByUserIdAndGmailMessageId(Long userId, String gmailMessageId);
 
+    @EntityGraph(attributePaths = "attachments")
     Optional<Email> findByUserIdAndGmailMessageId(Long userId, String gmailMessageId);
 
-    Optional<Email> findByGmailMessageId(String gmailMessageId);
+    @EntityGraph(attributePaths = "attachments")
+    List<Email> findByUserIdAndGmailMessageIdIn(Long userId, Collection<String> gmailMessageIds);
 
+    @EntityGraph(attributePaths = {"attachments", "actions"})
+    @Query("SELECT e FROM Email e WHERE e.id = :id AND e.user.id = :userId")
+    Optional<Email> findDetailByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
-    Optional<Email> findByIdAndUserId(Long id, Long userId);
+    /** Lightweight ownership lookup for mutations — no attachment/action graph. */
+    @Query("SELECT e FROM Email e WHERE e.id = :id AND e.user.id = :userId")
+    Optional<Email> findOwnedByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
     Page<Email> findByUserIdOrderByReceivedAtDesc(Long userId, Pageable pageable);
 
     Page<Email> findByUserIdAndInInboxTrueOrderByReceivedAtDesc(Long userId, Pageable pageable);
 
-    List<Email> findByUserIdAndInInboxTrue(Long userId);
+    /**
+     * Archive local inbox rows that are no longer in Gmail's INBOX listing.
+     * Bulk UPDATE avoids loading body TEXT columns into the persistence context.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE Email e SET e.inInbox = false, e.isArchived = true
+            WHERE e.user.id = :userId AND e.inInbox = true
+              AND (e.isDraft = false OR e.isDraft IS NULL)
+              AND e.gmailMessageId NOT IN :gmailMessageIds
+            """)
+    int archiveInboxMissingFromGmail(
+            @Param("userId") Long userId,
+            @Param("gmailMessageIds") Collection<String> gmailMessageIds);
 
-    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox IS NULL")
-    List<Email> findByUserIdWithNullInInbox(@Param("userId") Long userId);
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE Email e SET e.inInbox = false, e.isArchived = true
+            WHERE e.user.id = :userId AND e.inInbox IS NULL
+              AND (e.isDraft = false OR e.isDraft IS NULL)
+              AND e.gmailMessageId NOT IN :gmailMessageIds
+            """)
+    int archiveLegacyNullInboxMissingFromGmail(
+            @Param("userId") Long userId,
+            @Param("gmailMessageIds") Collection<String> gmailMessageIds);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE Email e SET e.inInbox = true, e.isArchived = false, e.isDraft = false
+            WHERE e.user.id = :userId AND e.inInbox IS NULL
+              AND e.gmailMessageId IN :gmailMessageIds
+            """)
+    int restoreLegacyNullInboxPresentInGmail(
+            @Param("userId") Long userId,
+            @Param("gmailMessageIds") Collection<String> gmailMessageIds);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Email e WHERE e.user.id = :userId AND e.gmailMessageId IN :gmailMessageIds")
+    int deleteByUserIdAndGmailMessageIdIn(
+            @Param("userId") Long userId,
+            @Param("gmailMessageIds") Collection<String> gmailMessageIds);
 
     @Query("SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.isRead = false")
     long countInboxUnreadByUserId(@Param("userId") Long userId);
@@ -120,11 +166,20 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
                                       @Param("start") LocalDateTime start,
                                       @Param("end") LocalDateTime end);
 
+    @Query("SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.deadlineDetected IS NOT NULL AND e.deadlineDetected < :now")
+    long countOverdueDeadlines(@Param("userId") Long userId, @Param("now") LocalDateTime now);
+
     @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.category = 'MEETING' AND " +
            "e.deadlineDetected BETWEEN :start AND :end ORDER BY e.deadlineDetected ASC")
     List<Email> findTodaysMeetings(@Param("userId") Long userId,
                                    @Param("start") LocalDateTime start,
                                    @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.category = 'MEETING' AND " +
+           "e.deadlineDetected BETWEEN :start AND :end")
+    long countTodaysMeetings(@Param("userId") Long userId,
+                             @Param("start") LocalDateTime start,
+                             @Param("end") LocalDateTime end);
 
     List<Email> findTop20ByUserIdOrderByReceivedAtDesc(Long userId);
 
@@ -139,17 +194,23 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     long countByUserIdAndIsReadFalse(Long userId);
 
     /**
-     * Returns grouped sender statistics: sender email, sender name, count of emails,
-     * most recent received date, and most recent subject — ordered by count descending.
+     * Grouped sender stats with the subject of the newest message (not lexicographic MAX).
      */
-    @Query("""
-        SELECT e.senderEmail, e.senderName, COUNT(e), MAX(e.receivedAt), MAX(e.subject)
-        FROM Email e
-        WHERE e.user.id = :userId
-        GROUP BY e.senderEmail, e.senderName
-        ORDER BY COUNT(e) DESC
-        """)
+    @Query(value = """
+        SELECT sender_email,
+               MAX(sender_name) AS sender_name,
+               COUNT(*) AS email_count,
+               MAX(received_at) AS latest_received_at,
+               (ARRAY_AGG(subject ORDER BY received_at DESC NULLS LAST))[1] AS latest_subject
+        FROM emails
+        WHERE user_id = :userId
+        GROUP BY sender_email
+        ORDER BY email_count DESC
+        """, nativeQuery = true)
     List<Object[]> countBySenderForUser(@Param("userId") Long userId);
+
+    List<Email> findByUserIdAndInInboxTrueAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
+            Long userId, Priority priority, Pageable pageable);
 
     /**
      * Fetch all email received dates for a user after a start date.

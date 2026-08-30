@@ -13,15 +13,18 @@ import { useNavigate } from 'react-router-dom';
 import { useViewport } from '../../hooks/useViewport';
 import { useQuery } from '@tanstack/react-query';
 import { notificationApi } from '../../api/notificationApi';
+import { queryKeys } from '../../api/queryKeys';
 import { CAT_COLORS } from '../../utils/catColors';
 import { BrandLogo } from '../common/BrandLogo';
+import { useUIStore } from '../../store/uiStore';
 
 export const TopBar: React.FC = () => {
   const { setSearchQuery, searchQuery, setActiveCategory } = useEmailStore();
   const { user, isAuthenticated } = useAuthStore();
   const { handleLogout } = useAuth();
-  const { sync, isSyncing } = useEmailSync();
+  const { sync, isSyncing, syncError, lastSyncMode } = useEmailSync();
   const { unreadCount, setUnreadCount, togglePanel, isPanelOpen } = useNotificationStore();
+  const { pageTitle } = useUIStore();
   const navigate = useNavigate();
   const { isMobile } = useViewport();
 
@@ -32,7 +35,7 @@ export const TopBar: React.FC = () => {
   const searchRef = useRef<HTMLInputElement>(null);
 
   const { data: notifBadge } = useQuery({
-    queryKey: ['notifications-unread-count'],
+    queryKey: queryKeys.notificationsUnread,
     queryFn: notificationApi.getUnreadCount,
     staleTime: 60_000,
     refetchInterval: 120_000,
@@ -69,9 +72,18 @@ export const TopBar: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const goInboxForSearch = (value?: string) => {
+    if (value !== undefined) setSearchQuery(value);
+    if (!window.location.pathname.startsWith('/inbox')) {
+      navigate('/inbox');
+    }
+  };
+
   const initials = user?.name
-    ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    ? user.name.split(/\s+/).filter(Boolean).map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'CM';
+
+  const showMobileTitle = isMobile && !!pageTitle && !mobileSearch;
 
   return (
     <header
@@ -87,6 +99,12 @@ export const TopBar: React.FC = () => {
         gap: isMobile ? 12 : 24,
       }}
     >
+      {showMobileTitle && (
+        <h1 className="app-topbar-title" title={pageTitle ?? undefined}>
+          {pageTitle}
+        </h1>
+      )}
+
       {isMobile && mobileSearch && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
           <div
@@ -102,7 +120,7 @@ export const TopBar: React.FC = () => {
               type="text"
               placeholder="Search mail…"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => goInboxForSearch(e.target.value)}
               style={{
                 flex: 1, minWidth: 0, height: '100%', background: 'transparent',
                 border: 'none', outline: 'none', fontSize: 16, color: 'var(--v-ink)',
@@ -168,8 +186,11 @@ export const TopBar: React.FC = () => {
                 type="text"
                 placeholder="Search mail…"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
+                onChange={(e) => goInboxForSearch(e.target.value)}
+                onFocus={() => {
+                  setSearchFocused(true);
+                  goInboxForSearch();
+                }}
                 onBlur={() => setSearchFocused(false)}
                 style={{
                   flex: 1, height: '100%', minWidth: 0,
@@ -247,7 +268,10 @@ export const TopBar: React.FC = () => {
       >
         {isMobile && (
           <button
-            onClick={() => setMobileSearch(true)}
+            onClick={() => {
+              setMobileSearch(true);
+              goInboxForSearch();
+            }}
             className="vbtn vbtn-bare"
             aria-label="Search mail"
             style={{ width: 36, height: 36, padding: 0 }}
@@ -302,13 +326,23 @@ export const TopBar: React.FC = () => {
           onClick={() => sync()}
           disabled={isSyncing}
           className="vbtn vbtn-bare"
-          aria-label={isSyncing ? 'Syncing Gmail' : 'Sync Gmail'}
-          title={isSyncing ? 'Syncing…' : 'Sync mail from Gmail'}
+          aria-label={isSyncing ? 'Syncing Gmail' : syncError ? 'Gmail sync failed' : 'Sync Gmail'}
+          title={
+            isSyncing
+              ? 'Syncing…'
+              : syncError
+                ? 'Gmail sync failed — click to retry'
+                : lastSyncMode === 'SKIPPED'
+                  ? 'Sync already running — showing stored mail'
+                  : 'Sync mail from Gmail'
+          }
           style={{
             width: 36,
             height: 36,
             padding: 0,
-            color: isSyncing ? 'var(--color-cortex-light)' : 'var(--color-text-secondary)',
+            color: syncError
+              ? 'var(--color-danger)'
+              : isSyncing ? 'var(--color-cortex-light)' : 'var(--color-text-secondary)',
           }}
         >
           <RefreshCw
@@ -320,20 +354,20 @@ export const TopBar: React.FC = () => {
 
         <div style={{ position: 'relative', marginLeft: 2 }}>
           <button
+            type="button"
+            className="app-avatar-btn"
             onClick={() => {
               if (isPanelOpen) togglePanel();
               setShowAccount((p) => !p);
             }}
             aria-expanded={showAccount}
             aria-label="Account menu"
-            style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'var(--v-signal)', border: 'none', color: '#fff',
-              fontSize: 12, fontWeight: 800, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
           >
-            {initials}
+            {user?.profilePictureUrl ? (
+              <img src={user.profilePictureUrl} alt="" className="app-avatar-img" />
+            ) : (
+              <span className="app-avatar-initials">{initials}</span>
+            )}
           </button>
 
           {showAccount && (

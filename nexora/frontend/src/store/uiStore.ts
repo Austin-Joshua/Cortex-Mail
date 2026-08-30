@@ -15,6 +15,8 @@ interface UIStore {
   bottomSheet: BottomSheetState;
   reportModal: ReportModalState;
   sidebarCollapsed: boolean;
+  pageTitle: string | null;
+  pageSubtitle: string | null;
   installPrompt: {
     isAvailable: boolean;
     deferredPrompt: any;
@@ -25,6 +27,8 @@ interface UIStore {
   closeReportModal: () => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  setPageChrome: (title: string | null, subtitle?: string | null) => void;
+  clearPageChrome: () => void;
   setInstallPrompt: (prompt: any) => void;
 }
 
@@ -32,6 +36,8 @@ export const useUIStore = create<UIStore>((set) => ({
   bottomSheet: { isOpen: false, type: null },
   reportModal: { isOpen: false },
   sidebarCollapsed: false,
+  pageTitle: null,
+  pageSubtitle: null,
   installPrompt: { isAvailable: false, deferredPrompt: null },
 
   openBottomSheet: (type, data) => set({ bottomSheet: { isOpen: true, type, data } }),
@@ -42,5 +48,7 @@ export const useUIStore = create<UIStore>((set) => ({
 
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  setPageChrome: (title, subtitle = null) => set({ pageTitle: title, pageSubtitle: subtitle }),
+  clearPageChrome: () => set({ pageTitle: null, pageSubtitle: null }),
   setInstallPrompt: (prompt) => set({ installPrompt: { isAvailable: !!prompt, deferredPrompt: prompt } }),
 }));

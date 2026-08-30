@@ -18,11 +18,19 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -38,13 +46,21 @@ public class EmailClassificationService {
         ALWAYS
     }
 
+    private static final Pattern ISO_DEADLINE = Pattern.compile(
+            "\\b(20\\d{2})-(\\d{2})-(\\d{2})(?:[T ](\\d{1,2}):(\\d{2}))?\\b");
+    private static final Pattern NAMED_DEADLINE = Pattern.compile(
+            "(?i)\\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,)?\\s+(20\\d{2})(?:\\s+(?:at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm))?\\b");
+    private static final Pattern DMY_DEADLINE = Pattern.compile(
+            "\\b(\\d{1,2})[/-](\\d{1,2})[/-](20\\d{2})(?:\\s+(?:at\\s+)?(\\d{1,2}):(\\d{2}))?\\b");
+
     private final GeminiConfig geminiConfig;
     private final EmailRepository emailRepository;
     private final UserRepository userRepository;
     private final EmailActionRepository actionRepository;
     private final ObjectMapper objectMapper;
     private final CalendarService calendarService;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+    private final TransactionTemplate persistTransaction;
     private final java.util.concurrent.Semaphore geminiSemaphore;
 
     public EmailClassificationService(GeminiConfig geminiConfig,
@@ -52,22 +68,31 @@ public class EmailClassificationService {
                                       UserRepository userRepository,
                                       EmailActionRepository actionRepository,
                                       ObjectMapper objectMapper,
-                                      CalendarService calendarService) {
+                                      CalendarService calendarService,
+                                      PlatformTransactionManager transactionManager) {
         this.geminiConfig = geminiConfig;
         this.emailRepository = emailRepository;
         this.userRepository = userRepository;
         this.actionRepository = actionRepository;
         this.objectMapper = objectMapper;
         this.calendarService = calendarService;
-        this.geminiSemaphore = new java.util.concurrent.Semaphore(geminiConfig.getMaxConcurrent());
+        // Gemini HTTP runs outside transactions, but each persist still needs a connection.
+        // Cap in-flight Gemini work so we do not exhaust a small Supabase/Hikari pool.
+        int maxGeminiInFlight = Math.max(1, Math.min(geminiConfig.getMaxConcurrent(), 2));
+        this.geminiSemaphore = new java.util.concurrent.Semaphore(maxGeminiInFlight);
+        this.persistTransaction = new TransactionTemplate(transactionManager);
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(15_000);
+        factory.setReadTimeout(90_000);
+        this.restTemplate = new RestTemplate(factory);
     }
 
-    @Async
+    @Async("taskExecutor")
     public void classifyEmail(Long emailId, User user) {
         try {
             geminiSemaphore.acquire();
             try {
-                Email email = emailRepository.findById(emailId).orElse(null);
+                Email email = emailRepository.findOwnedByIdAndUserId(emailId, user.getId()).orElse(null);
                 if (email == null) return;
                 classifyAndPersist(email, user, GeminiUse.ALWAYS);
                 log.info("Classified email {} as {} / {}", emailId, email.getCategory(), email.getPriority());
@@ -105,11 +130,32 @@ Body:
     }
 
     /**
-     * Core Gemini HTTP call. {@code contentLabel} names the user payload section.
-     * Use {@code jsonResponse=true} for classification / structured outputs only.
+     * Core Gemini HTTP call. contentLabel names the user payload section.
+     * Pass jsonResponse true for classification and structured outputs only.
      */
-    @SuppressWarnings("unchecked")
     public String callGemini(String systemPrompt, String userMessage, String contentLabel, boolean jsonResponse) {
+        if (!geminiConfig.isConfigured()) {
+            return null;
+        }
+        boolean acquired = false;
+        try {
+            geminiSemaphore.acquire();
+            acquired = true;
+            return invokeGemini(systemPrompt, userMessage, contentLabel, jsonResponse);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Gemini call interrupted while waiting for a slot");
+            return null;
+        } finally {
+            if (acquired) {
+                geminiSemaphore.release();
+            }
+        }
+    }
+
+    /** Gemini HTTP without taking the semaphore — callers that already hold it use this. */
+    @SuppressWarnings("unchecked")
+    private String invokeGemini(String systemPrompt, String userMessage, String contentLabel, boolean jsonResponse) {
         if (!geminiConfig.isConfigured()) {
             return null;
         }
@@ -134,24 +180,30 @@ Body:
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("x-goog-api-key", geminiConfig.getApiKey());
+            String apiKey = geminiConfig.getApiKey();
+            headers.set("x-goog-api-key", apiKey);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             @SuppressWarnings("rawtypes")
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
-
-            if (response.getBody() != null && response.getBody().containsKey("candidates")) {
-                List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.getBody().get("candidates");
-                if (!candidates.isEmpty()) {
-                    Map<String, Object> firstCandidate = candidates.get(0);
-                    if (firstCandidate.containsKey("content")) {
-                        Map<String, Object> contentMap = (Map<String, Object>) firstCandidate.get("content");
-                        List<Map<String, Object>> parts = (List<Map<String, Object>>) contentMap.get("parts");
-                        if (!parts.isEmpty()) {
-                            return (String) parts.get(0).get("text");
-                        }
-                    }
+            ResponseEntity<Map> response;
+            try {
+                response = restTemplate.postForEntity(url, request, Map.class);
+            } catch (org.springframework.web.client.HttpClientErrorException authEx) {
+                if ((authEx.getStatusCode().value() == 401 || authEx.getStatusCode().value() == 403)
+                        && apiKey.startsWith("AQ.")) {
+                    log.info("Retrying Gemini with Bearer auth for AQ-format key");
+                    HttpHeaders bearerHeaders = new HttpHeaders();
+                    bearerHeaders.setContentType(MediaType.APPLICATION_JSON);
+                    bearerHeaders.setBearerAuth(apiKey);
+                    response = restTemplate.postForEntity(url, new HttpEntity<>(requestBody, bearerHeaders), Map.class);
+                } else {
+                    throw authEx;
                 }
+            }
+
+            String parsed = parseGeminiText(response.getBody());
+            if (parsed != null) {
+                return parsed;
             }
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             // A retired model answers 404 forever. Without a distinct message
@@ -175,22 +227,42 @@ Body:
         return null;
     }
 
-    public String generateBrainAnswer(String systemPrompt, String userQuery) {
-        if (geminiConfig.isConfigured()) {
-            log.info("Querying Nexora Brain using Gemini...");
-            return callGemini(systemPrompt, userQuery, "User query", false);
+    @SuppressWarnings("unchecked")
+    private String parseGeminiText(Map<String, Object> body) {
+        if (body == null || !body.containsKey("candidates")) {
+            return null;
         }
-        log.info("No AI keys configured for Nexora Brain. Running local keyword-based parser...");
-        return null;
+        List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> firstCandidate = candidates.get(0);
+        if (firstCandidate == null || !firstCandidate.containsKey("content")) {
+            return null;
+        }
+        Map<String, Object> contentMap = (Map<String, Object>) firstCandidate.get("content");
+        if (contentMap == null) {
+            return null;
+        }
+        List<Map<String, Object>> parts = (List<Map<String, Object>>) contentMap.get("parts");
+        if (parts == null || parts.isEmpty() || parts.get(0) == null) {
+            return null;
+        }
+        Object text = parts.get(0).get("text");
+        if (!(text instanceof String)) {
+            return null;
+        }
+        String value = (String) text;
+        return value.isBlank() ? null : value;
     }
 
-    public String summarizeThread(String systemPrompt, String threadContext) {
+    public String generateBrainAnswer(String systemPrompt, String userQuery) {
         if (geminiConfig.isConfigured()) {
-            log.info("Summarizing thread using Gemini...");
-            return callGemini(systemPrompt, threadContext, "Thread messages", false);
+            log.info("Querying Cortex Brain using Gemini...");
+            return callGemini(systemPrompt, userQuery, "User query", false);
         }
-        log.info("No AI keys configured for thread summarization — using local fallback summary...");
-        return "This thread contains multiple emails and was analyzed locally. Configure a Gemini API key for premium AI thread summaries.";
+        log.info("No AI keys configured for Cortex Brain. Running local keyword-based parser...");
+        return null;
     }
 
     /**
@@ -198,7 +270,6 @@ Body:
      * appears first, then is separated into groups. Does not invent data.
      * Caps work per call so classify does not load the entire mailbox into memory.
      */
-    @org.springframework.transaction.annotation.Transactional
     public int classifyInboxBySourceAndContent(Long userId) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
@@ -211,11 +282,11 @@ Body:
         final int batchSize = 250;
         int totalClassified = 0;
         for (int pass = 0; pass < 30; pass++) {
-            List<Email> toClassify = emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
+            List<Email> toClassify = new ArrayList<>(emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
                     userId,
                     EmailCategory.UNCATEGORIZED,
                     org.springframework.data.domain.PageRequest.of(0, batchSize)
-            ).getContent();
+            ).getContent());
             if (toClassify.isEmpty()) {
                 break;
             }
@@ -255,39 +326,9 @@ Body:
             }
         }
 
-        // Belt-and-suspenders: Gmail-grounded categories for any stragglers
-        while (true) {
-            List<Email> stragglers = emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
-                    userId,
-                    EmailCategory.UNCATEGORIZED,
-                    org.springframework.data.domain.PageRequest.of(0, batchSize)
-            ).getContent();
-            if (stragglers.isEmpty()) {
-                break;
-            }
-            int swept = 0;
-            for (Email email : stragglers) {
-                if (Boolean.TRUE.equals(email.getIsDraft())) continue;
-                try {
-                    classifyAndPersist(email, user, GeminiUse.NONE);
-                    if (email.getCategory() != EmailCategory.UNCATEGORIZED) {
-                        totalClassified++;
-                        swept++;
-                    }
-                } catch (Exception e) {
-                    log.warn("Straggler classify failed for email {}: {}", email.getId(), e.getMessage());
-                }
-            }
-            if (swept == 0) {
-                break;
-            }
-        }
-
         long left = emailRepository.countByUserIdAndCategoryAndInInboxTrue(userId, EmailCategory.UNCATEGORIZED);
         if (left > 0) {
             log.warn("Inbox classify finished with {} uncategorized inbox messages for user {}", left, userId);
-        } else if (geminiConfig.isConfigured()) {
-            refineInboxWithGeminiAsync(userId);
         }
         return totalClassified;
     }
@@ -296,8 +337,7 @@ Body:
      * Background Gemini enrichment for high-value mail after fast local classification.
      * Capped per run so quota stays predictable; skips promos/spam and mail with good summaries.
      */
-    @Async
-    public void refineInboxWithGeminiAsync(Long userId) {
+    public void refineInboxWithGemini(Long userId) {
         if (!geminiConfig.isConfigured()) {
             return;
         }
@@ -367,18 +407,55 @@ Body:
         }
     }
 
+    private void resetInboxCategoriesForPreferences(Long userId) {
+        persistTransaction.executeWithoutResult(status -> {
+            int reset = emailRepository.resetInboxCategoriesExceptSpam(userId);
+            log.info("Reset {} inbox emails for preference-based reclassification (user {})", reset, userId);
+        });
+    }
+
     /**
      * Re-runs classification for every inbox message using the user's current account preferences.
+     * Resets categories first — only for explicit "Re-analyze" / force paths.
      */
-    @org.springframework.transaction.annotation.Transactional
     public int reclassifyInboxForPreferences(Long userId) {
-        int reset = emailRepository.resetInboxCategoriesExceptSpam(userId);
-        log.info("Reset {} inbox emails for preference-based reclassification (user {})", reset, userId);
-        recategorizeMarketingMislabels(userId);
+        resetInboxCategoriesForPreferences(userId);
         return classifyInboxBySourceAndContent(userId);
     }
 
-    @Async
+    /**
+     * Re-apply local classification on the most recent inbox messages without wiping
+     * categories first — keeps the UI stable while FULL bodies improve accuracy.
+     */
+    public int reclassifyRecentInboxInPlace(Long userId, int limit) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return 0;
+        }
+        int cap = Math.max(1, Math.min(limit, 300));
+        List<Email> recent = emailRepository.findByUserIdAndInInboxTrueOrderByReceivedAtDesc(
+                userId, org.springframework.data.domain.PageRequest.of(0, cap)).getContent();
+        int updated = 0;
+        for (Email email : recent) {
+            if (Boolean.TRUE.equals(email.getIsDraft())) continue;
+            if (email.getCategory() == EmailCategory.SPAM) continue;
+            try {
+                EmailCategory before = email.getCategory();
+                if (applySourceContentClassification(email, user)) {
+                    if (before != email.getCategory()) {
+                        updated++;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("In-place reclassify failed for email {}: {}", email.getId(), e.getMessage());
+            }
+        }
+        log.info("In-place reclassify for user {} touched {} of {} recent messages",
+                userId, updated, recent.size());
+        return updated;
+    }
+
+    @Async("taskExecutor")
     public void reclassifyInboxForPreferencesAsync(Long userId) {
         try {
             int classified = reclassifyInboxForPreferences(userId);
@@ -393,14 +470,30 @@ Body:
         return email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED;
     }
 
+    /**
+     * Classifies one message. Gemini HTTP runs with no JDBC connection held; only the
+     * final persist opens a short transaction so Hikari connections are not blocked
+     * for up to 90s per email.
+     */
     private void classifyAndPersist(Email email, User user, GeminiUse geminiUse) {
+        Long emailId = email.getId();
+        Long userId = user.getId();
+        if (emailId == null || userId == null) {
+            log.warn("Skipping classification — missing email or user id");
+            return;
+        }
+
         User.UserRole role = user.getUserRole() != null ? user.getUserRole() : User.UserRole.STUDENT;
         String body = emailBodyForClassification(email);
         JsonNode result = parseJson(getLocalFallbackResponse(email, role));
+        if (result == null) {
+            log.warn("Local fallback produced no JSON for email {}", emailId);
+            return;
+        }
 
         if (geminiUse != GeminiUse.NONE && geminiConfig.isConfigured() && shouldCallGemini(result, email, role, geminiUse)) {
-            log.debug("Refining classification for email {} with Gemini ({})", email.getId(), geminiUse);
-            String geminiRaw = callGemini(
+            log.debug("Refining classification for email {} with Gemini ({})", emailId, geminiUse);
+            String geminiRaw = invokeGemini(
                     buildSystemPrompt(user),
                     buildUserMessage(email, body),
                     "Email to classify",
@@ -411,10 +504,32 @@ Body:
             }
         }
 
-        persistClassificationResult(email, user, result);
+        final JsonNode finalResult = result;
+        final User batchUser = user;
+        persistTransaction.executeWithoutResult(status -> {
+            Email managed = emailRepository.findOwnedByIdAndUserId(emailId, userId).orElse(null);
+            if (managed == null) {
+                log.warn("Email {} removed before classification persist", emailId);
+                return;
+            }
+            persistClassificationResult(managed, batchUser, finalResult);
+            syncClassificationFields(managed, email);
+        });
+    }
+
+    private static void syncClassificationFields(Email from, Email to) {
+        to.setCategory(from.getCategory());
+        to.setPriority(from.getPriority());
+        to.setAiSummary(from.getAiSummary());
+        to.setAiActionItems(from.getAiActionItems());
+        to.setDeadlineDetected(from.getDeadlineDetected());
     }
 
     private boolean shouldCallGemini(JsonNode localResult, Email email, User.UserRole role, GeminiUse geminiUse) {
+        String labels = email.getGmailLabelIds() != null ? email.getGmailLabelIds().toUpperCase() : "";
+        if (labels.contains("SPAM") || labels.contains("CATEGORY_PROMOTIONS")) {
+            return false;
+        }
         if (geminiUse == GeminiUse.ALWAYS) {
             return true;
         }
@@ -432,37 +547,84 @@ Body:
             resolved = RoleClassificationProfile.inferFromGmailAndSender(email, role);
             log.debug("Gmail fallback category {} applied to email {}", resolved, email.getId());
         }
-        if (resolved == EmailCategory.UNCATEGORIZED) {
-            resolved = EmailCategory.PERSONAL;
-            log.warn("Classification exhausted for email {} — defaulting to PERSONAL", email.getId());
-        }
+        resolved = groundCategoryInGmail(resolved, email);
         email.setCategory(resolved);
 
+        Priority priority = result != null
+                ? parsePriority(result)
+                : (Boolean.TRUE.equals(email.getIsImportant()) ? Priority.HIGH : Priority.MEDIUM);
+        if (resolved == EmailCategory.SPAM || resolved == EmailCategory.PROMOTIONAL) {
+            priority = Boolean.TRUE.equals(email.getIsImportant()) ? Priority.MEDIUM : Priority.LOW;
+        } else if (Boolean.TRUE.equals(email.getIsImportant()) && priority == Priority.LOW) {
+            priority = Priority.MEDIUM;
+        }
+        email.setPriority(priority);
+
         if (result != null) {
-            email.setPriority(parsePriority(result));
             email.setAiSummary(getText(result, "summary"));
             email.setAiActionItems(result.has("action_items") ? result.get("action_items").toString() : null);
 
             String deadlineStr = getText(result, "deadline");
             if (deadlineStr != null && !deadlineStr.equalsIgnoreCase("null")) {
-                LocalDateTime deadline = parseDeadlineFlexible(deadlineStr);
+                LocalDateTime deadline = groundedDeadline(deadlineStr, email);
                 if (deadline != null) {
                     email.setDeadlineDetected(deadline);
                 }
             }
-        } else {
-            email.setPriority(Boolean.TRUE.equals(email.getIsImportant()) ? Priority.HIGH : Priority.MEDIUM);
         }
 
         emailRepository.save(email);
 
-        if (result != null && result.has("action_items") && result.get("action_items").isArray()) {
+        boolean skipActions = resolved == EmailCategory.SPAM || resolved == EmailCategory.PROMOTIONAL;
+        if (!skipActions && result != null && result.has("action_items") && result.get("action_items").isArray()) {
             saveActionItems(result.get("action_items"), email, user.getId());
         }
 
         if (email.getDeadlineDetected() != null) {
-            calendarService.createDeadlineEvent(user, email);
+            scheduleDeadlineCalendarEvent(user, email);
         }
+    }
+
+    /** Run calendar insert after the classify TX commits so the deadline flag/save is durable first. */
+    private void scheduleDeadlineCalendarEvent(User user, Email email) {
+        Long emailId = email.getId();
+        if (emailId == null) return;
+        Runnable enqueue = () -> calendarService.createDeadlineEvent(user, email);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    enqueue.run();
+                }
+            });
+        } else {
+            enqueue.run();
+        }
+    }
+
+    /**
+     * Gmail SPAM / PROMOTIONS labels win over keyword or Gemini academic guesses.
+     * Receipts in Promotions keep a FINANCE/MEETING classification.
+     */
+    private static EmailCategory groundCategoryInGmail(EmailCategory resolved, Email email) {
+        String labels = email.getGmailLabelIds() != null ? email.getGmailLabelIds().toUpperCase() : "";
+        if (labels.contains("SPAM")) {
+            return EmailCategory.SPAM;
+        }
+        if (labels.contains("CATEGORY_PROMOTIONS") && isPromoOverrideTarget(resolved)) {
+            return EmailCategory.PROMOTIONAL;
+        }
+        return resolved;
+    }
+
+    private static boolean isPromoOverrideTarget(EmailCategory category) {
+        return category == EmailCategory.ASSIGNMENT
+                || category == EmailCategory.HACKATHON
+                || category == EmailCategory.PLACEMENT
+                || category == EmailCategory.RESEARCH
+                || category == EmailCategory.ATTENDANCE
+                || category == EmailCategory.INTERNSHIP
+                || category == EmailCategory.UNCATEGORIZED;
     }
 
     private static String emailBodyForClassification(Email email) {
@@ -671,17 +833,13 @@ Body:
         if (text == null || text.isBlank()) return null;
 
         // ISO-like: 2026-09-15 or 2026-09-15T15:00
-        java.util.regex.Matcher iso = java.util.regex.Pattern
-                .compile("\\b(20\\d{2})-(\\d{2})-(\\d{2})(?:[T ](\\d{1,2}):(\\d{2}))?\\b")
-                .matcher(text);
+        java.util.regex.Matcher iso = ISO_DEADLINE.matcher(text);
         if (iso.find()) {
             return formatCapturedDateTime(iso.group(1), iso.group(2), iso.group(3), iso.group(4), iso.group(5));
         }
 
         // e.g. September 15, 2026 3:00 PM  /  Sep 15 2026
-        java.util.regex.Matcher named = java.util.regex.Pattern
-                .compile("(?i)\\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,)?\\s+(20\\d{2})(?:\\s+(?:at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm))?\\b")
-                .matcher(text);
+        java.util.regex.Matcher named = NAMED_DEADLINE.matcher(text);
         if (named.find()) {
             Integer month = monthNumber(named.group(1));
             if (month != null) {
@@ -704,9 +862,7 @@ Body:
         }
 
         // e.g. 15/09/2026 or 15-09-2026 (day-month-year)
-        java.util.regex.Matcher dmy = java.util.regex.Pattern
-                .compile("\\b(\\d{1,2})[/-](\\d{1,2})[/-](20\\d{2})(?:\\s+(?:at\\s+)?(\\d{1,2}):(\\d{2}))?\\b")
-                .matcher(text);
+        java.util.regex.Matcher dmy = DMY_DEADLINE.matcher(text);
         if (dmy.find()) {
             int a = Integer.parseInt(dmy.group(1));
             int b = Integer.parseInt(dmy.group(2));
@@ -746,21 +902,46 @@ Body:
 
     private Integer monthNumber(String name) {
         if (name == null) return null;
-        return switch (name.toLowerCase().replace(".", "")) {
-            case "january", "jan" -> 1;
-            case "february", "feb" -> 2;
-            case "march", "mar" -> 3;
-            case "april", "apr" -> 4;
-            case "may" -> 5;
-            case "june", "jun" -> 6;
-            case "july", "jul" -> 7;
-            case "august", "aug" -> 8;
-            case "september", "sep", "sept" -> 9;
-            case "october", "oct" -> 10;
-            case "november", "nov" -> 11;
-            case "december", "dec" -> 12;
-            default -> null;
-        };
+        switch (name.toLowerCase().replace(".", "")) {
+            case "january":
+            case "jan":
+                return 1;
+            case "february":
+            case "feb":
+                return 2;
+            case "march":
+            case "mar":
+                return 3;
+            case "april":
+            case "apr":
+                return 4;
+            case "may":
+                return 5;
+            case "june":
+            case "jun":
+                return 6;
+            case "july":
+            case "jul":
+                return 7;
+            case "august":
+            case "aug":
+                return 8;
+            case "september":
+            case "sep":
+            case "sept":
+                return 9;
+            case "october":
+            case "oct":
+                return 10;
+            case "november":
+            case "nov":
+                return 11;
+            case "december":
+            case "dec":
+                return 12;
+            default:
+                return null;
+        }
     }
 
     private String enrichSummary(String category, Email email, String summary, String actionDesc) {
@@ -769,39 +950,60 @@ Body:
         if (summary != null && !summary.startsWith("Email from ")) {
             return summary;
         }
-        return switch (category) {
-            case "ASSIGNMENT" -> sender + " sent coursework: \"" + subject + "\". " + actionDesc + ".";
-            case "PLACEMENT" -> "Careers / recruiting from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
-            case "HACKATHON" -> "Event mail from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
-            case "MEETING" -> "Meeting invite from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
-            case "RESEARCH" -> "Research note from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
-            case "FINANCE" -> "Billing or payment from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
-            case "PROMOTIONAL" -> "Promotion from " + sender + ": \"" + subject + "\".";
-            case "ANNOUNCEMENT" -> "Notice from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
-            default -> summary;
-        };
-    }
-
-    /** Backward-compatible wrapper for unstructured text prompts. */
-    public String callGemini(String systemPrompt, String userMessage) {
-        return callGemini(systemPrompt, userMessage, "Input", false);
+        if ("ASSIGNMENT".equals(category)) {
+            return sender + " sent coursework: \"" + subject + "\". " + actionDesc + ".";
+        }
+        if ("PLACEMENT".equals(category)) {
+            return "Careers / recruiting from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
+        }
+        if ("HACKATHON".equals(category)) {
+            return "Event mail from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
+        }
+        if ("MEETING".equals(category)) {
+            return "Meeting invite from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
+        }
+        if ("RESEARCH".equals(category)) {
+            return "Research note from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
+        }
+        if ("FINANCE".equals(category)) {
+            return "Billing or payment from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
+        }
+        if ("PROMOTIONAL".equals(category)) {
+            return "Promotion from " + sender + ": \"" + subject + "\".";
+        }
+        if ("ANNOUNCEMENT".equals(category)) {
+            return "Notice from " + sender + ": \"" + subject + "\". " + actionDesc + ".";
+        }
+        return summary;
     }
 
     private void recategorizeMarketingMislabels(Long userId) {
-        var miscategorized = emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
-                userId,
-                EmailCategory.ASSIGNMENT,
-                org.springframework.data.domain.PageRequest.of(0, 200)
-        ).getContent();
+        List<Email> miscategorized = new ArrayList<>();
+        for (EmailCategory suspect : List.of(
+                EmailCategory.ASSIGNMENT, EmailCategory.HACKATHON,
+                EmailCategory.RESEARCH, EmailCategory.INTERNSHIP)) {
+            miscategorized.addAll(emailRepository.findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
+                    userId,
+                    suspect,
+                    org.springframework.data.domain.PageRequest.of(0, 100)
+            ).getContent());
+        }
         for (Email email : miscategorized) {
+            if (email.getId() == null) continue;
             String subject = (email.getSubject() != null ? email.getSubject() : "").toLowerCase();
             String body = (email.getBodyFull() != null ? email.getBodyFull()
                     : (email.getBodySnippet() != null ? email.getBodySnippet() : "")).toLowerCase();
             String sender = (email.getSenderEmail() != null ? email.getSenderEmail() : "").toLowerCase();
             String labels = (email.getGmailLabelIds() != null ? email.getGmailLabelIds() : "").toUpperCase();
             if (isMarketingMail(sender, subject, body, labels) && !looksLikeAssignment(subject, body, sender)) {
-                email.setCategory(EmailCategory.PROMOTIONAL);
-                emailRepository.save(email);
+                Long emailId = email.getId();
+                persistTransaction.executeWithoutResult(status -> {
+                    Email managed = emailRepository.findOwnedByIdAndUserId(emailId, userId).orElse(null);
+                    if (managed == null) return;
+                    managed.setCategory(EmailCategory.PROMOTIONAL);
+                    emailRepository.save(managed);
+                    syncClassificationFields(managed, email);
+                });
             }
         }
     }
@@ -833,7 +1035,7 @@ Body:
         return false;
     }
 
-    /** Nudge ambiguous mail into divisions that fit the signed-in account type. */
+    /** Content-based nudges for ambiguous mail — same rules for every account. */
     private String applyRoleCategoryHints(String category, User.UserRole role,
                                           String subject, String body, String sender, boolean marketing) {
         if (marketing && !"SPAM".equals(category)) {
@@ -842,43 +1044,42 @@ Body:
         if (!"UNCATEGORIZED".equals(category)) {
             return category;
         }
-        return switch (role) {
-            case STUDENT -> {
-                if (subject.contains("placement") || body.contains("placement")) yield "PLACEMENT";
-                if (subject.contains("hackathon") || body.contains("hackathon")) yield "HACKATHON";
-                if (looksLikeAssignment(subject, body, sender)) yield "ASSIGNMENT";
-                if (sender.contains(".edu") || sender.contains("university")) yield "ANNOUNCEMENT";
-                yield category;
-            }
-            case PROFESSOR -> {
-                if (subject.contains("research") || body.contains("research")) yield "RESEARCH";
-                if (subject.contains("meeting") || body.contains("meeting")) yield "MEETING";
-                yield category;
-            }
-            case HR_PROFESSIONAL -> {
-                if (subject.contains("interview") || subject.contains("candidate") || body.contains("resume")) yield "PLACEMENT";
-                if (subject.contains("internship")) yield "INTERNSHIP";
-                yield category;
-            }
-            case FREELANCER -> {
-                if (subject.contains("invoice") || subject.contains("payment") || body.contains("invoice")) yield "FINANCE";
-                yield category;
-            }
-            case IT_EMPLOYEE -> {
-                if (subject.contains("incident") || subject.contains("alert") || body.contains("on-call")) yield "ANNOUNCEMENT";
-                if (subject.contains("jira") || body.contains("ticket")) yield "MEETING";
-                yield category;
-            }
-            case MANAGER -> {
-                if (subject.contains("approval") || subject.contains("budget") || body.contains("headcount")) yield "FINANCE";
-                if (subject.contains("1:1") || subject.contains("sync")) yield "MEETING";
-                yield category;
-            }
-            default -> category;
-        };
+        if (subject.contains("placement") || body.contains("placement")
+                || subject.contains("interview") || subject.contains("job offer")) {
+            return "PLACEMENT";
+        }
+        if (subject.contains("hackathon") || body.contains("hackathon")
+                || subject.contains("conference")) {
+            return "HACKATHON";
+        }
+        if (subject.contains("internship") || body.contains("internship")) {
+            return "INTERNSHIP";
+        }
+        if (looksLikeAssignment(subject, body, sender)) {
+            return "ASSIGNMENT";
+        }
+        if (subject.contains("invoice") || subject.contains("payment") || body.contains("invoice")) {
+            return "FINANCE";
+        }
+        if (subject.contains("research") || body.contains("peer review")) {
+            return "RESEARCH";
+        }
+        if (subject.contains("meeting") || body.contains("google meet") || body.contains("zoom.us")) {
+            return "MEETING";
+        }
+        if (subject.contains("incident") || subject.contains("security alert") || body.contains("on-call")) {
+            return "ANNOUNCEMENT";
+        }
+        if (sender.contains(".edu") || sender.contains("university") || sender.contains("noreply")) {
+            return "ANNOUNCEMENT";
+        }
+        return category;
     }
 
     private JsonNode parseJson(String rawResponse) {
+        if (rawResponse == null || rawResponse.isBlank()) {
+            return null;
+        }
         try {
             // Strip markdown code fences if present
             String cleaned = rawResponse.trim();
@@ -893,26 +1094,74 @@ Body:
     }
 
     private EmailCategory parseCategory(JsonNode node) {
+        String raw = getText(node, "category");
+        if (raw == null || raw.isBlank()) {
+            return EmailCategory.UNCATEGORIZED;
+        }
         try {
-            return EmailCategory.valueOf(getText(node, "category"));
+            return EmailCategory.valueOf(raw.trim().toUpperCase());
         } catch (Exception e) {
             return EmailCategory.UNCATEGORIZED;
         }
     }
 
     private Priority parsePriority(JsonNode node) {
+        String raw = getText(node, "priority");
+        if (raw == null || raw.isBlank()) {
+            return Priority.MEDIUM;
+        }
         try {
-            return Priority.valueOf(getText(node, "priority"));
+            return Priority.valueOf(raw.trim().toUpperCase());
         } catch (Exception e) {
             return Priority.MEDIUM;
         }
     }
 
     private String getText(JsonNode node, String field) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asText();
+        if (node == null || field == null || !node.has(field) || node.get(field).isNull()) {
+            return null;
+        }
+        return node.get(field).asText();
+    }
+
+    /** Accept a classifier deadline only when that date actually appears in the email. */
+    private LocalDateTime groundedDeadline(String deadlineStr, Email email) {
+        LocalDateTime parsed = parseDeadlineFlexible(deadlineStr);
+        if (parsed == null) {
+            return null;
+        }
+        String raw = sourceTextForDates(email);
+        if (raw.isBlank()) {
+            return null;
+        }
+        LocalDate date = parsed.toLocalDate();
+        if (raw.contains(date.toString())) {
+            return parsed;
+        }
+        String lower = raw.toLowerCase();
+        String month = date.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH).toLowerCase();
+        String monthShort = date.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toLowerCase();
+        int day = date.getDayOfMonth();
+        int year = date.getYear();
+        boolean hasYear = lower.contains(String.valueOf(year));
+        if (hasYear && (lower.contains(month + " " + day) || lower.contains(monthShort + " " + day)
+                || lower.contains(day + " " + month) || lower.contains(day + " " + monthShort))) {
+            return parsed;
+        }
+        String dmy = day + "/" + date.getMonthValue() + "/" + year;
+        String dmyPadded = String.format("%02d/%02d/%d", day, date.getMonthValue(), year);
+        String dmyDash = day + "-" + date.getMonthValue() + "-" + year;
+        if (raw.contains(dmy) || raw.contains(dmyPadded) || raw.contains(dmyDash)) {
+            return parsed;
         }
         return null;
+    }
+
+    private static String sourceTextForDates(Email email) {
+        String subject = email.getSubject() != null ? email.getSubject() : "";
+        String body = email.getBodyFull() != null ? email.getBodyFull()
+                : (email.getBodySnippet() != null ? email.getBodySnippet() : "");
+        return subject + "\n" + body;
     }
 
     private LocalDateTime parseDeadlineFlexible(String deadlineStr) {
@@ -937,24 +1186,43 @@ Body:
     }
 
     private void saveActionItems(JsonNode items, Email email, Long userId) {
-        if (email.getId() != null) {
-            List<EmailAction> existing = actionRepository.findByEmailId(email.getId());
-            if (!existing.isEmpty()) {
-                actionRepository.deleteAll(existing);
+        if (email.getId() == null || userId == null) {
+            return;
+        }
+        List<EmailAction> existing = actionRepository.findByEmailIdAndUserId(email.getId(), userId);
+        Set<String> keepKeys = new HashSet<>();
+        List<EmailAction> incomplete = new ArrayList<>();
+        for (EmailAction action : existing) {
+            if (Boolean.TRUE.equals(action.getIsCompleted())) {
+                keepKeys.add(actionDedupeKey(action.getActionType(), action.getActionDescription()));
+            } else {
+                incomplete.add(action);
             }
+        }
+        if (!incomplete.isEmpty()) {
+            actionRepository.deleteAll(incomplete);
         }
         for (JsonNode item : items) {
             try {
+                EmailAction.ActionType type = parseActionType(getText(item, "action_type"));
+                String description = getText(item, "description");
+                if (description == null || description.isBlank()) {
+                    description = "Action required";
+                }
+                String key = actionDedupeKey(type, description);
+                if (!keepKeys.add(key)) {
+                    continue;
+                }
                 EmailAction action = EmailAction.builder()
                         .email(email)
                         .userId(userId)
-                        .actionType(parseActionType(getText(item, "action_type")))
-                        .actionDescription(getText(item, "description") != null ? getText(item, "description") : "Action required")
+                        .actionType(type)
+                        .actionDescription(description)
                         .build();
 
                 String deadline = getText(item, "deadline");
                 if (deadline != null && !deadline.equalsIgnoreCase("null")) {
-                    LocalDateTime parsed = parseDeadlineFlexible(deadline);
+                    LocalDateTime parsed = groundedDeadline(deadline, email);
                     if (parsed != null) {
                         action.setDeadline(parsed);
                     }
@@ -966,75 +1234,20 @@ Body:
         }
     }
 
+    private static String actionDedupeKey(EmailAction.ActionType type, String description) {
+        return (type != null ? type.name() : "") + "|"
+                + (description != null ? description.trim().toLowerCase() : "");
+    }
+
     private EmailAction.ActionType parseActionType(String type) {
+        if (type == null || type.isBlank()) {
+            return EmailAction.ActionType.OTHER;
+        }
         try {
-            return EmailAction.ActionType.valueOf(type);
+            return EmailAction.ActionType.valueOf(type.trim().toUpperCase());
         } catch (Exception e) {
             return EmailAction.ActionType.OTHER;
         }
     }
 
-    public User.UserRole detectUserProfession(List<Email> emails) {
-        if (emails == null || emails.isEmpty()) {
-            return User.UserRole.STUDENT;
-        }
-
-        StringBuilder context = new StringBuilder();
-        for (int i = 0; i < Math.min(emails.size(), 20); i++) {
-            Email email = emails.get(i);
-            context.append("Subject: ").append(email.getSubject()).append("\n")
-                   .append("Sender: ").append(email.getSenderName()).append(" (").append(email.getSenderEmail()).append(")\n")
-                   .append("Snippet: ").append(email.getBodySnippet()).append("\n\n");
-        }
-
-        if (geminiConfig.isConfigured()) {
-            try {
-                String response = callGemini(
-                        RoleClassificationProfile.buildProfessionDetectionPrompt(),
-                        context.toString(),
-                        "Recent emails",
-                        true);
-                JsonNode node = parseJson(response);
-                if (node != null && node.has("role")) {
-                    String roleStr = node.get("role").asText().toUpperCase();
-                    return User.UserRole.valueOf(roleStr);
-                }
-            } catch (Exception e) {
-                log.error("AI profession detection failed, using fallback: {}", e.getMessage());
-            }
-        }
-
-        String combinedText = context.toString().toLowerCase();
-        int studentScore = countMatches(combinedText, "assignment", "course", "professor", "class", "exam", "placement", "internship", "grading", "homework", "student");
-        int professorScore = countMatches(combinedText, "syllabus", "lecture", "faculty", "grant", "research paper", "grading", "phd", "academic", "university office");
-        int hrScore = countMatches(combinedText, "resume", "candidate", "interview", "hiring", "onboarding", "offer letter", "payroll", "recruiter", "talent acquisition");
-        int itScore = countMatches(combinedText, "ticket", "server", "deployment", "bug", "jira", "aws", "git", "database", "api", "incident", "dns");
-        int managerScore = countMatches(combinedText, "approvals", "budget", "project sync", "quarterly", "team roadmap", "one-on-one", "kpi", "status update");
-        int freelancerScore = countMatches(combinedText, "proposal", "contract", "invoice", "client", "gig", "payment milestone", "brief", "freelance");
-
-        log.info("Profession Scores -> STUDENT: {}, PROFESSOR: {}, HR: {}, IT: {}, MANAGER: {}, FREELANCER: {}",
-                studentScore, professorScore, hrScore, itScore, managerScore, freelancerScore);
-
-        int max = Math.max(studentScore, Math.max(professorScore, Math.max(hrScore, Math.max(itScore, Math.max(managerScore, freelancerScore)))));
-        if (max == 0) return User.UserRole.STUDENT;
-
-        if (max == studentScore) return User.UserRole.STUDENT;
-        if (max == professorScore) return User.UserRole.PROFESSOR;
-        if (max == hrScore) return User.UserRole.HR_PROFESSIONAL;
-        if (max == itScore) return User.UserRole.IT_EMPLOYEE;
-        if (max == managerScore) return User.UserRole.MANAGER;
-        return User.UserRole.FREELANCER;
-    }
-
-    private int countMatches(String text, String... keywords) {
-        int count = 0;
-        for (String word : keywords) {
-            int index = 0;
-            while ((index = text.indexOf(word, index)) != -1) {
-                count++;
-                index += word.length();
-            }
-        }
-        return count;
-    }
 }

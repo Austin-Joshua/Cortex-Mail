@@ -16,15 +16,22 @@ Repo: [Austin-Joshua/Cortex-Mail](https://github.com/Austin-Joshua/Cortex-Mail)
 ### Security
 - [ ] Google OAuth app published (or test users listed)
 - [ ] `JWT_SECRET` ≥ 32 characters
-- [ ] `ENCRYPTION_KEY` exactly 16 characters
+- [ ] `ENCRYPTION_KEY` exactly 16 characters (AES-GCM for Gmail tokens)
 - [ ] `CORS_ALLOWED_ORIGINS` = production frontend origin(s) only
 - [ ] `H2_CONSOLE_ENABLED=false`
 - [ ] Privacy policy matches real Gmail scopes (sync + label mutations)
+- [ ] Prod profile fail-fast: Postgres `DB_URL`, Google OAuth, JWT, encryption key
 
 ### Database (Supabase)
 - [ ] Project active; Session pooler JDBC URL ready
 - [ ] `SPRING_PROFILES_ACTIVE=prod` so Flyway runs and `ddl-auto=validate`
-- [ ] RLS migration applied (V2) — app uses Spring DB role, not PostgREST
+- [ ] Flyway V2–V5 applied (RLS, tenant FKs, oauth_exchange_codes, token_version)
+- [ ] Keep `nexora/backend/.env.example` and `nexora/frontend/.env.example` tracked (no secrets)
+
+### Runtime
+- [ ] Prefer **one** backend instance — Gmail sync locks and JWT revoke registry are in-memory (JVM-local)
+- [ ] OAuth callback uses opaque one-time codes (encrypted user id), never stores JWT in DB
+- [ ] PWA install is optional (`vite-plugin-pwa`); WebSocket `/ws` proxy removed (no backend WS)
 
 ### Product smoke (local or staging)
 - [ ] Google login
@@ -34,6 +41,8 @@ Repo: [Austin-Joshua/Cortex-Mail](https://github.com/Austin-Joshua/Cortex-Mail)
 - [ ] Cortex Score loads
 - [ ] PWA / responsive layout
 - [ ] Brain responds (rules-only without AI keys)
+- [ ] Priority page loads `/api/priority`
+- [ ] Settings → Reconnect Gmail works
 
 ---
 
@@ -99,7 +108,6 @@ CORS_ALLOWED_ORIGINS=https://YOUR-FRONTEND.vercel.app
 
 # Optional AI
 GEMINI_API_KEY=
-CLAUDE_API_KEY=
 ```
 
 5. Deploy → wait until **Live**. Copy the service URL into Vercel `VITE_API_BASE_URL` and redeploy frontend if needed.

@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { AppShell } from '../components/layout/AppShell';
 import { emailApi } from '../api/emailApi';
+import { queryKeys } from '../api/queryKeys';
 import { dashboardApi } from '../api/dashboardApi';
 import { CAT_COLORS, CATEGORY_LABELS } from '../utils/catColors';
 import { BarChart2, Users, Mail, Sparkles } from 'lucide-react';
@@ -40,25 +41,25 @@ export const AnalyticsPage: React.FC = () => {
   const navigate = useNavigate();
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ['dashboard-summary'],
+    queryKey: queryKeys.dashboardSummary,
     queryFn: dashboardApi.getSummary,
     staleTime: 120_000,
   });
 
   const { data: emailPage, isLoading: emailsLoading } = useQuery({
-    queryKey: ['analytics-emails'],
+    queryKey: queryKeys.analyticsEmails,
     queryFn: () => emailApi.getEmails({ size: 100 }),
     staleTime: 120_000,
   });
 
   const { data: senders, isLoading: sendersLoading } = useQuery({
-    queryKey: ['senders'],
+    queryKey: queryKeys.senders,
     queryFn: emailApi.getSenderSummary,
     staleTime: 120_000,
   });
 
   const { data: volumeHistory, isLoading: volumeLoading } = useQuery({
-    queryKey: ['email-volume'],
+    queryKey: queryKeys.emailVolume(7),
     queryFn: () => dashboardApi.getEmailVolume(7),
     staleTime: 120_000,
   });
