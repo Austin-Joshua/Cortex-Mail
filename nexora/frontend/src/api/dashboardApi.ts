@@ -15,6 +15,9 @@ interface CortexScore {
   ready?: boolean;
   statusMessage?: string;
   nextAction?: string;
+  inboxUnread?: number | null;
+  overdueCount?: number | null;
+  storedCount?: number | null;
 }
 
 export interface DashboardSummary {

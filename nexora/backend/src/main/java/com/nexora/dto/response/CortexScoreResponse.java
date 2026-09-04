@@ -19,6 +19,12 @@ public class CortexScoreResponse {
     /** One concrete next step for the signed-in mailbox — never generic filler. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String nextAction;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long inboxUnread;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long overdueCount;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long storedCount;
 
     public CortexScoreResponse() {}
 
@@ -54,6 +60,15 @@ public class CortexScoreResponse {
 
     public String getNextAction() { return nextAction; }
     public void setNextAction(String nextAction) { this.nextAction = nextAction; }
+
+    public Long getInboxUnread() { return inboxUnread; }
+    public void setInboxUnread(Long inboxUnread) { this.inboxUnread = inboxUnread; }
+
+    public Long getOverdueCount() { return overdueCount; }
+    public void setOverdueCount(Long overdueCount) { this.overdueCount = overdueCount; }
+
+    public Long getStoredCount() { return storedCount; }
+    public void setStoredCount(Long storedCount) { this.storedCount = storedCount; }
 
     public static class Factor {
         private String key;

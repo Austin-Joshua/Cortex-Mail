@@ -66,25 +66,20 @@ export const DashboardPageNew: React.FC = () => {
   const emails = useMemo(() => priorityEmails, [priorityEmails]);
   const isLoading = priorityLoading && emails.length === 0;
 
-  const unread = data?.unreadCount ?? (labelsReady ? inboxUnread : null);
-  const inboxTotal = syncStatus?.localCounts?.inboxTotal
-    ?? data?.gmailLabelCounts?.INBOX?.messagesTotal
+  const cortex = data?.cortexScore;
+  const unread = data?.unreadCount
+    ?? cortex?.inboxUnread
+    ?? (labelsReady ? inboxUnread : null);
+  const inboxTotal = data?.gmailLabelCounts?.INBOX?.messagesTotal
+    ?? syncStatus?.gmailCounts?.inboxTotal
+    ?? syncStatus?.localCounts?.inboxTotal
     ?? null;
   const importantUnread = data?.gmailLabelCounts?.IMPORTANT?.messagesUnread
     ?? 0;
   const deadlines = useMemo(() => data?.upcomingDeadlines ?? [], [data]);
   const actions = useMemo(() => data?.pendingActions ?? [], [data]);
 
-  const overdue = useMemo(
-    () =>
-      deadlines.filter((d: any) => {
-        const due = d?.dueDate ?? d?.deadline ?? d?.deadlineDetected;
-        return due && new Date(due).getTime() < Date.now();
-      }).length,
-    [deadlines],
-  );
-
-  const cortex = data?.cortexScore;
+  const overdue = cortex?.overdueCount ?? 0;
   const hasSyncedMail = pipelineHasMail
     || Boolean(user?.lastSyncedAt)
     || (syncStatus?.localCounts?.allStored ?? 0) > 0;
@@ -313,7 +308,7 @@ export const DashboardPageNew: React.FC = () => {
           <div className="v-readout v-readout-lg">{unread ?? '—'}</div>
           <p className="v-meta">
             {inboxTotal != null
-              ? `${inboxTotal} in inbox · Gmail`
+              ? `${inboxTotal} in Gmail inbox`
               : 'awaiting Gmail inbox count'}
           </p>
         </Tile>
