@@ -34,6 +34,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireOnboarding?: 
   return <>{children}</>;
 };
 
+const UnknownRoute: React.FC = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />;
+};
+
 function App() {
   return (
     <ErrorBoundary>
@@ -70,8 +75,8 @@ function App() {
         {/* Detail Routes */}
         <Route path="/emails/:id"      element={<ProtectedRoute><EmailDetailPage /></ProtectedRoute>} />
 
-        {/* Catch All */}
-        <Route path="*"                element={<Navigate to="/dashboard" replace />} />
+        {/* Unknown paths: signed-in users stay in the app; everyone else sees the landing. */}
+        <Route path="*"                element={<UnknownRoute />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>

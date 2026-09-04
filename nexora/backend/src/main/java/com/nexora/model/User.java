@@ -72,7 +72,8 @@ public class User {
     @Builder.Default
     private Integer tokenVersion = 0;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    /** Emails are persisted via EmailRepository — never cascade from User.save(). */
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Email> emails;
 

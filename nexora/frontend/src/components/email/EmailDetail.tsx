@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { emailApi } from '../../api/emailApi';
+import { priorityApi } from '../../api/priorityApi';
 import { queryKeys } from '../../api/queryKeys';
 import axiosInstance from '../../api/axiosInstance';
 import { CategoryTag } from '../common/CategoryTag';
@@ -111,6 +112,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
     queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
     queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
     queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+    queryClient.invalidateQueries({ queryKey: queryKeys.emailPriority });
   };
 
   const runMailboxAction = (action: Promise<unknown>, closeAfter = false) => {
@@ -250,6 +252,12 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
           <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
             onClick={() => runMailboxAction(emailApi.setStarred(email.id, !email.isStarred))}>
             {email.isStarred ? 'Unstar' : 'Star'}
+          </button>
+          <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}
+            onClick={() => runMailboxAction(
+              email.isImportant ? priorityApi.unflag(email.id) : priorityApi.flag(email.id),
+            )}>
+            {email.isImportant ? 'Unflag important' : 'Flag important'}
           </button>
           {email.inInbox !== false && (
             <button type="button" className="vbtn vbtn-quiet" style={{ height: 32 }}

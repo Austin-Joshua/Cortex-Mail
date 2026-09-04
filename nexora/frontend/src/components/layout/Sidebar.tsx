@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Inbox, Sparkles, BarChart2, Settings,
-  Zap, Clock, Archive, FileText, HelpCircle,
+  Zap, Clock, Archive, FileText, HelpCircle, Share2,
 } from 'lucide-react';
 import { useInboxUnread } from '../../hooks/useInboxUnread';
 import { useMailPrefetch } from '../../hooks/useMailPrefetch';
@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/scheduled', icon: Clock,           label: 'Deadlines' },
   { to: '/brain',     icon: Sparkles,        label: 'Cortex Brain' },
   { to: '/drafts',    icon: FileText,        label: 'Drafts' },
+  { to: '/shared',    icon: Share2,          label: 'Shared' },
   { to: '/archive',   icon: Archive,         label: 'Archive' },
   { to: '/analytics', icon: BarChart2,       label: 'Analytics' },
 ];

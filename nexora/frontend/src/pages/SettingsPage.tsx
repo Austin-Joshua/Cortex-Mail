@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
 import { emailApi } from '../api/emailApi';
+import { settingsApi } from '../api/settingsApi';
+import { templatesApi } from '../api/templatesApi';
 import { queryKeys } from '../api/queryKeys';
-import { Calendar, Link2, LogOut, RefreshCw, Shield, User } from 'lucide-react';
+import { Calendar, Link2, LogOut, RefreshCw, Shield, Sparkles, User, FileText } from 'lucide-react';
 
 const SECURITY_POINTS = [
   'Mailbox changes (read, star, archive, trash) only run when you click them',
@@ -21,6 +23,21 @@ export const SettingsPage: React.FC = () => {
   const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(user?.calendarSyncEnabled ?? true);
   const [reclassifying, setReclassifying] = useState(false);
   const [status, setStatus] = useState('');
+  const [tplName, setTplName] = useState('');
+  const [tplSubject, setTplSubject] = useState('');
+  const [tplBody, setTplBody] = useState('');
+
+  const { data: gemini } = useQuery({
+    queryKey: queryKeys.geminiStatus,
+    queryFn: settingsApi.getGeminiStatus,
+    staleTime: 60_000,
+  });
+
+  const { data: templates = [] } = useQuery({
+    queryKey: queryKeys.emailTemplates,
+    queryFn: templatesApi.list,
+    staleTime: 30_000,
+  });
 
   const initials = user?.name
     ? user.name.split(/\s+/).filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -116,6 +133,67 @@ export const SettingsPage: React.FC = () => {
             <RefreshCw size={15} className={reclassifying ? 'animate-spin' : undefined} />
             {reclassifying ? 'Re-analyzing…' : 'Re-analyze inbox'}
           </button>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <Sparkles size={16} />
+            <h2>AI enrichment</h2>
+          </div>
+          <p className="settings-copy">
+            {gemini?.configured
+              ? 'Gemini is on for this workspace. Inbox groups still run from Gmail labels and content first; Gemini only refines in the background.'
+              : 'No Gemini key is configured. Grouping and Cortex Score use local rules and Gmail labels only.'}
+          </p>
+          <p className="v-meta">Mode: {gemini?.mode === 'gemini' ? 'Gemini + rules' : 'Rules only'}</p>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <FileText size={16} />
+            <h2>Reply templates</h2>
+          </div>
+          <p className="settings-copy">Used from Drafts → New Cortex draft. Stored per account.</p>
+          <input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Template name" style={{ width: '100%', marginBottom: 8, height: 36, padding: '0 10px' }} />
+          <input value={tplSubject} onChange={(e) => setTplSubject(e.target.value)} placeholder="Subject" style={{ width: '100%', marginBottom: 8, height: 36, padding: '0 10px' }} />
+          <textarea value={tplBody} onChange={(e) => setTplBody(e.target.value)} placeholder="Body" rows={4} style={{ width: '100%', marginBottom: 8, padding: 10, fontFamily: 'inherit' }} />
+          <button
+            type="button"
+            className="vbtn vbtn-quiet"
+            disabled={!tplName.trim()}
+            onClick={async () => {
+              try {
+                await templatesApi.create({ name: tplName.trim(), subject: tplSubject, body: tplBody });
+                setTplName('');
+                setTplSubject('');
+                setTplBody('');
+                queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates });
+                setStatus('Template saved.');
+              } catch {
+                setStatus('Could not save template.');
+              }
+            }}
+          >
+            Save template
+          </button>
+          {templates.map((t) => (
+            <div key={t.id} className="stream-row" style={{ marginTop: 8 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="truncate" style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
+                <div className="v-meta truncate">{t.subject || 'No subject'}</div>
+              </div>
+              <button
+                type="button"
+                className="vbtn vbtn-bare"
+                onClick={async () => {
+                  await templatesApi.remove(t.id);
+                  queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates });
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
         </section>
 
         <section className="settings-card">

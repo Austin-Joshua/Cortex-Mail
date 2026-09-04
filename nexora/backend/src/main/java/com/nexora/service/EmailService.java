@@ -40,15 +40,18 @@ public class EmailService {
     private final PostSyncProcessingService postSyncProcessingService;
 
     public Page<EmailResponse> getEmails(Long userId, String category, String priority,
-                                          String search, int page, int size) {
+                                          String search, String view, int page, int size) {
         Pageable pageable = PageRequest.of(page, clampSize(size), Sort.by("receivedAt").descending());
 
         boolean hasSearch = search != null && !search.isBlank();
         EmailCategory categoryEnum = parseCategoryParam(category);
         Priority priorityEnum = parsePriorityParam(priority);
+        String mailboxView = parseMailboxView(view);
 
         Page<Email> emailPage;
-        if (hasSearch && categoryEnum != null) {
+        if (mailboxView != null && categoryEnum == null) {
+            emailPage = findInboxByView(userId, mailboxView, pageable);
+        } else if (hasSearch && categoryEnum != null) {
             emailPage = emailRepository.searchInboxByUserIdAndCategory(
                     userId, search, categoryEnum, pageable);
         } else if (hasSearch) {
@@ -77,6 +80,10 @@ public class EmailService {
         return emailPage.map(e -> toResponse(e, false));
     }
 
+    public GmailSyncResponse syncDrafts(Long userId) {
+        return gmailSyncService.syncDrafts(userId);
+    }
+
     public Page<EmailResponse> getArchivedEmails(Long userId, String search, int page, int size) {
         Pageable pageable = PageRequest.of(page, clampSize(size), Sort.by("receivedAt").descending());
         Page<Email> emailPage = (search != null && !search.isBlank())
@@ -89,6 +96,100 @@ public class EmailService {
         Email email = emailRepository.findDetailByIdAndUserId(emailId, userId)
                 .orElseThrow(() -> new NexoraException("Email not found", 404));
         return toResponse(email, true);
+    }
+
+    public Map<String, Object> markAllInboxRead(Long userId) {
+        List<Object[]> rows = emailRepository.findUnreadInboxIds(
+                userId, PageRequest.of(0, 500));
+        if (rows.isEmpty()) {
+            return Map.of("updated", 0, "message", "Inbox is already read");
+        }
+        List<Long> ids = new ArrayList<>();
+        List<String> gmailIds = new ArrayList<>();
+        for (Object[] row : rows) {
+            if (row[0] instanceof Number n) {
+                ids.add(n.longValue());
+            }
+            if (row[1] instanceof String gmailId && !gmailId.isBlank()) {
+                gmailIds.add(gmailId);
+            }
+        }
+        if (!gmailIds.isEmpty()) {
+            gmailSyncService.batchModifyLabelsInGmail(userId, gmailIds, null, List.of("UNREAD"));
+        }
+        int updated = ids.isEmpty() ? 0 : emailRepository.markReadByUserIdAndIdIn(userId, ids);
+        gmailSyncService.refreshLabelCounts(userId);
+        return Map.of("updated", updated, "message", "Marked " + updated + " messages as read");
+    }
+
+    public Map<String, Object> applyBulk(Long userId, List<Long> requestedIds, String actionRaw) {
+        if (requestedIds == null || requestedIds.isEmpty()) {
+            throw new NexoraException("Select at least one email", 400);
+        }
+        if (requestedIds.size() > 100) {
+            throw new NexoraException("Bulk actions are limited to 100 messages", 400);
+        }
+        String action = actionRaw != null ? actionRaw.trim().toUpperCase(Locale.ROOT) : "";
+        Set<String> allowed = Set.of("READ", "UNREAD", "STAR", "UNSTAR", "ARCHIVE", "TRASH");
+        if (!allowed.contains(action)) {
+            throw new NexoraException("Invalid bulk action", 400);
+        }
+
+        List<Email> owned = emailRepository.findByUserIdAndIdIn(userId, requestedIds);
+        if (owned.isEmpty()) {
+            throw new NexoraException("Email not found", 404);
+        }
+        List<Long> ids = owned.stream().map(Email::getId).filter(Objects::nonNull).toList();
+        List<String> gmailIds = owned.stream()
+                .map(Email::getGmailMessageId)
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+
+        switch (action) {
+            case "READ" -> {
+                if (!gmailIds.isEmpty()) {
+                    gmailSyncService.batchModifyLabelsInGmail(userId, gmailIds, null, List.of("UNREAD"));
+                }
+                emailRepository.markReadByUserIdAndIdIn(userId, ids);
+            }
+            case "UNREAD" -> {
+                if (!gmailIds.isEmpty()) {
+                    gmailSyncService.batchModifyLabelsInGmail(userId, gmailIds, List.of("UNREAD"), null);
+                }
+                emailRepository.markUnreadByUserIdAndIdIn(userId, ids);
+            }
+            case "STAR" -> {
+                if (!gmailIds.isEmpty()) {
+                    gmailSyncService.batchModifyLabelsInGmail(userId, gmailIds, List.of("STARRED"), null);
+                }
+                emailRepository.starByUserIdAndIdIn(userId, ids);
+            }
+            case "UNSTAR" -> {
+                if (!gmailIds.isEmpty()) {
+                    gmailSyncService.batchModifyLabelsInGmail(userId, gmailIds, null, List.of("STARRED"));
+                }
+                emailRepository.unstarByUserIdAndIdIn(userId, ids);
+            }
+            case "ARCHIVE" -> {
+                if (!gmailIds.isEmpty()) {
+                    gmailSyncService.batchModifyLabelsInGmail(userId, gmailIds, null, List.of("INBOX"));
+                }
+                emailRepository.archiveByUserIdAndIdIn(userId, ids);
+            }
+            case "TRASH" -> {
+                if (!gmailIds.isEmpty()) {
+                    gmailSyncService.batchModifyLabelsInGmail(userId, gmailIds, List.of("TRASH"), List.of("INBOX", "SPAM"));
+                }
+                emailRepository.trashByUserIdAndIdIn(userId, ids);
+            }
+            default -> throw new NexoraException("Invalid bulk action", 400);
+        }
+        gmailSyncService.refreshLabelCounts(userId);
+        return Map.of(
+                "updated", ids.size(),
+                "skipped", Math.max(0, requestedIds.size() - ids.size()),
+                "action", action
+        );
     }
 
     public EmailResponse markRead(Long userId, Long emailId) {
@@ -377,6 +478,12 @@ public class EmailService {
                 .map(e -> toResponse(e, false));
     }
 
+    public Page<EmailResponse> getSharedEmails(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, clampSize(size), Sort.by("receivedAt").descending());
+        return emailRepository.findSharedMailbox(userId, pageable)
+                .map(e -> toResponse(e, false));
+    }
+
     public EmailResponse toResponse(Email email, boolean includeFullBody) {
         List<EmailResponse.ActionItemDto> actions = List.of();
         if (includeFullBody && email.getActions() != null) {
@@ -580,6 +687,32 @@ public class EmailService {
 
     private static long labelUnread(GmailLabelCountResponse label) {
         return label != null && label.getMessagesUnread() != null ? label.getMessagesUnread() : -1;
+    }
+
+    private Page<Email> findInboxByView(Long userId, String view, Pageable pageable) {
+        return switch (view) {
+            case "UNREAD" -> emailRepository.findByUserIdAndInInboxTrueAndIsReadFalseOrderByReceivedAtDesc(userId, pageable);
+            case "STARRED" -> emailRepository.findByUserIdAndInInboxTrueAndIsStarredTrueOrderByReceivedAtDesc(userId, pageable);
+            case "IMPORTANT" -> emailRepository.findByUserIdAndInInboxTrueAndIsImportantTrueOrderByReceivedAtDesc(userId, pageable);
+            case "PRIMARY" -> emailRepository.findInboxPrimary(userId, pageable);
+            case "PROMOTIONS" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_PROMOTIONS", pageable);
+            case "SOCIAL" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_SOCIAL", pageable);
+            case "UPDATES" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_UPDATES", pageable);
+            case "FORUMS" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_FORUMS", pageable);
+            default -> emailRepository.findByUserIdAndInInboxTrueOrderByReceivedAtDesc(userId, pageable);
+        };
+    }
+
+    private static String parseMailboxView(String view) {
+        if (view == null || view.isBlank()) {
+            return null;
+        }
+        String normalized = view.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "UNREAD", "STARRED", "IMPORTANT", "PRIMARY",
+                 "PROMOTIONS", "SOCIAL", "UPDATES", "FORUMS" -> normalized;
+            default -> throw new NexoraException("Invalid mailbox view: " + view, 400);
+        };
     }
 
     private EmailCategory parseCategoryParam(String category) {

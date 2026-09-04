@@ -1,7 +1,7 @@
 package com.nexora.controller;
 
 import com.nexora.dto.response.DashboardSummaryResponse;
-import com.nexora.exception.NexoraException;
+import com.nexora.security.AuthPrincipals;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.DashboardService;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +21,6 @@ public class DashboardController {
     @GetMapping("/summary")
     public ResponseEntity<DashboardSummaryResponse> getSummary(
             @AuthenticationPrincipal UserPrincipal user) {
-        if (user == null || user.getId() == null) {
-            throw new NexoraException("Unauthorized", 401);
-        }
-        return ResponseEntity.ok(dashboardService.getSummary(user.getId()));
+        return ResponseEntity.ok(dashboardService.getSummary(AuthPrincipals.requireId(user)));
     }
 }

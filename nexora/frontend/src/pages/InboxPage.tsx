@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCheck } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
 import { EmailList } from '../components/email/EmailList';
 import { EmailDetail } from '../components/email/EmailDetail';
@@ -13,16 +14,19 @@ import { useViewport } from '../hooks/useViewport';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import {
   getVisibleInboxDivisions,
+  gmailViewCount,
+  isGmailMailboxView,
   type InboxDivisionKey,
+  type GmailMailboxView,
 } from '../utils/inboxDivisions';
 import type { Email, EmailCategory, EmailPage } from '../types/Email';
 
-type ViewMode = EmailCategory | 'ALL' | 'SENDERS';
+type ViewMode = EmailCategory | GmailMailboxView | 'ALL' | 'SENDERS';
 
 const INBOX_PAGE_SIZE = 60;
 
 function isCategoryView(view: ViewMode): view is EmailCategory {
-  return view !== 'ALL' && view !== 'SENDERS';
+  return view !== 'ALL' && view !== 'SENDERS' && !isGmailMailboxView(view);
 }
 
 function patchEmailReadInCache(old: unknown, emailId: number): unknown {
@@ -51,15 +55,22 @@ export const InboxPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const urlEmailId = searchParams.get('emailId');
-  const urlCategory = searchParams.get('category') as ViewMode | null;
-  const activeView: ViewMode = urlCategory ?? 'ALL';
+  const urlCategory = searchParams.get('category');
+  const urlView = searchParams.get('view');
+  const urlSearch = searchParams.get('search');
+  const activeView: ViewMode = (urlCategory as ViewMode | null)
+    ?? (urlView as ViewMode | null)
+    ?? 'ALL';
 
   const { isMobile, isTablet } = useViewport();
-  const { searchQuery, selectedEmail, setSelectedEmail } = useEmailStore();
+  const { searchQuery, selectedEmail, setSelectedEmail, setSearchQuery } = useEmailStore();
   const debouncedSearch = useDebouncedValue(searchQuery, 400);
   const userRole = useAuthStore((s) => s.user?.userRole);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
 
   const categoryParam = isCategoryView(activeView) ? activeView : undefined;
+  const viewParam = isGmailMailboxView(activeView) ? activeView : undefined;
 
   const {
     data: emailPages,
@@ -75,6 +86,7 @@ export const InboxPage: React.FC = () => {
       page: pageParam,
       size: INBOX_PAGE_SIZE,
       category: categoryParam,
+      view: viewParam,
       search: debouncedSearch || undefined,
     }),
     initialPageParam: 0,
@@ -100,8 +112,8 @@ export const InboxPage: React.FC = () => {
   });
 
   const visibleDivisions = useMemo(
-    () => getVisibleInboxDivisions(userRole, categoryCounts),
-    [userRole, categoryCounts],
+    () => getVisibleInboxDivisions(userRole, categoryCounts, labelCounts),
+    [userRole, categoryCounts, labelCounts],
   );
 
   const displayedEmails = useMemo(
@@ -115,9 +127,16 @@ export const InboxPage: React.FC = () => {
   const inboxUnread = labelCounts?.INBOX?.messagesUnread
     ?? displayedEmails.filter((e) => !e.isRead).length;
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeView, debouncedSearch]);
+
   const tabCount = (key: InboxDivisionKey | 'ALL'): number => {
     if (key === 'ALL') {
       return debouncedSearch ? listTotal : inboxTotal;
+    }
+    if (isGmailMailboxView(key)) {
+      return gmailViewCount(key, labelCounts);
     }
     if (debouncedSearch && activeView === key) {
       return listTotal;
@@ -129,21 +148,36 @@ export const InboxPage: React.FC = () => {
   const mobileDetailOnly = isMobile && showDetail;
 
   useEffect(() => {
+    if (urlSearch) setSearchQuery(urlSearch);
+  }, [urlSearch, setSearchQuery]);
+
+  useEffect(() => {
     if (urlEmailId && displayedEmails.length > 0) {
       const found = displayedEmails.find((e) => e.id === parseInt(urlEmailId, 10));
       if (found) setSelectedEmail(found);
     }
   }, [urlEmailId, displayedEmails, setSelectedEmail]);
 
+  const inboxHref = (key: ViewMode) => {
+    if (key === 'ALL') return '/inbox';
+    if (key === 'SENDERS') return '/inbox?category=SENDERS';
+    if (isGmailMailboxView(key)) return `/inbox?view=${key}`;
+    return `/inbox?category=${key}`;
+  };
+
   const handleTabClick = (key: ViewMode) => {
     setSelectedEmail(null);
-    if (key === 'ALL') {
-      navigate('/inbox', { replace: true });
-    } else if (key !== 'SENDERS') {
-      navigate(`/inbox?category=${key}`, { replace: true });
-    } else {
-      navigate('/inbox?category=SENDERS', { replace: true });
-    }
+    navigate(inboxHref(key), { replace: true });
+  };
+
+  const invalidateMailbox = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.emails }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.emailCategories }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus }),
+    ]);
   };
 
   const handleEmailSelect = async (email: Email) => {
@@ -163,8 +197,44 @@ export const InboxPage: React.FC = () => {
     }
   };
 
+  const handleMarkAllRead = async () => {
+    setBusy(true);
+    try {
+      await emailApi.markAllRead();
+      setSelectedIds(new Set());
+      await invalidateMailbox();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBulk = async (action: 'READ' | 'UNREAD' | 'STAR' | 'UNSTAR' | 'ARCHIVE' | 'TRASH') => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBusy(true);
+    try {
+      await emailApi.bulk(ids, action);
+      setSelectedIds(new Set());
+      await invalidateMailbox();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <AppShell noScroll flush title="Inbox" subtitle="Your Gmail, grouped by what each message is about">
+    <AppShell
+      noScroll
+      flush
+      title="Inbox"
+      subtitle="Gmail tabs plus groups Cortex learned from your mail"
+      actions={
+        inboxUnread > 0 ? (
+          <button type="button" className="vbtn vbtn-quiet" disabled={busy} onClick={() => void handleMarkAllRead()}>
+            <CheckCheck size={16} /> Mark all as read
+          </button>
+        ) : undefined
+      }
+    >
       <div
         className="mail-workspace"
         style={{
@@ -203,7 +273,7 @@ export const InboxPage: React.FC = () => {
               )}
             </button>
 
-            {visibleDivisions.map(({ key, label }) => {
+            {visibleDivisions.map(({ key, label, kind }) => {
               const isActive = activeView === key;
               const count = tabCount(key);
 
@@ -212,7 +282,7 @@ export const InboxPage: React.FC = () => {
                   key={key}
                   type="button"
                   onClick={() => handleTabClick(key)}
-                  className={`gmail-tab cortex-tab${isActive ? ' active' : ''}`}
+                  className={`gmail-tab${kind === 'cortex' ? ' cortex-tab' : ''}${isActive ? ' active' : ''}`}
                 >
                   {label}
                   {key !== 'SENDERS' && count > 0 && (
@@ -266,6 +336,22 @@ export const InboxPage: React.FC = () => {
                       hasMore={Boolean(hasNextPage)}
                       isLoadingMore={isFetchingNextPage}
                       onLoadMore={() => { void fetchNextPage(); }}
+                      selectable
+                      selectedIds={selectedIds}
+                      onToggleSelect={(id) => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(id)) next.delete(id);
+                          else next.add(id);
+                          return next;
+                        });
+                      }}
+                      onSelectAll={() => setSelectedIds(new Set(displayedEmails.map((e) => e.id)))}
+                      onClearSelection={() => setSelectedIds(new Set())}
+                      onBulkAction={(action) => void handleBulk(action)}
+                      onMarkAllRead={() => void handleMarkAllRead()}
+                      unreadCount={inboxUnread}
+                      busy={busy}
                     />
                   )}
                 </div>
@@ -286,7 +372,7 @@ export const InboxPage: React.FC = () => {
                     emailId={selectedEmail ? selectedEmail.id : parseInt(urlEmailId!, 10)}
                     onClose={() => {
                       setSelectedEmail(null);
-                      navigate(activeView === 'ALL' ? '/inbox' : `/inbox?category=${activeView}`, { replace: true });
+                      navigate(inboxHref(activeView), { replace: true });
                     }}
                   />
                 </div>

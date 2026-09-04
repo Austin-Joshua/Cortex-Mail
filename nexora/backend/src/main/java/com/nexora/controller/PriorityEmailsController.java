@@ -2,6 +2,7 @@ package com.nexora.controller;
 
 import com.nexora.dto.ApiResponse;
 import com.nexora.dto.response.EmailResponse;
+import com.nexora.security.AuthPrincipals;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.EmailService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class PriorityEmailsController {
     public ResponseEntity<ApiResponse<List<EmailResponse>>> getPriorityEmails(
             @RequestParam(defaultValue = "20") int limit,
             @AuthenticationPrincipal UserPrincipal user) {
-        List<EmailResponse> priorityEmails = emailService.getPriorityEmails(user.getId(), limit);
+        List<EmailResponse> priorityEmails = emailService.getPriorityEmails(AuthPrincipals.requireId(user), limit);
         return ResponseEntity.ok(ApiResponse.success(priorityEmails));
     }
 
@@ -29,7 +30,7 @@ public class PriorityEmailsController {
     public ResponseEntity<ApiResponse<EmailResponse>> flagAsImportant(
             @PathVariable Long emailId,
             @AuthenticationPrincipal UserPrincipal user) {
-        EmailResponse email = emailService.flagAsImportant(user.getId(), emailId);
+        EmailResponse email = emailService.flagAsImportant(AuthPrincipals.requireId(user), emailId);
         return ResponseEntity.ok(ApiResponse.success(email));
     }
 
@@ -37,14 +38,14 @@ public class PriorityEmailsController {
     public ResponseEntity<ApiResponse<EmailResponse>> unflagAsImportant(
             @PathVariable Long emailId,
             @AuthenticationPrincipal UserPrincipal user) {
-        EmailResponse email = emailService.unflagAsImportant(user.getId(), emailId);
+        EmailResponse email = emailService.unflagAsImportant(AuthPrincipals.requireId(user), emailId);
         return ResponseEntity.ok(ApiResponse.success(email));
     }
 
     @GetMapping("/suggestions")
     public ResponseEntity<ApiResponse<List<EmailResponse>>> getPrioritySuggestions(
             @AuthenticationPrincipal UserPrincipal user) {
-        List<EmailResponse> suggestions = emailService.getSuggestedPriorityEmails(user.getId());
+        List<EmailResponse> suggestions = emailService.getSuggestedPriorityEmails(AuthPrincipals.requireId(user));
         return ResponseEntity.ok(ApiResponse.success(suggestions));
     }
 }

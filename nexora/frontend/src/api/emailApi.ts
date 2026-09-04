@@ -14,6 +14,7 @@ export const emailApi = {
     category?: string;
     priority?: string;
     search?: string;
+    view?: string;
     page?: number;
     size?: number;
   }): Promise<EmailPage> => {
@@ -23,6 +24,13 @@ export const emailApi = {
 
   getDrafts: async (params?: { search?: string; page?: number; size?: number }): Promise<EmailPage> => {
     const { data } = await axiosInstance.get<EmailPage>('/api/emails/drafts', { params });
+    return data;
+  },
+
+  syncDrafts: async (): Promise<GmailSyncResult> => {
+    const { data } = await axiosInstance.post<GmailSyncResult>('/api/emails/drafts/sync', null, {
+      timeout: 60_000,
+    });
     return data;
   },
 
@@ -83,6 +91,22 @@ export const emailApi = {
     return data;
   },
 
+  markAllRead: async (): Promise<{ updated: number; message?: string }> => {
+    const { data } = await axiosInstance.patch<{ updated: number; message?: string }>('/api/emails/read-all');
+    return data;
+  },
+
+  bulk: async (
+    ids: number[],
+    action: 'READ' | 'UNREAD' | 'STAR' | 'UNSTAR' | 'ARCHIVE' | 'TRASH',
+  ): Promise<{ updated: number; skipped?: number; action: string }> => {
+    const { data } = await axiosInstance.post<{ updated: number; skipped?: number; action: string }>(
+      '/api/emails/bulk',
+      { ids, action },
+    );
+    return data;
+  },
+
   markRead: async (id: number): Promise<void> => {
     await axiosInstance.patch(`/api/emails/${id}/read`);
   },
@@ -134,6 +158,11 @@ export const emailApi = {
 
   getEmailThread: async (threadId: string): Promise<any[]> => {
     const { data } = await axiosInstance.get<any[]>(`/api/emails/thread/${threadId}`);
+    return data;
+  },
+
+  getShared: async (params?: { page?: number; size?: number }): Promise<EmailPage> => {
+    const { data } = await axiosInstance.get<EmailPage>('/api/emails/shared', { params });
     return data;
   },
 };

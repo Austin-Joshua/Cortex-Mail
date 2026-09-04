@@ -10,7 +10,9 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
       connection-timeout: 30000
+      leak-detection-threshold: 60000
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: false
@@ -35,7 +37,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 server:
   port: ${PORT:8080}

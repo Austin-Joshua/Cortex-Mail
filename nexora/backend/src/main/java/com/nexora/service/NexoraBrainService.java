@@ -45,11 +45,10 @@ public class NexoraBrainService {
             throw new NexoraException("User not found", 404);
         }
 
-        // Step 1: Fetch last 20 emails
-        List<Email> recentEmails = emailRepository.findTop20ByUserIdOrderByReceivedAtDesc(userId);
+        // Retrieve: keyword search over the mailbox, then recent mail as fallback (RAG-lite).
+        List<Email> retrieved = retrieveRelevantMail(userId, userQuery);
 
-        // Step 2: Build context
-        String emailContext = buildEmailContext(recentEmails);
+        String emailContext = buildEmailContext(retrieved);
 
         // Step 3: Call Gemini (keyword fallback if key unset)
         String systemPrompt = """
@@ -61,11 +60,11 @@ User's email history:
 
         String answer = classificationService.generateBrainAnswer(systemPrompt, userQuery);
         if (answer == null) {
-            answer = generateLocalBrainAnswer(recentEmails, userQuery);
+            answer = generateLocalBrainAnswer(retrieved, userQuery);
         }
 
         // Step 4: Find referenced emails (simple keyword match)
-        List<Email> referenced = findReferencedEmails(recentEmails, userQuery, answer);
+        List<Email> referenced = findReferencedEmails(retrieved, userQuery, answer);
 
         // Step 5: Save conversation
         List<Long> refIds = referenced.stream()
@@ -104,6 +103,27 @@ User's email history:
                     return r;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Keyword retrieval over stored mail (not embeddings). Caps context so Gemini
+     * stays fast while answers still come from the user's actual mailbox.
+     */
+    private List<Email> retrieveRelevantMail(Long userId, String userQuery) {
+        LinkedHashMap<Long, Email> byId = new LinkedHashMap<>();
+        String hay = userQuery != null ? userQuery.trim() : "";
+        if (hay.length() >= 3) {
+            String token = hay.length() > 80 ? hay.substring(0, 80) : hay;
+            for (Email e : emailRepository.searchByUserId(
+                    userId, token, org.springframework.data.domain.PageRequest.of(0, 30)).getContent()) {
+                if (e.getId() != null) byId.put(e.getId(), e);
+            }
+        }
+        for (Email e : emailRepository.findTop80ByUserIdOrderByReceivedAtDesc(userId)) {
+            if (e.getId() != null) byId.putIfAbsent(e.getId(), e);
+        }
+        List<Email> out = new ArrayList<>(byId.values());
+        return out.size() > 40 ? out.subList(0, 40) : out;
     }
 
     private String buildEmailContext(List<Email> emails) {

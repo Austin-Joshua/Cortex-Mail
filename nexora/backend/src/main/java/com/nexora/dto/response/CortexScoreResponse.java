@@ -16,6 +16,9 @@ public class CortexScoreResponse {
     private boolean ready;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String statusMessage;
+    /** One concrete next step for the signed-in mailbox — never generic filler. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String nextAction;
 
     public CortexScoreResponse() {}
 
@@ -48,6 +51,9 @@ public class CortexScoreResponse {
 
     public String getStatusMessage() { return statusMessage; }
     public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
+
+    public String getNextAction() { return nextAction; }
+    public void setNextAction(String nextAction) { this.nextAction = nextAction; }
 
     public static class Factor {
         private String key;
@@ -96,12 +102,14 @@ public class CortexScoreResponse {
         private List<Factor> factors = new ArrayList<>();
         private boolean ready = false;
         private String statusMessage;
+        private String nextAction;
 
         public CortexScoreResponseBuilder score(int score) { this.score = score; return this; }
         public CortexScoreResponseBuilder band(String band) { this.band = band; return this; }
         public CortexScoreResponseBuilder factors(List<Factor> factors) { this.factors = factors; return this; }
         public CortexScoreResponseBuilder ready(boolean ready) { this.ready = ready; return this; }
         public CortexScoreResponseBuilder statusMessage(String statusMessage) { this.statusMessage = statusMessage; return this; }
+        public CortexScoreResponseBuilder nextAction(String nextAction) { this.nextAction = nextAction; return this; }
 
         public CortexScoreResponse build() {
             CortexScoreResponse response = new CortexScoreResponse();
@@ -110,6 +118,7 @@ public class CortexScoreResponse {
             response.factors = factors != null ? factors : new ArrayList<>();
             response.ready = ready;
             response.statusMessage = statusMessage;
+            response.nextAction = ready ? nextAction : null;
             return response;
         }
     }

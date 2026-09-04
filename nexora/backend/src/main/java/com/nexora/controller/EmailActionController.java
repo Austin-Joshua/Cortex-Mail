@@ -1,5 +1,6 @@
 package com.nexora.controller;
 
+import com.nexora.security.AuthPrincipals;
 import com.nexora.security.UserPrincipal;
 import com.nexora.repository.EmailActionRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ public class EmailActionController {
     public ResponseEntity<Void> completeAction(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal user) {
-        emailActionRepository.findByIdAndUserId(id, user.getId())
+        emailActionRepository.findByIdAndUserId(id, AuthPrincipals.requireId(user))
             .ifPresent(action -> {
                 action.setIsCompleted(true);
                 emailActionRepository.save(action);

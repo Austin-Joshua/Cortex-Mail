@@ -3,6 +3,7 @@ package com.nexora.controller;
 import com.nexora.dto.ApiResponse;
 import com.nexora.dto.request.TemplateRequest;
 import com.nexora.dto.response.TemplateResponse;
+import com.nexora.security.AuthPrincipals;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.EmailTemplateService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class EmailTemplatesController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<TemplateResponse>>> getTemplates(
             @AuthenticationPrincipal UserPrincipal user) {
-        return ResponseEntity.ok(ApiResponse.success(templateService.getUserTemplates(user.getId())));
+        return ResponseEntity.ok(ApiResponse.success(templateService.getUserTemplates(AuthPrincipals.requireId(user))));
     }
 
     @PostMapping
@@ -31,7 +32,7 @@ public class EmailTemplatesController {
             @RequestBody TemplateRequest request,
             @AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResponse.success(templateService.createTemplate(user.getId(), request)));
+                ApiResponse.success(templateService.createTemplate(AuthPrincipals.requireId(user), request)));
     }
 
     @PutMapping("/{id}")
@@ -40,14 +41,14 @@ public class EmailTemplatesController {
             @RequestBody TemplateRequest request,
             @AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.ok(ApiResponse.success(
-                templateService.updateTemplate(user.getId(), id, request)));
+                templateService.updateTemplate(AuthPrincipals.requireId(user), id, request)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTemplate(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal user) {
-        templateService.deleteTemplate(user.getId(), id);
+        templateService.deleteTemplate(AuthPrincipals.requireId(user), id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -56,6 +57,6 @@ public class EmailTemplatesController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.ok(ApiResponse.success(
-                templateService.recordUsage(user.getId(), id)));
+                templateService.recordUsage(AuthPrincipals.requireId(user), id)));
     }
 }

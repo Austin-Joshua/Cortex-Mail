@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Flame, Inbox } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
 import { Tile, TileHead } from '../components/bento/Tile';
@@ -22,6 +22,14 @@ export const PriorityInboxPage: React.FC = () => {
     queryFn: () => priorityApi.getPriority(80),
     staleTime: 30_000,
   });
+
+  const { data: suggestions = [] } = useQuery({
+    queryKey: queryKeys.prioritySuggestions,
+    queryFn: priorityApi.getSuggestions,
+    staleTime: 30_000,
+  });
+
+  const queryClient = useQueryClient();
 
   const banded = useMemo(() => {
     return BANDS.map((band) => ({
@@ -112,6 +120,20 @@ export const PriorityInboxPage: React.FC = () => {
                         {CAT_COLORS[e.category]?.label ?? 'Other'}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="vbtn vbtn-bare"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        const action = e.isImportant ? priorityApi.unflag(e.id) : priorityApi.flag(e.id);
+                        void action.then(() => {
+                          queryClient.invalidateQueries({ queryKey: queryKeys.emailPriority });
+                          queryClient.invalidateQueries({ queryKey: queryKeys.emails });
+                        });
+                      }}
+                    >
+                      {e.isImportant ? 'Unflag' : 'Flag'}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -120,6 +142,22 @@ export const PriorityInboxPage: React.FC = () => {
             )}
           </Tile>
         ))}
+        {suggestions.length > 0 && (
+          <Tile span={12} index={4}>
+            <TileHead label="Due this week" icon={<Flame size={17} />} tone="var(--v-ember)" />
+            <div className="stream">
+              {suggestions.map((e) => (
+                <div key={e.id} className="stream-row" onClick={() => navigate(`/emails/${e.id}`)}>
+                  <span className="dot" style={{ ['--dot']: 'var(--v-ember)' } as React.CSSProperties} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="truncate" style={{ fontSize: 13, fontWeight: 700 }}>{e.subject || '(no subject)'}</div>
+                    <div className="v-meta truncate">{e.senderName || e.senderEmail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Tile>
+        )}
       </div>
     </AppShell>
   );

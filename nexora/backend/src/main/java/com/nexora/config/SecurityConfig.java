@@ -43,6 +43,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/google", "/api/auth/google/callback", "/api/auth/token").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/**", "/h2-console/**").denyAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
             )

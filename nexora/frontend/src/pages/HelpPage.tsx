@@ -21,6 +21,10 @@ const CATEGORIES = [
         q: 'Which providers work?',
         a: 'Gmail today. Outlook and Yahoo are not supported yet.',
       },
+      {
+        q: 'How is this different from Gmail or Superhuman?',
+        a: 'Gmail is the mailbox. Superhuman and Spark make reading faster. Cortex Mail is a next-action layer on your Gmail: a score that points at Flagged, dates, or follow-ups, and groups that follow this inbox — not a generic student or job profile.',
+      },
     ],
   },
   {
@@ -30,15 +34,15 @@ const CATEGORIES = [
     items: [
       {
         q: 'What is the Cortex Score?',
-        a: 'It starts at 100 and is debited by the three things that slow you down: unread backlog, open action items, and overdue deadlines. It moves as you clear them — there is nothing to configure.',
+        a: 'It starts at 100 and is debited by unread, flagged, and starred mail in Gmail, plus real inbox follow-ups, overdue dates written in messages, and meetings due today. Home shows the next step. Trash, spam, drafts, and promo dates do not count.',
       },
       {
         q: 'What are flow zones?',
         a: 'Fixed bands across your working day. Deep Focus and Reflection mute notifications; Collaboration and Rapid Fire let them through.',
       },
       {
-        q: 'How does Priority rank mail?',
-        a: 'Unread mail is sorted into Act now, Today and When clear based on the priority the classifier assigned, then by how recently it arrived.',
+        q: 'How does grouping work?',
+        a: 'Gmail labels win first. Then Cortex remembers how you already grouped that sender. Specialty tabs (Tasks, Events, Placement) only appear if this mailbox already has that kind of mail — or the sender is clearly academic and the message is a real assignment.',
       },
     ],
   },

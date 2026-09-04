@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveSyncChip } from './syncChip';
-import { unwrapApiList } from './unwrapApiList';
+import { unwrapApiList, unwrapApiData } from './unwrapApiList';
 import { getVisibleInboxDivisions } from './inboxDivisions';
 
 describe('resolveSyncChip', () => {
@@ -54,13 +54,23 @@ describe('unwrapApiList', () => {
   });
 });
 
+describe('unwrapApiData', () => {
+  it('unwraps { data } envelopes', () => {
+    expect(unwrapApiData({ data: { id: 3 } })).toEqual({ id: 3 });
+    expect(unwrapApiData({ id: 4 })).toEqual({ id: 4 });
+  });
+});
+
 describe('getVisibleInboxDivisions', () => {
-  it('uses universal task/opportunity labels', () => {
+  it('keeps Gmail tabs and only shows Cortex groups this mailbox filled', () => {
     const tabs = getVisibleInboxDivisions(undefined, {
       ASSIGNMENT: 2,
       PLACEMENT: 1,
     });
+    expect(tabs.find((t) => t.key === 'PRIMARY')?.label).toBe('Primary');
+    expect(tabs.find((t) => t.key === 'UNREAD')?.label).toBe('Unread');
     expect(tabs.find((t) => t.key === 'ASSIGNMENT')?.label).toBe('Tasks');
     expect(tabs.find((t) => t.key === 'PLACEMENT')?.label).toBe('Opportunities');
+    expect(tabs.find((t) => t.key === 'RESEARCH')).toBeUndefined();
   });
 });

@@ -8,6 +8,7 @@ public class DashboardSummaryResponse {
     private List<EmailResponse> upcomingDeadlines;
     private List<ActionItemResponse> pendingActions;
     private long unreadCount;
+    private long storedEmailCount;
     private Map<String, Long> categoryCounts;
     private Map<String, GmailLabelCountResponse> gmailLabelCounts;
     private List<EmailResponse> todaysMeetings;
@@ -56,6 +57,14 @@ public class DashboardSummaryResponse {
 
     public void setUnreadCount(long unreadCount) {
         this.unreadCount = unreadCount;
+    }
+
+    public long getStoredEmailCount() {
+        return storedEmailCount;
+    }
+
+    public void setStoredEmailCount(long storedEmailCount) {
+        this.storedEmailCount = storedEmailCount;
     }
 
     public Map<String, Long> getCategoryCounts() {
@@ -250,6 +259,7 @@ public class DashboardSummaryResponse {
         private List<EmailResponse> upcomingDeadlines;
         private List<ActionItemResponse> pendingActions;
         private long unreadCount;
+        private long storedEmailCount;
         private Map<String, Long> categoryCounts;
         private Map<String, GmailLabelCountResponse> gmailLabelCounts;
         private List<EmailResponse> todaysMeetings;
@@ -274,6 +284,11 @@ public class DashboardSummaryResponse {
 
         public DashboardSummaryResponseBuilder unreadCount(long unreadCount) {
             this.unreadCount = unreadCount;
+            return this;
+        }
+
+        public DashboardSummaryResponseBuilder storedEmailCount(long storedEmailCount) {
+            this.storedEmailCount = storedEmailCount;
             return this;
         }
 
@@ -303,6 +318,7 @@ public class DashboardSummaryResponse {
             r.upcomingDeadlines = this.upcomingDeadlines;
             r.pendingActions = this.pendingActions;
             r.unreadCount = this.unreadCount;
+            r.storedEmailCount = this.storedEmailCount;
             r.categoryCounts = this.categoryCounts;
             r.gmailLabelCounts = this.gmailLabelCounts;
             r.todaysMeetings = this.todaysMeetings;

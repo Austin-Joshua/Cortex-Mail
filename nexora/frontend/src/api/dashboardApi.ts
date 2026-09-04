@@ -14,6 +14,7 @@ interface CortexScore {
   factors: CortexScoreFactor[];
   ready?: boolean;
   statusMessage?: string;
+  nextAction?: string;
 }
 
 export interface DashboardSummary {
@@ -21,6 +22,7 @@ export interface DashboardSummary {
   upcomingDeadlines: any[];
   pendingActions: any[];
   unreadCount: number;
+  storedEmailCount?: number;
   categoryCounts: Record<string, number>;
   gmailLabelCounts?: Record<string, GmailLabelCount>;
   todaysMeetings: any[];

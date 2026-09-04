@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { Email } from '../../types/Email';
 import { CategoryTag } from '../common/CategoryTag';
 import { PriorityBars } from '../common/PriorityBars';
 import { Star, Mail, MailOpen, Brain } from 'lucide-react';
-import { useEmailStore } from '../../store/emailStore';
 import { emailApi } from '../../api/emailApi';
 import { queryKeys } from '../../api/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,6 +12,9 @@ interface EmailCardProps {
   email: Email;
   onClick?: () => void;
   isSelected?: boolean;
+  checked?: boolean;
+  selectable?: boolean;
+  onToggleSelect?: (id: number) => void;
 }
 
 function formatGmailDate(dateStr: string): string {
@@ -33,30 +35,29 @@ function formatGmailDate(dateStr: string): string {
   }
 }
 
-export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick, isSelected }) => {
-  const { setSelectedEmail } = useEmailStore();
+export const EmailCard: React.FC<EmailCardProps> = React.memo(({
+  email,
+  onClick,
+  isSelected,
+  checked = false,
+  selectable = false,
+  onToggleSelect,
+}) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [isChecked, setIsChecked] = useState(false);
 
   const isUnread = !email.isRead;
-  const isHighPriority = email.priority === 'HIGH';
+  const starred = Boolean(email.isStarred);
 
-  const handleClick = async () => {
+  const invalidateMailbox = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.emails });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
+    queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
+    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+  };
+
+  const handleClick = () => {
     onClick?.();
-    if (!email.isRead) {
-      try {
-        await emailApi.markRead(email.id);
-        setSelectedEmail({ ...email, isRead: true });
-        queryClient.invalidateQueries({ queryKey: queryKeys.emails });
-        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
-        queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
-      } catch {
-        setSelectedEmail(email);
-      }
-    } else {
-      setSelectedEmail(email);
-    }
   };
 
   const handleToggleRead = async (e: React.MouseEvent) => {
@@ -67,10 +68,16 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
       } else {
         await emailApi.markRead(email.id);
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.emails });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary });
-      queryClient.invalidateQueries({ queryKey: queryKeys.gmailLabelCounts });
-    } catch {}
+      invalidateMailbox();
+    } catch { /* keep current row */ }
+  };
+
+  const handleToggleStar = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await emailApi.setStarred(email.id, !starred);
+      invalidateMailbox();
+    } catch { /* keep current row */ }
   };
 
   const handleAskBrain = (e: React.MouseEvent) => {
@@ -90,28 +97,46 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
           : 'var(--color-surface)',
       }}
     >
-      <div
-        onClick={(e) => { e.stopPropagation(); setIsChecked(!isChecked); }}
-        style={{ padding: '0 8px 0 0', display: 'flex', alignItems: 'center' }}
-      >
-        <input
-          type="checkbox"
-          checked={isChecked}
-          onChange={() => {}}
-          style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)' }}
-        />
-      </div>
+      {selectable && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect?.(email.id);
+          }}
+          style={{ padding: '0 8px 0 0', display: 'flex', alignItems: 'center' }}
+        >
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => onToggleSelect?.(email.id)}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={checked ? 'Deselect message' : 'Select message'}
+            style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)' }}
+          />
+        </div>
+      )}
 
-      <div style={{ padding: '0 12px 0 0', display: 'flex', alignItems: 'center' }} title={isHighPriority ? 'AI-flagged as High Priority' : 'Normal Priority'}>
+      <button
+        type="button"
+        onClick={handleToggleStar}
+        title={starred ? 'Unstar' : 'Star'}
+        style={{
+          padding: '0 12px 0 0',
+          display: 'flex',
+          alignItems: 'center',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+        }}
+      >
         <Star
           size={18}
           style={{
-            color: isHighPriority ? 'var(--color-star)' : 'var(--color-star-muted)',
-            fill: isHighPriority ? 'var(--color-star)' : 'transparent',
-            cursor: 'pointer',
+            color: starred ? 'var(--color-star)' : 'var(--color-star-muted)',
+            fill: starred ? 'var(--color-star)' : 'transparent',
           }}
         />
-      </div>
+      </button>
 
       <div
         style={{
@@ -199,6 +224,7 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
         }}
       >
         <button
+          type="button"
           onClick={handleToggleRead}
           title={email.isRead ? 'Mark as unread' : 'Mark as read'}
           style={{
@@ -214,6 +240,7 @@ export const EmailCard: React.FC<EmailCardProps> = React.memo(({ email, onClick,
         </button>
 
         <button
+          type="button"
           onClick={handleAskBrain}
           title="Ask Cortex Brain about this email"
           style={{

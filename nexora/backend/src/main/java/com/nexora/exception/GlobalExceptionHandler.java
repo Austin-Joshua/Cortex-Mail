@@ -2,6 +2,7 @@ package com.nexora.exception;
 
 import lombok.extern.slf4j.Slf4j;
 
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
@@ -39,6 +40,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         return buildError("Access denied", 403, "FORBIDDEN", newRequestId());
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<Map<String, Object>> handleRateLimited(RequestNotPermitted ex) {
+        return buildError(
+                "You have reached the query limit of 20 per hour. Please try again later.",
+                429,
+                "RATE_LIMITED",
+                newRequestId());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -89,6 +99,7 @@ public class GlobalExceptionHandler {
             case 403 -> "FORBIDDEN";
             case 404 -> "NOT_FOUND";
             case 409 -> "CONFLICT";
+            case 429 -> "RATE_LIMITED";
             case 502 -> "UPSTREAM_ERROR";
             default -> "REQUEST_FAILED";
         };

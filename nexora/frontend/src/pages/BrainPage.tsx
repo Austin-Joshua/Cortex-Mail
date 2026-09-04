@@ -59,7 +59,7 @@ export const BrainPage: React.FC = () => {
   };
 
   return (
-    <AppShell title="Cortex Brain" subtitle="Ask questions about your synced Gmail — answers cite real messages" noScroll flush>
+    <AppShell title="Cortex Brain" subtitle="Ask about your mailbox — Cortex searches stored mail, then answers from those messages" noScroll flush>
       <div
         className={`brain-layout${historyOpen ? ' brain-layout--history-open' : ''}`}
         style={{

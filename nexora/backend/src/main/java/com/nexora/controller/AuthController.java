@@ -2,6 +2,7 @@ package com.nexora.controller;
 
 import com.nexora.dto.request.ProfileUpdateRequest;
 import com.nexora.dto.response.AuthResponse;
+import com.nexora.security.AuthPrincipals;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.AuthService;
 import com.nexora.service.OauthExchangeService;
@@ -124,20 +125,20 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<AuthResponse> getCurrentUser(@AuthenticationPrincipal UserPrincipal user) {
-        return ResponseEntity.ok(authService.getProfile(user.getId()));
+        return ResponseEntity.ok(authService.getProfile(AuthPrincipals.requireId(user)));
     }
 
     @PutMapping("/profile")
     public ResponseEntity<AuthResponse> updateProfile(
             @AuthenticationPrincipal UserPrincipal user,
             @Valid @RequestBody ProfileUpdateRequest request) {
-        AuthResponse response = authService.updateProfile(user.getId(), request.getUserRole(), request.getCalendarSyncEnabled());
+        AuthResponse response = authService.updateProfile(AuthPrincipals.requireId(user), request.getUserRole(), request.getCalendarSyncEnabled());
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/revoke")
     public ResponseEntity<Void> revokeAccess(@AuthenticationPrincipal UserPrincipal user) {
-        authService.revokeAccess(user.getId());
+        authService.revokeAccess(AuthPrincipals.requireId(user));
         return ResponseEntity.ok().build();
     }
 }

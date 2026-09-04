@@ -20,6 +20,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -62,6 +63,21 @@ public class EmailClassificationService {
     private final RestTemplate restTemplate;
     private final TransactionTemplate persistTransaction;
     private final java.util.concurrent.Semaphore geminiSemaphore;
+    private final java.util.concurrent.ConcurrentHashMap<Long, CachedMailboxSignals> mailboxSignalCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record MailboxSignals(Map<String, EmailCategory> senderMemory, Set<EmailCategory> presentCategories) {
+        EmailCategory categoryForSender(String sender) {
+            if (sender == null) return null;
+            return senderMemory.get(sender.toLowerCase(Locale.ROOT));
+        }
+
+        boolean knowsSpecialty(EmailCategory category) {
+            return category != null && presentCategories.contains(category);
+        }
+    }
+
+    private record CachedMailboxSignals(MailboxSignals signals, long loadedAtMs) {}
 
     public EmailClassificationService(GeminiConfig geminiConfig,
                                       EmailRepository emailRepository,
@@ -81,6 +97,7 @@ public class EmailClassificationService {
         int maxGeminiInFlight = Math.max(1, Math.min(geminiConfig.getMaxConcurrent(), 2));
         this.geminiSemaphore = new java.util.concurrent.Semaphore(maxGeminiInFlight);
         this.persistTransaction = new TransactionTemplate(transactionManager);
+        this.persistTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(15_000);
         factory.setReadTimeout(90_000);
@@ -94,7 +111,7 @@ public class EmailClassificationService {
             try {
                 Email email = emailRepository.findOwnedByIdAndUserId(emailId, user.getId()).orElse(null);
                 if (email == null) return;
-                classifyAndPersist(email, user, GeminiUse.ALWAYS);
+                classifyAndPersist(email, user, GeminiUse.SELECTIVE);
                 log.info("Classified email {} as {} / {}", emailId, email.getCategory(), email.getPriority());
             } catch (Exception e) {
                 log.error("Classification failed for email {}: {}", emailId, e.getMessage());
@@ -278,6 +295,7 @@ Body:
         }
 
         recategorizeMarketingMislabels(userId);
+        mailboxSignalCache.remove(userId);
 
         final int batchSize = 250;
         int totalClassified = 0;
@@ -304,6 +322,7 @@ Body:
 
             int classifiedThisPass = 0;
             Set<Long> seen = new HashSet<>();
+            List<Email> toSave = new ArrayList<>();
             for (Email email : toClassify) {
                 if (email.getId() != null && !seen.add(email.getId())) continue;
                 if (Boolean.TRUE.equals(email.getIsDraft())) continue;
@@ -311,12 +330,20 @@ Body:
                     continue;
                 }
                 try {
-                    if (applySourceContentClassification(email, user)) {
+                    EmailCategory before = email.getCategory();
+                    classifyLocalInPlace(email, user);
+                    if (email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED
+                            && email.getCategory() != before) {
                         classifiedThisPass++;
                     }
+                    toSave.add(email);
                 } catch (Exception e) {
                     log.warn("Local classify failed for email {}: {}", email.getId(), e.getMessage());
                 }
+            }
+            if (!toSave.isEmpty()) {
+                persistTransaction.executeWithoutResult(status -> emailRepository.saveAll(toSave));
+                mailboxSignalCache.remove(userId);
             }
             totalClassified += classifiedThisPass;
             long remaining = emailRepository.countByUserIdAndCategoryAndInInboxTrue(
@@ -466,8 +493,51 @@ Body:
     }
 
     private boolean applySourceContentClassification(Email email, User user) {
-        classifyAndPersist(email, user, GeminiUse.NONE);
-        return email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED;
+        EmailCategory before = email.getCategory();
+        classifyLocalInPlace(email, user);
+        persistTransaction.executeWithoutResult(status -> emailRepository.save(email));
+        return email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED
+                && email.getCategory() != before;
+    }
+
+    /**
+     * Fast local grouping (Gmail labels + keywords). No HTTP, no extra JDBC until the caller saves.
+     * Used during Gmail upsert so inbox tabs and Cortex Score fill as mail is stored.
+     */
+    public void classifyLocalInPlace(Email email, User user) {
+        if (email == null || user == null) return;
+        if (Boolean.TRUE.equals(email.getIsDraft())) return;
+
+        MailboxSignals signals = mailboxSignals(user.getId());
+        EmailCategory gmailTab = categoryFromGmailLabels(email);
+        if (gmailTab == EmailCategory.SPAM || gmailTab == EmailCategory.PROMOTIONAL) {
+            email.setCategory(gmailTab);
+            email.setPriority(Boolean.TRUE.equals(email.getIsImportant()) ? Priority.MEDIUM : Priority.LOW);
+            return;
+        }
+
+        if (email.getCategory() != null && email.getCategory() != EmailCategory.UNCATEGORIZED) {
+            email.setCategory(groundCategoryInGmail(email.getCategory(), email));
+            return;
+        }
+
+        EmailCategory remembered = signals.categoryForSender(email.getSenderEmail());
+        if (remembered != null && remembered != EmailCategory.UNCATEGORIZED
+                && isCompatibleWithGmailTab(remembered, gmailTab)
+                && allowResolvedCategory(remembered, email, signals)) {
+            email.setCategory(groundCategoryInGmail(remembered, email));
+            if (email.getPriority() == null) {
+                email.setPriority(Boolean.TRUE.equals(email.getIsImportant()) ? Priority.HIGH : Priority.MEDIUM);
+            }
+            if (email.getAiSummary() == null) {
+                email.setAiSummary("Grouped like earlier mail from this sender in your inbox.");
+            }
+            return;
+        }
+
+        User.UserRole role = user.getUserRole() != null ? user.getUserRole() : User.UserRole.STUDENT;
+        JsonNode result = parseJson(getLocalFallbackResponse(email, role, signals));
+        applyClassificationFields(email, user, result, false);
     }
 
     /**
@@ -485,7 +555,7 @@ Body:
 
         User.UserRole role = user.getUserRole() != null ? user.getUserRole() : User.UserRole.STUDENT;
         String body = emailBodyForClassification(email);
-        JsonNode result = parseJson(getLocalFallbackResponse(email, role));
+        JsonNode result = parseJson(getLocalFallbackResponse(email, role, mailboxSignals(userId)));
         if (result == null) {
             log.warn("Local fallback produced no JSON for email {}", emailId);
             return;
@@ -512,7 +582,8 @@ Body:
                 log.warn("Email {} removed before classification persist", emailId);
                 return;
             }
-            persistClassificationResult(managed, batchUser, finalResult);
+            applyClassificationFields(managed, batchUser, finalResult, true);
+            persistClassificationSideEffects(managed, batchUser, finalResult);
             syncClassificationFields(managed, email);
         });
     }
@@ -538,17 +609,29 @@ Body:
         return RoleClassificationProfile.worthGeminiRefinement(category, summary, email, role);
     }
 
-    private void persistClassificationResult(Email email, User user, JsonNode result) {
+    /** Category / priority / summary / deadline only — no action rows or calendar. */
+    private void applyClassificationFields(Email email, User user, JsonNode result, boolean overwriteExisting) {
         User.UserRole role = user.getUserRole() != null ? user.getUserRole() : User.UserRole.STUDENT;
+        MailboxSignals signals = mailboxSignals(user.getId());
+        EmailCategory gmailTab = categoryFromGmailLabels(email);
 
         EmailCategory parsed = result != null ? parseCategory(result) : EmailCategory.UNCATEGORIZED;
-        EmailCategory resolved = RoleClassificationProfile.resolveCategory(parsed, email, role);
-        if (resolved == EmailCategory.UNCATEGORIZED) {
-            resolved = RoleClassificationProfile.inferFromGmailAndSender(email, role);
-            log.debug("Gmail fallback category {} applied to email {}", resolved, email.getId());
+        EmailCategory resolved = parsed != null ? parsed : EmailCategory.UNCATEGORIZED;
+        if (resolved == EmailCategory.UNCATEGORIZED
+                || !allowResolvedCategory(resolved, email, signals)
+                || !isCompatibleWithGmailTab(resolved, gmailTab)) {
+            EmailCategory remembered = signals.categoryForSender(email.getSenderEmail());
+            if (remembered != null && allowResolvedCategory(remembered, email, signals)
+                    && isCompatibleWithGmailTab(remembered, gmailTab)) {
+                resolved = remembered;
+            } else {
+                resolved = RoleClassificationProfile.inferFromGmailAndSender(email, role);
+            }
         }
-        resolved = groundCategoryInGmail(resolved, email);
-        email.setCategory(resolved);
+        resolved = constrainToMailbox(resolved, email, signals);
+        if (overwriteExisting || email.getCategory() == null || email.getCategory() == EmailCategory.UNCATEGORIZED) {
+            email.setCategory(resolved);
+        }
 
         Priority priority = result != null
                 ? parsePriority(result)
@@ -561,21 +644,31 @@ Body:
         email.setPriority(priority);
 
         if (result != null) {
-            email.setAiSummary(getText(result, "summary"));
-            email.setAiActionItems(result.has("action_items") ? result.get("action_items").toString() : null);
+            if (email.getAiSummary() == null || overwriteExisting) {
+                email.setAiSummary(getText(result, "summary"));
+            }
+            email.setAiActionItems(result.has("action_items") ? result.get("action_items").toString() : email.getAiActionItems());
 
             String deadlineStr = getText(result, "deadline");
             if (deadlineStr != null && !deadlineStr.equalsIgnoreCase("null")) {
                 LocalDateTime deadline = groundedDeadline(deadlineStr, email);
-                if (deadline != null) {
+                if (deadline != null && (email.getDeadlineDetected() == null || overwriteExisting)) {
                     email.setDeadlineDetected(deadline);
                 }
             }
         }
+    }
 
+    private void persistClassificationSideEffects(Email email, User user, JsonNode result) {
         emailRepository.save(email);
+        if (user.getId() != null) {
+            mailboxSignalCache.remove(user.getId());
+        }
 
-        boolean skipActions = resolved == EmailCategory.SPAM || resolved == EmailCategory.PROMOTIONAL;
+        EmailCategory resolved = email.getCategory();
+        boolean skipActions = resolved == EmailCategory.SPAM || resolved == EmailCategory.PROMOTIONAL
+                || ((resolved == EmailCategory.PERSONAL || resolved == EmailCategory.ANNOUNCEMENT)
+                && email.getDeadlineDetected() == null);
         if (!skipActions && result != null && result.has("action_items") && result.get("action_items").isArray()) {
             saveActionItems(result.get("action_items"), email, user.getId());
         }
@@ -606,6 +699,80 @@ Body:
      * Gmail SPAM / PROMOTIONS labels win over keyword or Gemini academic guesses.
      * Receipts in Promotions keep a FINANCE/MEETING classification.
      */
+    /** Gmail's own tab for this message — wins over sender memory and keywords. Primary stays null. */
+    private static EmailCategory categoryFromGmailLabels(Email email) {
+        String labels = email.getGmailLabelIds() != null ? email.getGmailLabelIds().toUpperCase(Locale.ROOT) : "";
+        if (labels.contains("SPAM")) return EmailCategory.SPAM;
+        if (labels.contains("CATEGORY_PROMOTIONS")) return EmailCategory.PROMOTIONAL;
+        if (labels.contains("CATEGORY_PURCHASES")) return EmailCategory.FINANCE;
+        if (labels.contains("CATEGORY_SOCIAL")) return EmailCategory.PERSONAL;
+        if (labels.contains("CATEGORY_FORUMS")) return EmailCategory.ANNOUNCEMENT;
+        if (labels.contains("CATEGORY_UPDATES")) return EmailCategory.ANNOUNCEMENT;
+        return null;
+    }
+
+    private static boolean isCompatibleWithGmailTab(EmailCategory category, EmailCategory gmailTab) {
+        if (category == null || category == EmailCategory.UNCATEGORIZED) return false;
+        if (gmailTab == null) {
+            return category != EmailCategory.SPAM;
+        }
+        if (gmailTab == EmailCategory.SPAM) {
+            return category == EmailCategory.SPAM;
+        }
+        if (gmailTab == EmailCategory.PROMOTIONAL) {
+            return category == EmailCategory.PROMOTIONAL
+                    || category == EmailCategory.FINANCE
+                    || category == EmailCategory.MEETING;
+        }
+        if (gmailTab == EmailCategory.PERSONAL) {
+            return category == EmailCategory.PERSONAL || category == EmailCategory.MEETING;
+        }
+        if (gmailTab == EmailCategory.ANNOUNCEMENT) {
+            return category == EmailCategory.ANNOUNCEMENT
+                    || category == EmailCategory.MEETING
+                    || category == EmailCategory.FINANCE;
+        }
+        if (gmailTab == EmailCategory.FINANCE) {
+            return category == EmailCategory.FINANCE;
+        }
+        return category != EmailCategory.SPAM && category != EmailCategory.PROMOTIONAL;
+    }
+
+    private static boolean isSpecialtyCategory(EmailCategory category) {
+        return category == EmailCategory.ASSIGNMENT
+                || category == EmailCategory.PLACEMENT
+                || category == EmailCategory.INTERNSHIP
+                || category == EmailCategory.HACKATHON
+                || category == EmailCategory.RESEARCH
+                || category == EmailCategory.ATTENDANCE;
+    }
+
+    private static boolean isAcademicSender(Email email) {
+        String sender = email.getSenderEmail() != null ? email.getSenderEmail().toLowerCase(Locale.ROOT) : "";
+        return sender.endsWith(".edu") || sender.contains("university")
+                || sender.contains("college") || sender.contains("canvas.")
+                || sender.contains("moodle") || sender.contains("blackboard")
+                || sender.contains("classroom.google");
+    }
+
+    private static boolean allowResolvedCategory(EmailCategory category, Email email, MailboxSignals signals) {
+        if (category == null || category == EmailCategory.UNCATEGORIZED) return false;
+        if (!isSpecialtyCategory(category)) return true;
+        return allowSpecialty(signals, category, isAcademicSender(email));
+    }
+
+    private static EmailCategory constrainToMailbox(EmailCategory resolved, Email email, MailboxSignals signals) {
+        EmailCategory grounded = groundCategoryInGmail(resolved, email);
+        EmailCategory gmailTab = categoryFromGmailLabels(email);
+        if (allowResolvedCategory(grounded, email, signals) && isCompatibleWithGmailTab(grounded, gmailTab)) {
+            return grounded;
+        }
+        if (gmailTab != null) {
+            return gmailTab;
+        }
+        return RoleClassificationProfile.inferFromGmailAndSender(email, null);
+    }
+
     private static EmailCategory groundCategoryInGmail(EmailCategory resolved, Email email) {
         String labels = email.getGmailLabelIds() != null ? email.getGmailLabelIds().toUpperCase() : "";
         if (labels.contains("SPAM")) {
@@ -634,15 +801,62 @@ Body:
         return body;
     }
 
-    private String getLocalFallbackResponse(Email email, User.UserRole role) {
+    private MailboxSignals mailboxSignals(Long userId) {
+        if (userId == null) {
+            return new MailboxSignals(Map.of(), EnumSet.noneOf(EmailCategory.class));
+        }
+        long now = System.currentTimeMillis();
+        CachedMailboxSignals cached = mailboxSignalCache.get(userId);
+        if (cached != null && now - cached.loadedAtMs() < 60_000) {
+            return cached.signals();
+        }
+        Map<String, EmailCategory> senderMemory = new HashMap<>();
+        Map<String, long[]> senderBest = new HashMap<>();
+        for (Object[] row : emailRepository.countCategoriesBySender(userId)) {
+            if (row[0] == null || row[1] == null) continue;
+            String sender = row[0].toString();
+            EmailCategory category;
+            try {
+                category = row[1] instanceof EmailCategory c ? c : EmailCategory.valueOf(row[1].toString());
+            } catch (Exception ignored) {
+                continue;
+            }
+            long count = row[2] instanceof Number n ? n.longValue() : 0L;
+            if (count < 2) continue;
+            long[] prev = senderBest.get(sender);
+            if (prev == null || count > prev[0]) {
+                senderBest.put(sender, new long[]{count});
+                senderMemory.put(sender, category);
+            }
+        }
+        Set<EmailCategory> present = EnumSet.noneOf(EmailCategory.class);
+        present.addAll(senderMemory.values());
+        for (Object[] row : emailRepository.countByUserIdGroupByCategory(userId)) {
+            if (row[0] == null) continue;
+            try {
+                present.add(row[0] instanceof EmailCategory c ? c : EmailCategory.valueOf(row[0].toString()));
+            } catch (Exception ignored) {
+                // skip unknown
+            }
+        }
+        MailboxSignals signals = new MailboxSignals(Map.copyOf(senderMemory), present);
+        mailboxSignalCache.put(userId, new CachedMailboxSignals(signals, now));
+        return signals;
+    }
+
+    private static boolean allowSpecialty(MailboxSignals signals, EmailCategory category, boolean academicSender) {
+        if (category == null) return false;
+        if (signals != null && signals.knowsSpecialty(category)) return true;
+        return academicSender && (category == EmailCategory.ASSIGNMENT || category == EmailCategory.ATTENDANCE);
+    }
+
+    private String getLocalFallbackResponse(Email email, User.UserRole role, MailboxSignals signals) {
         String subject = (email.getSubject() != null ? email.getSubject() : "").toLowerCase();
-        String body = (email.getBodyFull() != null ? email.getBodyFull()
-                : (email.getBodySnippet() != null ? email.getBodySnippet() : "")).toLowerCase();
+        String clippedBody = emailBodyForClassification(email);
+        String body = clippedBody.toLowerCase();
         String sender = (email.getSenderEmail() != null ? email.getSenderEmail() : "").toLowerCase();
         String labels = (email.getGmailLabelIds() != null ? email.getGmailLabelIds() : "").toUpperCase();
-        String rawText = (email.getSubject() != null ? email.getSubject() : "") + "\n"
-                + (email.getBodyFull() != null ? email.getBodyFull()
-                : (email.getBodySnippet() != null ? email.getBodySnippet() : ""));
+        String rawText = (email.getSubject() != null ? email.getSubject() : "") + "\n" + clippedBody;
 
         String category = "UNCATEGORIZED";
         String priority = Boolean.TRUE.equals(email.getIsImportant()) ? "HIGH" : "MEDIUM";
@@ -654,6 +868,9 @@ Body:
         String deadline = extractExplicitDeadlineIso(rawText);
 
         boolean marketing = isMarketingMail(sender, subject, body, labels);
+        boolean academicSender = sender.endsWith(".edu") || sender.contains("university")
+                || sender.contains("college") || sender.contains("canvas.")
+                || sender.contains("moodle") || sender.contains("blackboard");
 
         // 1) Gmail label source (matches the account's own tabs)
         if (labels.contains("SPAM")) {
@@ -693,19 +910,21 @@ Body:
             category = "FINANCE";
             priority = "MEDIUM";
             actionDesc = "Review purchase notification";
-        } else if (sender.endsWith(".edu") || sender.contains("university") || sender.contains("college")
-                || sender.contains("placement@") || sender.contains("careers@")) {
-            if (subject.contains("placement") || subject.contains("interview") || body.contains("placement")) {
+        } else if (academicSender || sender.contains("placement@") || sender.contains("careers@")) {
+            if ((subject.contains("placement") || subject.contains("interview") || body.contains("placement"))
+                    && allowSpecialty(signals, EmailCategory.PLACEMENT, academicSender)) {
                 category = "PLACEMENT";
                 priority = "HIGH";
                 actionType = "REPLY";
                 actionDesc = "Reply to placement / careers";
-            } else if (looksLikeAssignment(subject, body, sender)) {
+            } else if (looksLikeAssignment(subject, body, sender)
+                    && allowSpecialty(signals, EmailCategory.ASSIGNMENT, academicSender)) {
                 category = "ASSIGNMENT";
                 priority = "HIGH";
                 actionType = "SUBMIT";
                 actionDesc = "Complete and submit your assignment";
-            } else if (subject.contains("attendance") || body.contains("attendance")) {
+            } else if ((subject.contains("attendance") || body.contains("attendance"))
+                    && allowSpecialty(signals, EmailCategory.ATTENDANCE, academicSender)) {
                 category = "ATTENDANCE";
                 priority = "MEDIUM";
                 actionDesc = "Check attendance notice";
@@ -715,18 +934,21 @@ Body:
                 actionDesc = "Review academic notice";
             }
         }
-        // 3) Content keywords
-        else if (looksLikeAssignment(subject, body, sender)) {
+        // 3) Content keywords — specialty buckets only if this mailbox already has them
+        else if (looksLikeAssignment(subject, body, sender)
+                && allowSpecialty(signals, EmailCategory.ASSIGNMENT, academicSender)) {
             category = "ASSIGNMENT";
             priority = "HIGH";
             actionType = "SUBMIT";
             actionDesc = "Complete and submit your assignment";
-        } else if (subject.contains("hackathon") || body.contains("hackathon")) {
+        } else if ((subject.contains("hackathon") || body.contains("hackathon"))
+                && allowSpecialty(signals, EmailCategory.HACKATHON, false)) {
             category = "HACKATHON";
             priority = "HIGH";
             actionType = "REGISTER";
             actionDesc = "Register for the event";
-        } else if (subject.contains("interview") || subject.contains("placement") || body.contains("placement") || body.contains("job offer")) {
+        } else if ((subject.contains("interview") || subject.contains("placement") || body.contains("placement") || body.contains("job offer"))
+                && allowSpecialty(signals, EmailCategory.PLACEMENT, academicSender)) {
             category = "PLACEMENT";
             priority = "HIGH";
             actionType = "REPLY";
@@ -739,11 +961,13 @@ Body:
             priority = "MEDIUM";
             actionType = "ATTEND";
             actionDesc = "Attend the scheduled meeting";
-        } else if (subject.contains("internship") || body.contains("internship")) {
+        } else if ((subject.contains("internship") || body.contains("internship"))
+                && allowSpecialty(signals, EmailCategory.INTERNSHIP, academicSender)) {
             category = "INTERNSHIP";
             priority = "MEDIUM";
             actionDesc = "Review the internship opportunity";
-        } else if (subject.contains("research") || body.contains("research paper") || body.contains("journal")) {
+        } else if ((subject.contains("research") || body.contains("research paper") || body.contains("journal"))
+                && allowSpecialty(signals, EmailCategory.RESEARCH, academicSender)) {
             category = "RESEARCH";
             priority = "MEDIUM";
             actionDesc = "Review research note";
@@ -776,7 +1000,11 @@ Body:
             actionDesc = "Account or service update";
         }
 
-        category = applyRoleCategoryHints(category, role, subject, body, sender, marketing);
+        category = applyRoleCategoryHints(category, role, subject, body, sender, marketing, signals);
+        if ("UNCATEGORIZED".equals(category)) {
+            category = "PERSONAL";
+            actionDesc = "Review this email";
+        }
         summary = enrichSummary(category, email, summary, actionDesc);
 
         if (Boolean.TRUE.equals(email.getIsImportant()) && "LOW".equals(priority)) {
@@ -784,8 +1012,7 @@ Body:
         }
 
         String deadlineJson = deadline == null ? "null" : "\"" + deadline + "\"";
-        boolean actionable = !"PROMOTIONAL".equals(category) && !"SPAM".equals(category)
-                && !"UNCATEGORIZED".equals(category);
+        boolean actionable = deadline != null || isConcreteFollowUpCategory(category);
 
         String actionItemsJson = actionable
                 ? """
@@ -991,8 +1218,7 @@ Body:
         for (Email email : miscategorized) {
             if (email.getId() == null) continue;
             String subject = (email.getSubject() != null ? email.getSubject() : "").toLowerCase();
-            String body = (email.getBodyFull() != null ? email.getBodyFull()
-                    : (email.getBodySnippet() != null ? email.getBodySnippet() : "")).toLowerCase();
+            String body = emailBodyForClassification(email).toLowerCase();
             String sender = (email.getSenderEmail() != null ? email.getSenderEmail() : "").toLowerCase();
             String labels = (email.getGmailLabelIds() != null ? email.getGmailLabelIds() : "").toUpperCase();
             if (isMarketingMail(sender, subject, body, labels) && !looksLikeAssignment(subject, body, sender)) {
@@ -1037,32 +1263,17 @@ Body:
 
     /** Content-based nudges for ambiguous mail — same rules for every account. */
     private String applyRoleCategoryHints(String category, User.UserRole role,
-                                          String subject, String body, String sender, boolean marketing) {
+                                          String subject, String body, String sender, boolean marketing,
+                                          MailboxSignals signals) {
         if (marketing && !"SPAM".equals(category)) {
             return "PROMOTIONAL";
         }
         if (!"UNCATEGORIZED".equals(category)) {
             return category;
         }
-        if (subject.contains("placement") || body.contains("placement")
-                || subject.contains("interview") || subject.contains("job offer")) {
-            return "PLACEMENT";
-        }
-        if (subject.contains("hackathon") || body.contains("hackathon")
-                || subject.contains("conference")) {
-            return "HACKATHON";
-        }
-        if (subject.contains("internship") || body.contains("internship")) {
-            return "INTERNSHIP";
-        }
-        if (looksLikeAssignment(subject, body, sender)) {
-            return "ASSIGNMENT";
-        }
+        boolean academicSender = sender.endsWith(".edu") || sender.contains("university") || sender.contains("college");
         if (subject.contains("invoice") || subject.contains("payment") || body.contains("invoice")) {
             return "FINANCE";
-        }
-        if (subject.contains("research") || body.contains("peer review")) {
-            return "RESEARCH";
         }
         if (subject.contains("meeting") || body.contains("google meet") || body.contains("zoom.us")) {
             return "MEETING";
@@ -1070,8 +1281,26 @@ Body:
         if (subject.contains("incident") || subject.contains("security alert") || body.contains("on-call")) {
             return "ANNOUNCEMENT";
         }
-        if (sender.contains(".edu") || sender.contains("university") || sender.contains("noreply")) {
-            return "ANNOUNCEMENT";
+        if (allowSpecialty(signals, EmailCategory.PLACEMENT, academicSender)
+                && (subject.contains("placement") || body.contains("placement")
+                || subject.contains("interview") || subject.contains("job offer"))) {
+            return "PLACEMENT";
+        }
+        if (allowSpecialty(signals, EmailCategory.HACKATHON, false)
+                && (subject.contains("hackathon") || body.contains("hackathon"))) {
+            return "HACKATHON";
+        }
+        if (allowSpecialty(signals, EmailCategory.INTERNSHIP, academicSender)
+                && (subject.contains("internship") || body.contains("internship"))) {
+            return "INTERNSHIP";
+        }
+        if (allowSpecialty(signals, EmailCategory.ASSIGNMENT, academicSender)
+                && looksLikeAssignment(subject, body, sender)) {
+            return "ASSIGNMENT";
+        }
+        if (allowSpecialty(signals, EmailCategory.RESEARCH, academicSender)
+                && (subject.contains("research") || body.contains("peer review"))) {
+            return "RESEARCH";
         }
         return category;
     }
@@ -1185,6 +1414,23 @@ Body:
         return null;
     }
 
+    private static boolean isConcreteFollowUpCategory(String category) {
+        return "MEETING".equals(category) || "FINANCE".equals(category)
+                || "ASSIGNMENT".equals(category) || "PLACEMENT".equals(category)
+                || "INTERNSHIP".equals(category) || "HACKATHON".equals(category)
+                || "RESEARCH".equals(category) || "ATTENDANCE".equals(category);
+    }
+
+    private static boolean isGenericReviewAction(String description) {
+        String text = description.trim().toLowerCase(Locale.ROOT);
+        return text.equals("review this email")
+                || text.equals("action required")
+                || text.startsWith("personal mail")
+                || text.equals("review the announcement")
+                || text.contains("review when ready")
+                || text.equals("account or service update");
+    }
+
     private void saveActionItems(JsonNode items, Email email, Long userId) {
         if (email.getId() == null || userId == null) {
             return;
@@ -1206,8 +1452,8 @@ Body:
             try {
                 EmailAction.ActionType type = parseActionType(getText(item, "action_type"));
                 String description = getText(item, "description");
-                if (description == null || description.isBlank()) {
-                    description = "Action required";
+                if (description == null || description.isBlank() || isGenericReviewAction(description)) {
+                    continue;
                 }
                 String key = actionDedupeKey(type, description);
                 if (!keepKeys.add(key)) {

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, X, ArrowRight, ChevronDown, Lock, EyeOff, KeyRound,
-  Brain, Timer, Flame, CalendarClock,
+  Brain, Timer, Flame, Inbox,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
@@ -15,9 +15,24 @@ import '../styles/landing.css';
 /* ------------------------------------------------------------------ data */
 
 const LEDGER = [
-  { label: 'Unread backlog',   debit: 27, tone: 'var(--v-red)',    note: '23 sitting unopened' },
-  { label: 'Open actions',     debit: 12, tone: 'var(--v-orange)', note: '4 asks with no reply' },
-  { label: 'Overdue deadlines', debit: 6, tone: 'var(--v-red)',   note: '1 already past' },
+  { label: 'Unread in Gmail',  debit: 27, tone: 'var(--v-red)',    note: '23 sitting unopened' },
+  { label: 'Real follow-ups',  debit: 12, tone: 'var(--v-orange)', note: 'Meetings, dates, invoices — not “review this”' },
+  { label: 'Overdue dates',    debit: 6, tone: 'var(--v-red)',   note: '1 date written in the mail already passed' },
+];
+
+const DIFFERENCE = [
+  {
+    title: 'Not another Gmail skin',
+    body: 'Gmail stores and files mail. Cortex Mail sits on top of that mailbox and tells you the next useful step — from your unread, flagged, starred, dates, and follow-ups.',
+  },
+  {
+    title: 'Groups this inbox, not a persona',
+    body: 'Tabs follow Gmail (Primary, Promotions, Social, Updates, Forums). Specialty buckets like Tasks or Events only appear when this mailbox actually has that mail.',
+  },
+  {
+    title: 'Does not invent work',
+    body: 'Superhuman and Spark speed up reading. Generic AI clients guess tasks. Cortex Mail only saves a follow-up when there is a written date or a concrete type of message.',
+  },
 ];
 
 const ZONES = [
@@ -31,26 +46,26 @@ const CAPABILITIES = [
   {
     icon: Flame,
     tone: 'var(--v-red)',
-    title: 'It ranks before you read',
-    body: 'Every message lands in one of three bands — act now, today, when clear. The top of the list is always the next thing to do.',
+    title: 'A score that tells you what to do',
+    body: 'Home shows one next step: open Flagged, clear an overdue date, finish a follow-up, or mark Primary as read. The number is the sum of those chips — nothing hidden.',
+  },
+  {
+    icon: Inbox,
+    tone: 'var(--v-orange)',
+    title: 'Gmail tabs, then your groups',
+    body: 'Unread, Starred, Flagged, Primary, Promotions, Social, Updates, and Forums stay as Gmail filed them. Cortex only adds Meetings, Finance, Tasks, and the rest when this inbox has that mail.',
   },
   {
     icon: Timer,
-    tone: 'var(--v-orange)',
-    title: 'It finds the dates you missed',
-    body: 'Deadlines buried in the fourth paragraph get pulled out, counted down, and pushed to your calendar before they turn red.',
-  },
-  {
-    icon: CalendarClock,
     tone: 'var(--v-green)',
-    title: 'It defends your focus',
-    body: 'Flow zones split the day into bands. During Deep Focus nothing interrupts you; the backlog waits until you are ready for it.',
+    title: 'Dates from the message, not a guess',
+    body: 'A deadline is stored only when that date appears in the email. Promo noise and “review this email” never become a task on Home.',
   },
   {
     icon: Brain,
     tone: 'var(--color-cortex)',
-    title: 'It answers in your own words',
-    body: 'Ask what recruiters sent last week, or which deadlines land before Friday. Answers link straight back to the mail.',
+    title: 'Ask your own mailbox',
+    body: 'Brain searches mail already synced for you. Answers stay in your workspace and point back at the messages they came from.',
   },
 ];
 
@@ -352,9 +367,9 @@ export const LandingPage: React.FC = () => {
             </Reveal>
             <Reveal variant="left" i={2}>
               <p className="lp-lead">
-                Your score starts at a hundred and is debited by the three things that
-                actually slow you down. Nothing is weighted by a vanity metric, and
-                nothing is invented — clear the backlog and the number climbs on its own.
+                Your score starts at a hundred and is debited by unread, flagged, starred,
+                real follow-ups, overdue dates, and today’s meetings — from this Gmail only.
+                Clear the work and the number climbs on its own.
               </p>
             </Reveal>
           </div>
@@ -488,6 +503,34 @@ export const LandingPage: React.FC = () => {
                 </Reveal>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ----------------------------------------------------- DIFFERENCE */}
+      <section className="lp-section lp-band">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          <Reveal i={0}>
+            <span className="lp-eyebrow">Why it is not Gmail again</span>
+          </Reveal>
+          <Reveal i={1}>
+            <h2 className="lp-h2" style={{ maxWidth: '22ch' }}>
+              A next-action layer, not a <span className="lp-gold">replacement</span> inbox.
+            </h2>
+          </Reveal>
+          <div className="lp-grid">
+            {DIFFERENCE.map((d, i) => (
+              <Reveal key={d.title} i={i} variant="scale">
+                <article className="lp-card" style={{ height: '100%' }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
+                    {d.title}
+                  </h3>
+                  <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--v-ink-2)', margin: '9px 0 0' }}>
+                    {d.body}
+                  </p>
+                </article>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>

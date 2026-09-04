@@ -1,5 +1,6 @@
 package com.nexora.controller;
 
+import com.nexora.security.AuthPrincipals;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.EmailService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,6 @@ public class AnalyticsController {
     public ResponseEntity<List<Map<String, Object>>> getEmailVolume(
             @AuthenticationPrincipal UserPrincipal user,
             @RequestParam(defaultValue = "7") int days) {
-        return ResponseEntity.ok(emailService.getEmailVolume(user.getId(), days));
+        return ResponseEntity.ok(emailService.getEmailVolume(AuthPrincipals.requireId(user), days));
     }
 }

@@ -24,6 +24,7 @@ import com.nexora.util.HtmlSanitizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestTemplate;
 
@@ -47,6 +48,7 @@ public class GmailSyncService {
     private final EmailRepository emailRepository;
     private final TokenEncryptor tokenEncryptor;
     private final ObjectMapper objectMapper;
+    private final EmailClassificationService classificationService;
     private final TransactionTemplate persistTransaction;
     private final java.util.concurrent.ConcurrentHashMap<Long, Long> activeSyncs =
             new java.util.concurrent.ConcurrentHashMap<>();
@@ -58,13 +60,16 @@ public class GmailSyncService {
                             EmailRepository emailRepository,
                             TokenEncryptor tokenEncryptor,
                             ObjectMapper objectMapper,
+                            EmailClassificationService classificationService,
                             PlatformTransactionManager transactionManager) {
         this.gmailConfig = gmailConfig;
         this.userRepository = userRepository;
         this.emailRepository = emailRepository;
         this.tokenEncryptor = tokenEncryptor;
         this.objectMapper = objectMapper;
+        this.classificationService = classificationService;
         this.persistTransaction = new TransactionTemplate(transactionManager);
+        this.persistTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     private static final int PAGE_SIZE = 100;
@@ -143,6 +148,42 @@ public class GmailSyncService {
         return true;
     }
 
+    /**
+     * Pull only the Gmail DRAFT label. First inbox sync skips drafts so this
+     * page can fill them without waiting for a full mailbox pass.
+     */
+    public GmailSyncResponse syncDrafts(Long userId) {
+        if (!tryAcquireSyncLock(userId)) {
+            return skippedResponse(userId, "Sync already running — drafts will appear when it finishes");
+        }
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new NexoraException("User not found", 404));
+            if (user.getGmailAccessToken() == null) {
+                return emptyResponse("No Gmail connection — connect your account first", null);
+            }
+            ensureFreshToken(user);
+            Gmail gmail = buildGmailClient(user);
+            Map<String, GmailLabelCountResponse> labelCounts = fetchAndCacheLabelCounts(gmail, user);
+            List<Message> draftMessages = listMessagesByLabel(gmail, "DRAFT", MAX_DRAFT_FULL_SYNC);
+            int[] stats = upsertMessageBatch(gmail, user, draftMessages, MailboxKind.DRAFT, null, false);
+            persistSyncCheckpoint(user);
+            log.info("Draft-only sync for user {}: {} refs, +{} ~{}",
+                    userId, draftMessages.size(), stats[0], stats[1]);
+            String message = draftMessages.isEmpty()
+                    ? "Gmail Drafts is empty — nothing to pull"
+                    : "Pulled " + draftMessages.size() + " Gmail drafts";
+            return new GmailSyncResponse(message, stats[0], stats[1], draftMessages.size(), labelCounts, "DRAFTS");
+        } catch (NexoraException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Draft sync failed for user {}: {}", userId, e.getMessage());
+            throw new NexoraException("Could not pull Gmail drafts", 502);
+        } finally {
+            releaseSyncLock(userId);
+        }
+    }
+
     private GmailSyncResponse runSync(User user) throws IOException, GeneralSecurityException {
         Gmail gmail = buildGmailClient(user);
         if (user.getGmailHistoryId() != null && !user.getGmailHistoryId().isBlank()) {
@@ -202,8 +243,7 @@ public class GmailSyncService {
         if (!fastFirstLoad) {
             storeProfileHistoryId(gmail, user);
         }
-        user.setLastSyncedAt(LocalDateTime.now());
-        userRepository.save(user);
+        persistSyncCheckpoint(user);
 
         String syncMode = fastFirstLoad ? "FAST_FIRST" : "FULL";
         String message = fastFirstLoad
@@ -258,8 +298,7 @@ public class GmailSyncService {
             int[] archiveStats = upsertMessageBatch(gmail, user, archivedMessages, MailboxKind.ARCHIVE, null, false);
 
             storeProfileHistoryId(gmail, user);
-            user.setLastSyncedAt(LocalDateTime.now());
-            userRepository.save(user);
+            persistSyncCheckpoint(user);
 
             log.info("Secondary mailbox sync for user {}: inbox +{} ~{}, drafts +{} ~{}, archive +{} ~{}",
                     userId, inboxStats[0], inboxStats[1], draftStats[0], draftStats[1], archiveStats[0], archiveStats[1]);
@@ -275,7 +314,7 @@ public class GmailSyncService {
                     if (user.getLastSyncedAt() == null) {
                         user.setLastSyncedAt(LocalDateTime.now());
                     }
-                    userRepository.save(user);
+                    persistSyncCheckpoint(user);
                 }
             } catch (Exception nested) {
                 log.warn("Could not store historyId after secondary failure for user {}: {}",
@@ -341,8 +380,7 @@ public class GmailSyncService {
         if (latestHistoryId != null) {
             user.setGmailHistoryId(String.valueOf(latestHistoryId));
         }
-        user.setLastSyncedAt(LocalDateTime.now());
-        userRepository.save(user);
+        persistSyncCheckpoint(user);
 
         log.info("Incremental sync for user {}: {} new, {} updated, {} deleted",
                 userId, newCount, updatedCount, deletedCount);
@@ -436,10 +474,12 @@ public class GmailSyncService {
                 Email existing = existingByMessageId.get(messageId);
                 if (existing != null) {
                     applyFullMessageUpdate(existing, full, null);
+                    classificationService.classifyLocalInPlace(existing, user);
                     toSave.add(existing);
                     updatedCount++;
                 } else {
                     Email email = parseMessage(full, user);
+                    classificationService.classifyLocalInPlace(email, user);
                     toSave.add(email);
                     existingByMessageId.put(messageId, email);
                     newCount++;
@@ -463,6 +503,7 @@ public class GmailSyncService {
                 Email existing = existingByMessageId.get(messageId);
                 if (existing == null) {
                     Email email = parseMessage(full, user);
+                    classificationService.classifyLocalInPlace(email, user);
                     toSave.add(email);
                     existingByMessageId.put(messageId, email);
                     newCount++;
@@ -470,6 +511,7 @@ public class GmailSyncService {
                     List<String> labelIdList = full.getLabelIds() != null ? full.getLabelIds() : List.of();
                     applyLabelFields(existing, labelIdList);
                     existing.setGmailLabelIds(labelsToJson(labelIdList));
+                    classificationService.classifyLocalInPlace(existing, user);
                     toSave.add(existing);
                     updatedCount++;
                 }
@@ -480,12 +522,12 @@ public class GmailSyncService {
 
         if (!toSave.isEmpty()) {
             try {
-                emailRepository.saveAll(toSave);
+                persistTransaction.executeWithoutResult(status -> emailRepository.saveAll(toSave));
             } catch (org.springframework.dao.DataIntegrityViolationException e) {
                 log.warn("Bulk history save hit a concurrent duplicate; retrying individually");
                 for (Email email : toSave) {
                     try {
-                        emailRepository.save(email);
+                        persistTransaction.executeWithoutResult(status -> emailRepository.save(email));
                     } catch (org.springframework.dao.DataIntegrityViolationException duplicate) {
                         log.debug("Message {} was already saved concurrently", email.getGmailMessageId());
                     }
@@ -512,6 +554,21 @@ public class GmailSyncService {
         } catch (Exception e) {
             log.warn("Could not fetch Gmail profile historyId for user {}: {}", user.getId(), e.getMessage());
         }
+    }
+
+    /** Short UPDATE — never userRepository.save() (that used to cascade the mailbox). */
+    private void persistSyncCheckpoint(User user) {
+        user.setLastSyncedAt(LocalDateTime.now());
+        Long userId = user.getId();
+        String historyId = user.getGmailHistoryId();
+        LocalDateTime syncedAt = user.getLastSyncedAt();
+        persistTransaction.executeWithoutResult(status -> {
+            if (historyId != null && !historyId.isBlank()) {
+                userRepository.updateSyncCheckpoint(userId, historyId, syncedAt);
+            } else {
+                userRepository.updateLastSyncedAt(userId, syncedAt);
+            }
+        });
     }
 
     public Map<String, GmailLabelCountResponse> getLabelCounts(Long userId) {
@@ -580,8 +637,11 @@ public class GmailSyncService {
         }
 
         try {
-            user.setGmailLabelCounts(objectMapper.writeValueAsString(counts));
-            userRepository.save(user);
+            String json = objectMapper.writeValueAsString(counts);
+            user.setGmailLabelCounts(json);
+            Long userId = user.getId();
+            persistTransaction.executeWithoutResult(status ->
+                    userRepository.updateLabelCounts(userId, json));
         } catch (Exception e) {
             log.warn("Could not persist label counts for user {}: {}", user.getId(), e.getMessage());
         }
@@ -634,6 +694,7 @@ public class GmailSyncService {
                 Email existing = existingByMessageId.get(messageId);
                 if (existing != null) {
                     applyFullMessageUpdate(existing, full, kind);
+                    classificationService.classifyLocalInPlace(existing, user);
                     toSave.add(existing);
                     updatedCount++;
                     continue;
@@ -641,6 +702,7 @@ public class GmailSyncService {
 
                 Email email = parseMessage(full, user);
                 applyMailboxKindIfNoLabels(email, full, kind);
+                classificationService.classifyLocalInPlace(email, user);
                 toSave.add(email);
                 newCount++;
             } catch (Exception e) {
@@ -650,7 +712,7 @@ public class GmailSyncService {
 
         if (!toSave.isEmpty()) {
             try {
-                emailRepository.saveAll(toSave);
+                persistTransaction.executeWithoutResult(status -> emailRepository.saveAll(toSave));
             } catch (org.springframework.dao.DataIntegrityViolationException e) {
                 log.warn("Bulk message save encountered a concurrent duplicate; retrying individually");
                 newCount = 0;
@@ -658,7 +720,7 @@ public class GmailSyncService {
                 for (Email email : toSave) {
                     try {
                         boolean existed = existingByMessageId.containsKey(email.getGmailMessageId());
-                        emailRepository.save(email);
+                        persistTransaction.executeWithoutResult(status -> emailRepository.save(email));
                         if (existed) updatedCount++; else newCount++;
                     } catch (org.springframework.dao.DataIntegrityViolationException duplicate) {
                         log.debug("Message {} was already saved concurrently", email.getGmailMessageId());
@@ -975,9 +1037,12 @@ public class GmailSyncService {
                 Number expiresIn = (Number) responseBody.get("expires_in");
                 long seconds = expiresIn != null ? expiresIn.longValue() : 3600L;
 
-                user.setGmailAccessToken(tokenEncryptor.encrypt(newAccessToken));
-                user.setTokenExpiry(LocalDateTime.now().plusSeconds(seconds));
-                userRepository.save(user);
+                String encrypted = tokenEncryptor.encrypt(newAccessToken);
+                LocalDateTime expiry = LocalDateTime.now().plusSeconds(seconds);
+                user.setGmailAccessToken(encrypted);
+                user.setTokenExpiry(expiry);
+                persistTransaction.executeWithoutResult(status ->
+                        userRepository.updateAccessToken(user.getId(), encrypted, expiry));
                 log.info("Successfully refreshed access token for user {}", user.getId());
             } else {
                 throw new NexoraException("Google token endpoint response did not contain access_token", 401);
@@ -1369,6 +1434,65 @@ public class GmailSyncService {
         } catch (Exception e) {
             log.error("Failed to modify Gmail message {}: {}", gmailMessageId, e.getMessage());
             throw new NexoraException("Gmail modify failed: " + e.getMessage(), 400);
+        }
+    }
+
+    /**
+     * Gmail batchModify — no JDBC held. Chunks of 100 (API allows 1000).
+     */
+    public void batchModifyLabelsInGmail(Long userId, List<String> gmailMessageIds,
+                                         List<String> addLabelIds, List<String> removeLabelIds) {
+        if (gmailMessageIds == null || gmailMessageIds.isEmpty()) {
+            return;
+        }
+        List<String> ids = gmailMessageIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new NexoraException("User not found", 404));
+            if (user.getGmailAccessToken() == null) {
+                throw new NexoraException("No Gmail connection", 400);
+            }
+            ensureFreshToken(user);
+            Gmail gmail = buildGmailClient(user);
+            final int chunk = 100;
+            for (int i = 0; i < ids.size(); i += chunk) {
+                List<String> slice = ids.subList(i, Math.min(i + chunk, ids.size()));
+                BatchModifyMessagesRequest request = new BatchModifyMessagesRequest();
+                request.setIds(slice);
+                if (addLabelIds != null && !addLabelIds.isEmpty()) {
+                    request.setAddLabelIds(addLabelIds);
+                }
+                if (removeLabelIds != null && !removeLabelIds.isEmpty()) {
+                    request.setRemoveLabelIds(removeLabelIds);
+                }
+                gmail.users().messages().batchModify("me", request).execute();
+            }
+        } catch (NexoraException e) {
+            throw e;
+        } catch (GoogleJsonResponseException e) {
+            throw new NexoraException("Gmail batch modify failed: " + e.getMessage(), e.getStatusCode());
+        } catch (Exception e) {
+            throw new NexoraException("Gmail batch modify failed: " + e.getMessage(), 400);
+        }
+    }
+
+    public void refreshLabelCounts(Long userId) {
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new NexoraException("User not found", 404));
+            if (user.getGmailAccessToken() == null) {
+                return;
+            }
+            ensureFreshToken(user);
+            fetchAndCacheLabelCounts(buildGmailClient(user), user);
+        } catch (Exception e) {
+            log.warn("Could not refresh Gmail label counts for user {}: {}", userId, e.getMessage());
         }
     }
 

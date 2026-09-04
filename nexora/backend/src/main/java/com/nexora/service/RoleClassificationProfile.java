@@ -211,11 +211,6 @@ public final class RoleClassificationProfile {
         if (labels.contains("CATEGORY_UPDATES")) return EmailCategory.ANNOUNCEMENT;
         if (labels.contains("CATEGORY_PERSONAL")) return EmailCategory.PERSONAL;
 
-        if (sender.contains("canvas.") || sender.contains("moodle.") || sender.contains("blackboard")
-                || sender.contains("classroom.google")) {
-            return EmailCategory.ASSIGNMENT;
-        }
-
         if (sender.contains("google.com") || sender.contains("accounts.google")
                 || subject.contains("security alert") || subject.contains("sign-in")
                 || subject.contains("verification code") || body.contains("security alert")) {
@@ -226,40 +221,14 @@ public final class RoleClassificationProfile {
             return EmailCategory.PROMOTIONAL;
         }
 
-        if (subject.contains("meeting") || body.contains("google meet") || body.contains("zoom")
-                || subject.contains("invite:") || labels.contains("IMPORTANT")) {
+        if (subject.contains("meeting") || body.contains("google meet") || body.contains("zoom.us")
+                || subject.contains("invite:")) {
             return EmailCategory.MEETING;
         }
 
         if (subject.contains("invoice") || subject.contains("payment") || subject.contains("receipt")
                 || body.contains("invoice") || body.contains("amount due")) {
             return EmailCategory.FINANCE;
-        }
-
-        if (subject.contains("interview") || subject.contains("job offer") || subject.contains("application status")
-                || body.contains("we would like to invite you to interview")) {
-            return EmailCategory.PLACEMENT;
-        }
-
-        if (subject.contains("internship") || body.contains("internship")) {
-            return EmailCategory.INTERNSHIP;
-        }
-
-        if (subject.contains("hackathon") || subject.contains("conference") || body.contains("register for the event")) {
-            return EmailCategory.HACKATHON;
-        }
-
-        if (subject.contains("research") || body.contains("peer review") || body.contains("manuscript")) {
-            return EmailCategory.RESEARCH;
-        }
-
-        if (subject.contains("attendance") || body.contains("attendance")) {
-            return EmailCategory.ATTENDANCE;
-        }
-
-        if (sender.contains("noreply") || sender.contains("no-reply") || sender.contains("donotreply")
-                || sender.contains(".edu") || sender.contains("university")) {
-            return EmailCategory.ANNOUNCEMENT;
         }
 
         return EmailCategory.PERSONAL;

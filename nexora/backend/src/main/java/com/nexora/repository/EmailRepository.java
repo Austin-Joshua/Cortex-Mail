@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -161,27 +162,67 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     List<Email> findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
         Long userId, Priority priority, Pageable pageable);
 
-    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.deadlineDetected BETWEEN :start AND :end ORDER BY e.deadlineDetected ASC")
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND (e.isTrash = false OR e.isTrash IS NULL)
+              AND (e.isSpam = false OR e.isSpam IS NULL)
+              AND (e.isDraft = false OR e.isDraft IS NULL)
+              AND e.category <> 'PROMOTIONAL' AND e.category <> 'SPAM'
+              AND e.deadlineDetected BETWEEN :start AND :end
+            ORDER BY e.deadlineDetected ASC
+            """)
     List<Email> findUpcomingDeadlines(@Param("userId") Long userId,
                                       @Param("start") LocalDateTime start,
                                       @Param("end") LocalDateTime end);
 
-    @Query("SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.deadlineDetected IS NOT NULL AND e.deadlineDetected < :now")
+    @Query("""
+            SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND (e.isTrash = false OR e.isTrash IS NULL)
+              AND (e.isSpam = false OR e.isSpam IS NULL)
+              AND (e.isDraft = false OR e.isDraft IS NULL)
+              AND e.category <> 'PROMOTIONAL' AND e.category <> 'SPAM'
+              AND e.deadlineDetected IS NOT NULL AND e.deadlineDetected < :now
+            """)
     long countOverdueDeadlines(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 
-    @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.category = 'MEETING' AND " +
-           "e.deadlineDetected BETWEEN :start AND :end ORDER BY e.deadlineDetected ASC")
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND (e.isTrash = false OR e.isTrash IS NULL)
+              AND (e.isSpam = false OR e.isSpam IS NULL)
+              AND (e.isDraft = false OR e.isDraft IS NULL)
+              AND e.category = 'MEETING'
+              AND e.deadlineDetected BETWEEN :start AND :end
+            ORDER BY e.deadlineDetected ASC
+            """)
     List<Email> findTodaysMeetings(@Param("userId") Long userId,
                                    @Param("start") LocalDateTime start,
                                    @Param("end") LocalDateTime end);
 
-    @Query("SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.category = 'MEETING' AND " +
-           "e.deadlineDetected BETWEEN :start AND :end")
+    @Query("""
+            SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND (e.isTrash = false OR e.isTrash IS NULL)
+              AND (e.isSpam = false OR e.isSpam IS NULL)
+              AND (e.isDraft = false OR e.isDraft IS NULL)
+              AND e.category = 'MEETING'
+              AND e.deadlineDetected BETWEEN :start AND :end
+            """)
     long countTodaysMeetings(@Param("userId") Long userId,
                              @Param("start") LocalDateTime start,
                              @Param("end") LocalDateTime end);
 
-    List<Email> findTop20ByUserIdOrderByReceivedAtDesc(Long userId);
+    List<Email> findTop80ByUserIdOrderByReceivedAtDesc(Long userId);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId
+              AND e.isTrash = false AND e.isSpam = false AND e.isDraft = false
+              AND (
+                (e.recipientCc IS NOT NULL AND e.recipientCc <> '')
+                OR UPPER(COALESCE(e.gmailLabelIds, '')) LIKE '%CATEGORY_FORUMS%'
+                OR UPPER(COALESCE(e.gmailLabelIds, '')) LIKE '%CATEGORY_SOCIAL%'
+              )
+            ORDER BY e.receivedAt DESC
+            """)
+    Page<Email> findSharedMailbox(@Param("userId") Long userId, Pageable pageable);
 
     /** Important / starred / high-priority inbox mail — candidates for selective Gemini enrichment. */
     @Query("""
@@ -228,5 +269,91 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
      */
     Page<Email> findByUserIdAndSenderEmailOrderByReceivedAtDesc(
             Long userId, String senderEmail, Pageable pageable);
+
+    List<Email> findByUserIdAndIdIn(Long userId, Collection<Long> ids);
+
+    Page<Email> findByUserIdAndInInboxTrueAndIsReadFalseOrderByReceivedAtDesc(Long userId, Pageable pageable);
+
+    Page<Email> findByUserIdAndInInboxTrueAndIsStarredTrueOrderByReceivedAtDesc(Long userId, Pageable pageable);
+
+    Page<Email> findByUserIdAndInInboxTrueAndIsImportantTrueOrderByReceivedAtDesc(Long userId, Pageable pageable);
+
+    @Query("""
+            SELECT e.id, e.gmailMessageId FROM Email e
+            WHERE e.user.id = :userId AND e.inInbox = true AND e.isRead = false
+            ORDER BY e.receivedAt DESC
+            """)
+    List<Object[]> findUnreadInboxIds(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND UPPER(COALESCE(e.gmailLabelIds, '')) LIKE CONCAT('%', :label, '%')
+            ORDER BY e.receivedAt DESC
+            """)
+    Page<Email> findInboxByGmailLabel(
+            @Param("userId") Long userId, @Param("label") String label, Pageable pageable);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND (
+                UPPER(COALESCE(e.gmailLabelIds, '')) LIKE '%CATEGORY_PERSONAL%'
+                OR (
+                  UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_PROMOTIONS%'
+                  AND UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_SOCIAL%'
+                  AND UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_UPDATES%'
+                  AND UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_FORUMS%'
+                )
+              )
+            ORDER BY e.receivedAt DESC
+            """)
+    Page<Email> findInboxPrimary(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("""
+            SELECT LOWER(e.senderEmail), e.category, COUNT(e)
+            FROM Email e
+            WHERE e.user.id = :userId
+              AND e.senderEmail IS NOT NULL
+              AND e.category IS NOT NULL
+              AND e.category <> 'UNCATEGORIZED'
+              AND e.category <> 'SPAM'
+            GROUP BY LOWER(e.senderEmail), e.category
+            """)
+    List<Object[]> countCategoriesBySender(@Param("userId") Long userId);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Email e SET e.isRead = true WHERE e.user.id = :userId AND e.id IN :ids")
+    int markReadByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Email e SET e.isRead = false WHERE e.user.id = :userId AND e.id IN :ids")
+    int markUnreadByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Email e SET e.isStarred = true WHERE e.user.id = :userId AND e.id IN :ids")
+    int starByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Email e SET e.isStarred = false WHERE e.user.id = :userId AND e.id IN :ids")
+    int unstarByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Email e SET e.inInbox = false, e.isArchived = true
+            WHERE e.user.id = :userId AND e.id IN :ids
+            """)
+    int archiveByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Email e SET e.isTrash = true, e.inInbox = false, e.isArchived = false
+            WHERE e.user.id = :userId AND e.id IN :ids
+            """)
+    int trashByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
 }
 

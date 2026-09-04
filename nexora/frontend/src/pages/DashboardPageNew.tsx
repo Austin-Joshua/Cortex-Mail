@@ -88,9 +88,7 @@ export const DashboardPageNew: React.FC = () => {
   const hasSyncedMail = pipelineHasMail
     || Boolean(user?.lastSyncedAt)
     || (syncStatus?.localCounts?.allStored ?? 0) > 0;
-  const scoreReady = cortex?.ready === true
-    && !isPipelineRunning
-    && unclassified === 0;
+  const scoreReady = cortex?.ready === true && hasSyncedMail;
   const score = scoreReady && cortex?.score != null ? cortex.score : null;
   const scoreBand = scoreReady ? cortex?.band : undefined;
   const scorePendingMessage = cortex?.statusMessage
@@ -127,17 +125,18 @@ export const DashboardPageNew: React.FC = () => {
   const [showWhyScore, setShowWhyScore] = React.useState(false);
 
   const scoreSource = useMemo(() => {
-    if (!scoreReady || unread == null) return scorePendingMessage;
+    if (!scoreReady) return scorePendingMessage;
+    if (cortex?.nextAction) return cortex.nextAction;
     const parts = [
-      `${unread} unread (Gmail INBOX)`,
-      importantUnread > 0 ? `${importantUnread} important` : null,
-      actions.length > 0 ? `${actions.length} actions from mail` : null,
-      overdue > 0 ? `${overdue} overdue deadlines` : null,
+      unread != null ? `${unread} unread` : null,
+      importantUnread > 0 ? `${importantUnread} flagged` : null,
+      actions.length > 0 ? `${actions.length} follow-ups` : null,
+      overdue > 0 ? `${overdue} overdue` : null,
     ].filter(Boolean);
     return parts.length
-      ? `Built from: ${parts.join(' · ')}`
-      : 'Built from your Gmail inbox labels after sync';
-  }, [scoreReady, scorePendingMessage, unread, importantUnread, actions.length, overdue]);
+      ? parts.join(' · ')
+      : 'Built from your Gmail inbox after sync';
+  }, [scoreReady, scorePendingMessage, cortex?.nextAction, unread, importantUnread, actions.length, overdue]);
 
   /** Last 7 days of received mail from backend analytics (not a partial page fetch). */
   const week = useMemo(() => {

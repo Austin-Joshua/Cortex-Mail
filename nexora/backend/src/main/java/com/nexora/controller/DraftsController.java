@@ -3,6 +3,7 @@ package com.nexora.controller;
 import com.nexora.dto.ApiResponse;
 import com.nexora.dto.request.DraftRequest;
 import com.nexora.dto.response.DraftResponse;
+import com.nexora.security.AuthPrincipals;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.EmailDraftService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class DraftsController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<DraftResponse>>> getDrafts(
             @AuthenticationPrincipal UserPrincipal user) {
-        return ResponseEntity.ok(ApiResponse.success(draftService.getUserDrafts(user.getId())));
+        return ResponseEntity.ok(ApiResponse.success(draftService.getUserDrafts(AuthPrincipals.requireId(user))));
     }
 
     @PostMapping
@@ -31,7 +32,7 @@ public class DraftsController {
             @RequestBody DraftRequest request,
             @AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResponse.success(draftService.createDraft(user.getId(), request)));
+                ApiResponse.success(draftService.createDraft(AuthPrincipals.requireId(user), request)));
     }
 
     @PutMapping("/{id}")
@@ -40,14 +41,14 @@ public class DraftsController {
             @RequestBody DraftRequest request,
             @AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.ok(ApiResponse.success(
-                draftService.updateDraft(user.getId(), id, request)));
+                draftService.updateDraft(AuthPrincipals.requireId(user), id, request)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteDraft(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal user) {
-        draftService.deleteDraft(user.getId(), id);
+        draftService.deleteDraft(AuthPrincipals.requireId(user), id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -55,6 +56,6 @@ public class DraftsController {
     public ResponseEntity<ApiResponse<String>> sendDraft(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal user) {
-        return ResponseEntity.ok(ApiResponse.success(draftService.sendDraft(user.getId(), id)));
+        return ResponseEntity.ok(ApiResponse.success(draftService.sendDraft(AuthPrincipals.requireId(user), id)));
     }
 }

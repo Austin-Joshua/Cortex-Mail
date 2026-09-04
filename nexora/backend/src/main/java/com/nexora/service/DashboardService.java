@@ -2,6 +2,7 @@ package com.nexora.service;
 
 import com.nexora.dto.response.DashboardSummaryResponse;
 import com.nexora.dto.response.GmailLabelCountResponse;
+import com.nexora.exception.NexoraException;
 import com.nexora.model.Email;
 import com.nexora.model.EmailAction;
 import com.nexora.repository.EmailActionRepository;
@@ -40,27 +41,33 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary(Long userId) {
+        if (userId == null) {
+            throw new NexoraException("Unauthorized", 401);
+        }
+
         List<Email> highPriority = emailRepository
-                .findByUserIdAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
-                        userId, Email.Priority.HIGH, PageRequest.of(0, 5));
+                .findByUserIdAndInInboxTrueAndPriorityAndIsReadFalseOrderByReceivedAtDesc(
+                        userId, Email.Priority.HIGH, PageRequest.of(0, 6));
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime weekOut = now.plusDays(7);
-        List<Email> deadlines = emailRepository.findUpcomingDeadlines(userId, now, weekOut);
+        List<Email> deadlines = emailRepository.findUpcomingDeadlines(userId, now, weekOut)
+                .stream()
+                .limit(8)
+                .collect(Collectors.toList());
 
         List<EmailAction> pendingActions = actionRepository
-                .findByUserIdAndIsCompletedFalseOrderByDeadlineAsc(userId);
+                .findOpenInboxFollowUps(userId, PageRequest.of(0, 8));
 
-        long unreadCount = gmailSyncService.getInboxUnreadCount(userId);
-        Map<String, GmailLabelCountResponse> gmailLabelCounts = gmailSyncService.getLabelCounts(userId);
+        Map<String, GmailLabelCountResponse> gmailLabelCounts = labelCountsOrEmpty(userId);
+        long unreadCount = unreadCountOrLocal(userId, gmailLabelCounts);
         Map<String, Long> categoryCounts = emailService.getCategoryCounts(userId);
 
         LocalDateTime todayStart = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime todayEnd = now.withHour(23).withMinute(59).withSecond(59).withNano(999_999_999);
-        // Cap meeting list for summary payload — score uses COUNT separately.
         List<Email> todaysMeetings = emailRepository.findTodaysMeetings(userId, todayStart, todayEnd)
                 .stream()
-                .limit(10)
+                .limit(8)
                 .collect(Collectors.toList());
 
         return DashboardSummaryResponse.builder()
@@ -74,6 +81,7 @@ public class DashboardService {
                         .map(this::toActionResponse)
                         .collect(Collectors.toList()))
                 .unreadCount(unreadCount)
+                .storedEmailCount(emailRepository.countByUserId(userId))
                 .categoryCounts(categoryCounts)
                 .gmailLabelCounts(gmailLabelCounts)
                 .todaysMeetings(todaysMeetings.stream()
@@ -83,13 +91,32 @@ public class DashboardService {
                 .build();
     }
 
+    private Map<String, GmailLabelCountResponse> labelCountsOrEmpty(Long userId) {
+        try {
+            Map<String, GmailLabelCountResponse> labels = gmailSyncService.getLabelCounts(userId);
+            return labels != null ? labels : Map.of();
+        } catch (Exception e) {
+            log.warn("Home used local counts — Gmail label cache unavailable for user {}", userId);
+            return Map.of();
+        }
+    }
+
+    private long unreadCountOrLocal(Long userId, Map<String, GmailLabelCountResponse> labels) {
+        GmailLabelCountResponse inbox = labels.get("INBOX");
+        if (inbox != null && inbox.getMessagesUnread() != null) {
+            return inbox.getMessagesUnread();
+        }
+        return emailRepository.countInboxUnreadByUserId(userId);
+    }
+
     private DashboardSummaryResponse.ActionItemResponse toActionResponse(EmailAction a) {
+        Email email = a.getEmail();
         return DashboardSummaryResponse.ActionItemResponse.builder()
                 .id(a.getId())
-                .emailId(a.getEmail() != null ? a.getEmail().getId() : null)
-                .emailSubject(a.getEmail() != null ? a.getEmail().getSubject() : null)
-                .senderName(a.getEmail() != null ? a.getEmail().getSenderName() : null)
-                .actionType(a.getActionType().name())
+                .emailId(email != null ? email.getId() : null)
+                .emailSubject(email != null ? email.getSubject() : null)
+                .senderName(email != null ? email.getSenderName() : null)
+                .actionType(a.getActionType() != null ? a.getActionType().name() : "REVIEW")
                 .actionDescription(a.getActionDescription())
                 .deadline(a.getDeadline() != null ? a.getDeadline().toString() : null)
                 .isCompleted(a.getIsCompleted())
