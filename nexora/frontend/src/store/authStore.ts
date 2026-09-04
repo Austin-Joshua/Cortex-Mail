@@ -36,6 +36,11 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         set({ user: null, token: null, isAuthenticated: false });
+        try {
+          localStorage.removeItem('cortex_auth');
+        } catch {
+          /* private mode / blocked storage */
+        }
       },
     }),
     {

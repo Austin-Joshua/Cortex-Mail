@@ -391,7 +391,11 @@ export const TopBar: React.FC = () => {
                   <SettingsIcon size={16} /> Settings
                 </button>
                 <button
-                  onClick={() => { handleLogout(); setShowAccount(false); }}
+                  type="button"
+                  onClick={() => {
+                    setShowAccount(false);
+                    handleLogout();
+                  }}
                   className="rail-item"
                   style={{
                     border: 'none', background: 'transparent', cursor: 'pointer',

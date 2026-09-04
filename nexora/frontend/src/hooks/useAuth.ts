@@ -2,10 +2,12 @@ import type { UserRole } from '../types/User';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/authApi';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function useAuth() {
   const { user, token, isAuthenticated, setUser, setToken, logout } = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const isGoogleConfigured = (() => {
     const id = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -20,14 +22,12 @@ export function useAuth() {
     window.location.href = authApi.getGoogleAuthUrl();
   };
 
-  const handleLogout = async () => {
-    try {
-      await authApi.revokeAccess();
-    } catch {
-      // ignore
-    }
+  const handleLogout = () => {
+    const sessionToken = useAuthStore.getState().token;
     logout();
-    navigate('/');
+    queryClient.clear();
+    navigate('/', { replace: true });
+    void authApi.revokeAccess(sessionToken).catch(() => {});
   };
 
   const updateProfile = async (params: { role?: UserRole; calendarSyncEnabled?: boolean }) => {

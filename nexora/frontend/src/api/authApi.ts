@@ -40,7 +40,17 @@ export const authApi = {
     return data;
   },
 
-  revokeAccess: async (): Promise<void> => {
-    await axiosInstance.post('/api/auth/revoke');
+  revokeAccess: async (token?: string | null): Promise<void> => {
+    const auth = token ?? undefined;
+    if (!auth) return;
+    // Raw fetch so a 401 here cannot trip the axios interceptor and bounce
+    // the user back into a persisted session mid-logout.
+    await fetch(`${BACKEND_ORIGIN}/api/auth/revoke`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
   },
 };

@@ -112,11 +112,7 @@ export const LandingPage: React.FC = () => {
   const progress = useScrollProgress();
   const heroRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isAuthenticated && !authError) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [isAuthenticated, authError, navigate]);
+  const enterApp = () => navigate('/dashboard');
 
   useEffect(() => {
     const onScroll = () => setStuck(window.scrollY > 12);
@@ -175,11 +171,12 @@ export const LandingPage: React.FC = () => {
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         />
         <button
+          type="button"
           className="lp-btn lp-btn-primary"
-          onClick={handleGoogleLogin}
+          onClick={isAuthenticated ? enterApp : handleGoogleLogin}
           style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}
         >
-          Sign in
+          {isAuthenticated ? 'Open Home' : 'Sign in'}
         </button>
       </nav>
 
@@ -244,10 +241,14 @@ export const LandingPage: React.FC = () => {
 
           <Reveal i={4}>
             <div className="lp-cta-row">
-              <button className="lp-btn lp-btn-primary" onClick={handleGoogleLogin}>
-                Connect Gmail <ArrowRight size={17} />
+              <button
+                type="button"
+                className="lp-btn lp-btn-primary"
+                onClick={isAuthenticated ? enterApp : handleGoogleLogin}
+              >
+                {isAuthenticated ? 'Open Home' : 'Connect Gmail'} <ArrowRight size={17} />
               </button>
-              <button className="lp-btn lp-btn-ghost" onClick={scrollOn}>
+              <button type="button" className="lp-btn lp-btn-ghost" onClick={scrollOn}>
                 See how it reads
               </button>
             </div>
@@ -580,8 +581,12 @@ export const LandingPage: React.FC = () => {
         </Reveal>
         <Reveal i={2}>
           <div className="lp-cta-row" style={{ justifyContent: 'center', marginTop: 30 }}>
-            <button className="lp-btn lp-btn-primary" onClick={handleGoogleLogin}>
-              Connect Gmail <ArrowRight size={17} />
+            <button
+              type="button"
+              className="lp-btn lp-btn-primary"
+              onClick={isAuthenticated ? enterApp : handleGoogleLogin}
+            >
+              {isAuthenticated ? 'Open Home' : 'Connect Gmail'} <ArrowRight size={17} />
             </button>
           </div>
         </Reveal>
