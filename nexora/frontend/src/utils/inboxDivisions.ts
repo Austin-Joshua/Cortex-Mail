@@ -19,7 +19,9 @@ export interface InboxDivision {
   kind: 'gmail' | 'cortex' | 'people';
 }
 
-export const GMAIL_VIEWS: InboxDivision[] = [
+type GmailInboxDivision = InboxDivision & { key: GmailMailboxView; kind: 'gmail' };
+
+export const GMAIL_VIEWS: GmailInboxDivision[] = [
   { key: 'UNREAD', label: 'Unread', kind: 'gmail' },
   { key: 'STARRED', label: 'Starred', kind: 'gmail' },
   { key: 'IMPORTANT', label: 'Flagged', kind: 'gmail' },
