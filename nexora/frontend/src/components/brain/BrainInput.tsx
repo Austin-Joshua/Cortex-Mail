@@ -80,15 +80,15 @@ export const BrainInput: React.FC<BrainInputProps> = ({ onSend, isLoading, initi
             width: 36,
             height: 36,
             borderRadius: '50%',
-            background: canSend ? 'var(--accent)' : 'var(--border)',
+            background: canSend ? 'var(--accent)' : 'var(--color-surface-hover)',
             border: 'none',
-            color: 'var(--v-on-signal)',
+            color: canSend ? 'var(--v-on-signal)' : 'var(--v-ink-3)',
             cursor: canSend ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            transition: 'background 0.15s ease',
+            transition: 'background 0.15s ease, color 0.15s ease',
           }}
         >
           <Send size={16} />

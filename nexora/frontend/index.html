@@ -26,7 +26,13 @@
           var meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute('content', theme === 'light' ? '#F4F6FA' : '#0B0F19');
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'dark');
+          try {
+            var fallback = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', fallback);
+            document.documentElement.style.colorScheme = fallback;
+          } catch (_e) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
         }
       })();
       if (typeof globalThis !== 'undefined' && typeof globalThis.global === 'undefined') {
