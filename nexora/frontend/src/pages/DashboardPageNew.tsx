@@ -428,7 +428,7 @@ export const DashboardPageNew: React.FC = () => {
               style={{ justifyContent: 'space-between', gap: 14, paddingBlock: 4 }}
             >
               {topCategories.map(([cat, n]) => {
-                const cfg = CAT_COLORS[cat] ?? { label: cat, bg: '#202734', text: 'var(--color-text-muted)' };
+                const cfg = CAT_COLORS[cat] ?? { label: cat, bg: 'var(--cat-other-bg)', text: 'var(--cat-other-text)' };
                 return (
                   <button
                     key={cat}

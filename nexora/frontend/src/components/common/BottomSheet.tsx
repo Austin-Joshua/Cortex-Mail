@@ -61,7 +61,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(11, 15, 25, 0.5)',
+          background: 'var(--color-overlay)',
           backdropFilter: 'blur(4px)',
           zIndex: 100,
         }}
@@ -82,7 +82,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           maxHeight: '85vh',
           background: 'var(--paper)',
           borderRadius: '20px 20px 0 0',
-          boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.2)',
+          boxShadow: 'var(--v-lift-3)',
           zIndex: 101,
           display: 'flex',
           flexDirection: 'column',

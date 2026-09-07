@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, X, ArrowRight, ChevronDown, Lock, EyeOff, KeyRound,
-  Brain, Timer, Flame, Inbox,
+  Brain, Timer, Flame, Inbox, Sun, Moon,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
@@ -10,6 +10,7 @@ import { useReveal, useScrollProgress } from '../hooks/useReveal';
 import { Odometer } from '../components/landing/Odometer';
 import { Gauge } from '../components/bento/Gauge';
 import { BrandLogo } from '../components/common/BrandLogo';
+import { useThemeStore } from '../store/themeStore';
 import '../styles/landing.css';
 
 /* ------------------------------------------------------------------ data */
@@ -104,6 +105,8 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { handleGoogleLogin } = useAuth();
+  const resolvedTheme = useThemeStore((s) => s.resolved);
+  const toggleLightDark = useThemeStore((s) => s.toggleLightDark);
   const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('auth_error');
   const errorDescription = searchParams.get('error_description') ?? '';
@@ -170,14 +173,26 @@ export const LandingPage: React.FC = () => {
           textSize={14}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         />
-        <button
-          type="button"
-          className="lp-btn lp-btn-primary"
-          onClick={isAuthenticated ? enterApp : handleGoogleLogin}
-          style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}
-        >
-          {isAuthenticated ? 'Open Home' : 'Sign in'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            className="lp-btn lp-btn-ghost"
+            onClick={() => toggleLightDark()}
+            aria-label={resolvedTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={resolvedTheme === 'light' ? 'Dark mode' : 'Light mode'}
+            style={{ height: 42, width: 42, padding: 0 }}
+          >
+            {resolvedTheme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+          <button
+            type="button"
+            className="lp-btn lp-btn-primary"
+            onClick={isAuthenticated ? enterApp : handleGoogleLogin}
+            style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}
+          >
+            {isAuthenticated ? 'Open Home' : 'Sign in'}
+          </button>
+        </div>
       </nav>
 
       {showError && (

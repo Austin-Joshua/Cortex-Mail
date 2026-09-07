@@ -1,19 +1,19 @@
-// Cortex category colors — expressive badges (Gmail layer stays neutral elsewhere).
+// Cortex category colors — CSS vars swap with html[data-theme].
 
 export const CAT_COLORS: Record<string, { label: string; bg: string; text: string }> = {
-  PLACEMENT:     { label: 'Opportunity',  bg: '#24173F', text: '#A78BFA' },
-  INTERNSHIP:    { label: 'Internship',   bg: '#1D1D45', text: '#818CF8' },
-  ASSIGNMENT:    { label: 'Task',         bg: '#14263D', text: '#60A5FA' },
-  ATTENDANCE:    { label: 'Check-in',     bg: '#102D2C', text: '#2DD4BF' },
-  HACKATHON:     { label: 'Event',        bg: '#351B31', text: '#F472B6' },
-  MEETING:       { label: 'Meeting',      bg: '#102D2C', text: '#2DD4BF' },
-  ANNOUNCEMENT:  { label: 'Update',       bg: '#24173F', text: '#C4B5FD' },
-  RESEARCH:      { label: 'Research',     bg: '#122D20', text: '#4ADE80' },
-  FINANCE:       { label: 'Finance',      bg: '#332A12', text: '#FBBF24' },
-  PERSONAL:      { label: 'Personal',     bg: '#14263D', text: '#60A5FA' },
-  PROMOTIONAL:   { label: 'Promo',        bg: '#202734', text: '#94A3B8' },
-  SPAM:          { label: 'Spam',         bg: '#35191D', text: '#F87171' },
-  UNCATEGORIZED: { label: 'Other',        bg: '#202734', text: '#9AA6B2' },
+  PLACEMENT:     { label: 'Opportunity',  bg: 'var(--cat-placement-bg)', text: 'var(--cat-placement-text)' },
+  INTERNSHIP:    { label: 'Internship',   bg: 'var(--cat-internship-bg)', text: 'var(--cat-internship-text)' },
+  ASSIGNMENT:    { label: 'Task',         bg: 'var(--cat-assignment-bg)', text: 'var(--cat-assignment-text)' },
+  ATTENDANCE:    { label: 'Check-in',     bg: 'var(--cat-attendance-bg)', text: 'var(--cat-attendance-text)' },
+  HACKATHON:     { label: 'Event',        bg: 'var(--cat-hackathon-bg)', text: 'var(--cat-hackathon-text)' },
+  MEETING:       { label: 'Meeting',      bg: 'var(--cat-meeting-bg)', text: 'var(--cat-meeting-text)' },
+  ANNOUNCEMENT:  { label: 'Update',       bg: 'var(--cat-announcement-bg)', text: 'var(--cat-announcement-text)' },
+  RESEARCH:      { label: 'Research',     bg: 'var(--cat-research-bg)', text: 'var(--cat-research-text)' },
+  FINANCE:       { label: 'Finance',      bg: 'var(--cat-finance-bg)', text: 'var(--cat-finance-text)' },
+  PERSONAL:      { label: 'Personal',     bg: 'var(--cat-personal-bg)', text: 'var(--cat-personal-text)' },
+  PROMOTIONAL:   { label: 'Promo',        bg: 'var(--cat-promotional-bg)', text: 'var(--cat-promotional-text)' },
+  SPAM:          { label: 'Spam',         bg: 'var(--cat-spam-bg)', text: 'var(--cat-spam-text)' },
+  UNCATEGORIZED: { label: 'Other',        bg: 'var(--cat-other-bg)', text: 'var(--cat-other-text)' },
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {

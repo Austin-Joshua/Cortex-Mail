@@ -461,6 +461,45 @@
   color: var(--v-signal);
 }
 
+.theme-mode-seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--v-ground-2);
+  border: 1px solid var(--v-hairline);
+}
+
+.theme-mode-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--v-ink-3);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--v-fast), color var(--v-fast), box-shadow var(--v-fast);
+}
+
+.theme-mode-opt:hover {
+  color: var(--v-ink);
+  background: color-mix(in srgb, var(--v-panel) 70%, transparent);
+}
+
+.theme-mode-opt.is-active {
+  background: var(--v-panel);
+  color: var(--v-ink);
+  box-shadow: var(--v-lift-1);
+  border: 1px solid var(--v-hairline);
+}
+
 .settings-layout {
   display: flex;
   height: 100%;

@@ -85,6 +85,8 @@
   }
 
   html { color-scheme: dark; }
+  html[data-theme='light'] { color-scheme: light; }
+  html[data-theme='dark'] { color-scheme: dark; }
 
   body {
     margin: 0;
@@ -96,6 +98,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    transition: background-color var(--v-base), color var(--v-base);
   }
 
   h1, h2, h3, h4 {
@@ -395,7 +398,7 @@ button:active { transform: scale(0.98); }
 }
 
 .email-html-body img { max-width: 100%; height: auto; }
-.email-html-body a { color: #60A5FA; }
+.email-html-body a { color: var(--color-info); }
 .email-html-body table { border-collapse: collapse; }
 
 @media (max-width: 767px) {

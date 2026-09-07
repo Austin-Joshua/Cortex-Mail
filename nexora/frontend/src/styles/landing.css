@@ -389,6 +389,39 @@
 
 .lp-cta-finale > * { position: relative; z-index: 1; }
 
+/* Light-mode landing atmosphere — same structure, daylight washes */
+html[data-theme='light'] .lp {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% -8%, rgba(124, 58, 237, 0.14), transparent 58%),
+    radial-gradient(ellipse 50% 35% at 92% 12%, rgba(79, 70, 229, 0.08), transparent 52%),
+    var(--color-bg-app);
+}
+
+html[data-theme='light'] .lp-atmos {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(124, 58, 237, 0.22), transparent 42%),
+    radial-gradient(circle at 12% 72%, rgba(79, 70, 229, 0.12), transparent 38%),
+    radial-gradient(circle at 48% 48%, rgba(243, 238, 255, 0.85), transparent 45%),
+    radial-gradient(circle at 88% 78%, rgba(13, 148, 136, 0.08), transparent 32%);
+}
+
+html[data-theme='light'] .lp-band {
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(124, 58, 237, 0.05) 20%,
+    rgba(124, 58, 237, 0.08) 50%,
+    transparent
+  );
+}
+
+html[data-theme='light'] .lp-btn-primary {
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.22);
+}
+html[data-theme='light'] .lp-btn-primary:hover {
+  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.28);
+}
+
 /* --- responsive ----------------------------------------------------------- */
 
 @media (max-width: 900px) {
