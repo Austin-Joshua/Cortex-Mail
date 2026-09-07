@@ -1,9 +1,12 @@
 /* ==========================================================================
-   CORTEX MAIL — dark command-center palette
+   CORTEX MAIL — dual-theme instrument palette
+   Dark = command-center default · Light = complementary daylight surface
    Gmail layer = neutral surfaces · Cortex layer = violet accent
+   Toggle via html[data-theme="dark" | "light"]
    ========================================================================== */
 
-:root {
+:root,
+html[data-theme="dark"] {
   /* --- Design tokens (source of truth) --- */
   --color-bg-app:           #0B0F19;
   --color-bg-sidebar:       #0E1422;
@@ -43,6 +46,36 @@
 
   --color-star:             #FBBF24;
   --color-star-muted:       #718096;
+  --color-overlay:          rgba(11, 15, 25, 0.55);
+  --color-theme-meta:       #0B0F19;
+
+  /* Category badge washes (dark) */
+  --cat-placement-bg:       #24173F;
+  --cat-placement-text:     #A78BFA;
+  --cat-internship-bg:      #1D1D45;
+  --cat-internship-text:    #818CF8;
+  --cat-assignment-bg:      #14263D;
+  --cat-assignment-text:    #60A5FA;
+  --cat-attendance-bg:      #102D2C;
+  --cat-attendance-text:    #2DD4BF;
+  --cat-hackathon-bg:       #351B31;
+  --cat-hackathon-text:     #F472B6;
+  --cat-meeting-bg:         #102D2C;
+  --cat-meeting-text:       #2DD4BF;
+  --cat-announcement-bg:    #24173F;
+  --cat-announcement-text:  #C4B5FD;
+  --cat-research-bg:        #122D20;
+  --cat-research-text:      #4ADE80;
+  --cat-finance-bg:         #332A12;
+  --cat-finance-text:       #FBBF24;
+  --cat-personal-bg:        #14263D;
+  --cat-personal-text:      #60A5FA;
+  --cat-promotional-bg:     #202734;
+  --cat-promotional-text:   #94A3B8;
+  --cat-spam-bg:            #35191D;
+  --cat-spam-text:          #F87171;
+  --cat-other-bg:           #202734;
+  --cat-other-text:         #9AA6B2;
 
   /* --- Instrument cluster aliases (--v-*) --- */
   --v-ground:      var(--color-bg-app);
@@ -100,6 +133,84 @@
   --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --v-fast: 140ms var(--v-ease);
   --v-base: 240ms var(--v-ease);
+}
+
+/* Complementary light mode — same hierarchy, daylight surfaces */
+html[data-theme="light"] {
+  --color-bg-app:           #F4F6FA;
+  --color-bg-sidebar:       #EEF1F7;
+  --color-surface:          #FFFFFF;
+  --color-surface-elevated: #F8F9FC;
+  --color-surface-hover:    #EEF1F6;
+  --color-surface-active:   #E4E9F2;
+
+  --color-border-subtle:    #E6EAF0;
+  --color-border:           #D8DEE8;
+  --color-border-strong:    #C5CDD9;
+  --color-border-focus:     #7C3AED;
+
+  --color-text-primary:     #0F172A;
+  --color-text-secondary:   #334155;
+  --color-text-muted:       #64748B;
+  --color-text-disabled:    #94A3B8;
+  --color-text-inverse:     #F8FAFC;
+
+  --color-cortex:           #7C3AED;
+  --color-cortex-light:     #8B5CF6;
+  --color-cortex-dark:      #6D28D9;
+  --color-cortex-soft:      #F3EEFF;
+  --color-cortex-border:    #DDD6FE;
+
+  --color-indigo:           #4F46E5;
+  --color-indigo-soft:      #EEF2FF;
+
+  --color-success:          #0D9488;
+  --color-success-soft:     #CCFBF1;
+  --color-warning:          #D97706;
+  --color-warning-soft:     #FEF3C7;
+  --color-danger:           #DC2626;
+  --color-danger-soft:      #FEE2E2;
+  --color-info:             #2563EB;
+  --color-info-soft:        #DBEAFE;
+
+  --color-star:             #D97706;
+  --color-star-muted:       #94A3B8;
+  --color-overlay:          rgba(15, 23, 42, 0.42);
+  --color-theme-meta:       #F4F6FA;
+
+  --cat-placement-bg:       #F3EEFF;
+  --cat-placement-text:     #6D28D9;
+  --cat-internship-bg:      #EEF2FF;
+  --cat-internship-text:    #4338CA;
+  --cat-assignment-bg:      #DBEAFE;
+  --cat-assignment-text:    #1D4ED8;
+  --cat-attendance-bg:      #CCFBF1;
+  --cat-attendance-text:    #0F766E;
+  --cat-hackathon-bg:       #FCE7F3;
+  --cat-hackathon-text:     #BE185D;
+  --cat-meeting-bg:         #CCFBF1;
+  --cat-meeting-text:       #0F766E;
+  --cat-announcement-bg:    #EDE9FE;
+  --cat-announcement-text:  #5B21B6;
+  --cat-research-bg:        #DCFCE7;
+  --cat-research-text:      #15803D;
+  --cat-finance-bg:         #FEF3C7;
+  --cat-finance-text:       #B45309;
+  --cat-personal-bg:        #DBEAFE;
+  --cat-personal-text:      #1D4ED8;
+  --cat-promotional-bg:     #F1F5F9;
+  --cat-promotional-text:   #475569;
+  --cat-spam-bg:            #FEE2E2;
+  --cat-spam-text:          #B91C1C;
+  --cat-other-bg:           #F1F5F9;
+  --cat-other-text:         #64748B;
+
+  --v-signal-dim:  #6D28D9;
+
+  --v-lift-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --v-lift-2: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --v-lift-3: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --v-glow:   0 0 0 2px rgba(124, 58, 237, 0.16);
 }
 
 /* ==========================================================================
@@ -720,8 +831,8 @@
 }
 .priority-low,
 .badge-priority-low {
-  background: #202734;
-  color: #94A3B8;
+  background: var(--cat-other-bg);
+  color: var(--cat-other-text);
 }
 
 /* Cortex category badges */
@@ -739,19 +850,19 @@
   border: none;
 }
 
-.badge-placement    { background: #24173F; color: #A78BFA; }
-.badge-internship   { background: #1D1D45; color: #818CF8; }
-.badge-assignment   { background: #14263D; color: #60A5FA; }
-.badge-attendance   { background: #102D2C; color: #2DD4BF; }
-.badge-hackathon    { background: #351B31; color: #F472B6; }
-.badge-meeting      { background: #102D2C; color: #2DD4BF; }
-.badge-announcement { background: #24173F; color: #C4B5FD; }
-.badge-research     { background: #122D20; color: #4ADE80; }
-.badge-finance      { background: #332A12; color: #FBBF24; }
-.badge-personal     { background: #14263D; color: #60A5FA; }
-.badge-promotional  { background: #202734; color: #94A3B8; }
-.badge-spam         { background: #35191D; color: #F87171; }
-.badge-uncategorized { background: #202734; color: #9AA6B2; }
+.badge-placement    { background: var(--cat-placement-bg); color: var(--cat-placement-text); }
+.badge-internship   { background: var(--cat-internship-bg); color: var(--cat-internship-text); }
+.badge-assignment   { background: var(--cat-assignment-bg); color: var(--cat-assignment-text); }
+.badge-attendance   { background: var(--cat-attendance-bg); color: var(--cat-attendance-text); }
+.badge-hackathon    { background: var(--cat-hackathon-bg); color: var(--cat-hackathon-text); }
+.badge-meeting      { background: var(--cat-meeting-bg); color: var(--cat-meeting-text); }
+.badge-announcement { background: var(--cat-announcement-bg); color: var(--cat-announcement-text); }
+.badge-research     { background: var(--cat-research-bg); color: var(--cat-research-text); }
+.badge-finance      { background: var(--cat-finance-bg); color: var(--cat-finance-text); }
+.badge-personal     { background: var(--cat-personal-bg); color: var(--cat-personal-text); }
+.badge-promotional  { background: var(--cat-promotional-bg); color: var(--cat-promotional-text); }
+.badge-spam         { background: var(--cat-spam-bg); color: var(--cat-spam-text); }
+.badge-uncategorized { background: var(--cat-other-bg); color: var(--cat-other-text); }
 
 /* AI / Cortex markers */
 .cortex-chip {

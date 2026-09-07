@@ -7,7 +7,9 @@ import { emailApi } from '../api/emailApi';
 import { settingsApi } from '../api/settingsApi';
 import { templatesApi } from '../api/templatesApi';
 import { queryKeys } from '../api/queryKeys';
-import { Calendar, Link2, LogOut, RefreshCw, Shield, Sparkles, User, FileText } from 'lucide-react';
+import { Calendar, Link2, LogOut, RefreshCw, Shield, Sparkles, User, FileText, Sun, Moon, Monitor } from 'lucide-react';
+import { useThemeStore } from '../store/themeStore';
+import type { ThemeMode } from '../utils/theme';
 
 const SECURITY_POINTS = [
   'Mailbox changes (read, star, archive, trash) only run when you click them',
@@ -20,6 +22,8 @@ export const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
   const { updateProfile, handleLogout, handleGoogleLogin } = useAuth();
   const queryClient = useQueryClient();
+  const themeMode = useThemeStore((s) => s.mode);
+  const setThemeMode = useThemeStore((s) => s.setMode);
   const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(user?.calendarSyncEnabled ?? true);
   const [reclassifying, setReclassifying] = useState(false);
   const [status, setStatus] = useState('');
@@ -42,6 +46,12 @@ export const SettingsPage: React.FC = () => {
   const initials = user?.name
     ? user.name.split(/\s+/).filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'CM';
+
+  const themeOptions: { id: ThemeMode; label: string; icon: React.ReactNode }[] = [
+    { id: 'light', label: 'Light', icon: <Sun size={15} /> },
+    { id: 'dark', label: 'Dark', icon: <Moon size={15} /> },
+    { id: 'system', label: 'System', icon: <Monitor size={15} /> },
+  ];
 
   const handleCalendarToggle = async (val: boolean) => {
     setCalendarSyncEnabled(val);
@@ -93,6 +103,34 @@ export const SettingsPage: React.FC = () => {
                 Classification is personalized from your mailbox — not a student, manager, or job-title profile.
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <Sun size={16} />
+            <h2>Appearance</h2>
+          </div>
+          <p className="settings-copy">
+            Switch between dark command-center and complementary light surfaces. Hierarchy and accents stay the same.
+          </p>
+          <div className="theme-mode-seg" role="radiogroup" aria-label="Color theme">
+            {themeOptions.map((opt) => {
+              const active = themeMode === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  className={`theme-mode-opt${active ? ' is-active' : ''}`}
+                  onClick={() => setThemeMode(opt.id)}
+                >
+                  {opt.icon}
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </section>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Search, LogOut, X, Bell, RefreshCw,
-  Settings as SettingsIcon, ChevronDown,
+  Settings as SettingsIcon, ChevronDown, Sun, Moon,
 } from 'lucide-react';
 import { useEmailStore } from '../../store/emailStore';
 import { useAuthStore } from '../../store/authStore';
@@ -17,6 +17,7 @@ import { queryKeys } from '../../api/queryKeys';
 import { CAT_COLORS } from '../../utils/catColors';
 import { BrandLogo } from '../common/BrandLogo';
 import { useUIStore } from '../../store/uiStore';
+import { useThemeStore } from '../../store/themeStore';
 
 export const TopBar: React.FC = () => {
   const { setSearchQuery, searchQuery, setActiveCategory } = useEmailStore();
@@ -25,6 +26,8 @@ export const TopBar: React.FC = () => {
   const { sync, isSyncing, syncError, lastSyncMode } = useEmailSync();
   const { unreadCount, setUnreadCount, togglePanel, isPanelOpen } = useNotificationStore();
   const { pageTitle } = useUIStore();
+  const resolvedTheme = useThemeStore((s) => s.resolved);
+  const toggleLightDark = useThemeStore((s) => s.toggleLightDark);
   const navigate = useNavigate();
   const { isMobile } = useViewport();
 
@@ -279,6 +282,21 @@ export const TopBar: React.FC = () => {
             <Search size={17} />
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={() => toggleLightDark()}
+          className="vbtn vbtn-bare"
+          aria-label={resolvedTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          title={resolvedTheme === 'light' ? 'Dark mode' : 'Light mode'}
+          style={{ width: 36, height: 36, padding: 0, color: 'var(--v-ink-2)' }}
+        >
+          {resolvedTheme === 'light' ? (
+            <Moon size={18} style={{ display: 'block' }} />
+          ) : (
+            <Sun size={18} style={{ display: 'block' }} />
+          )}
+        </button>
 
         <div style={{ position: 'relative' }}>
           <button
