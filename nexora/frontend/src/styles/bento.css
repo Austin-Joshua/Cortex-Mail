@@ -1,9 +1,11 @@
 /* ==========================================================================
-   CORTEX MAIL — dark command-center palette
+   CORTEX MAIL — dual theme (dark command-center + complementary light)
    Gmail layer = neutral surfaces · Cortex layer = violet accent
+   Hierarchy is identical in both themes; only token values switch.
    ========================================================================== */
 
-:root {
+:root,
+[data-theme='dark'] {
   /* --- Design tokens (source of truth) --- */
   --color-bg-app:           #0B0F19;
   --color-bg-sidebar:       #0E1422;
@@ -43,6 +45,34 @@
 
   --color-star:             #FBBF24;
   --color-star-muted:       #718096;
+
+  /* Category badge pairings */
+  --cat-placement-bg:       #24173F;
+  --cat-placement-fg:       #A78BFA;
+  --cat-internship-bg:      #1D1D45;
+  --cat-internship-fg:      #818CF8;
+  --cat-assignment-bg:      #14263D;
+  --cat-assignment-fg:      #60A5FA;
+  --cat-attendance-bg:      #102D2C;
+  --cat-attendance-fg:      #2DD4BF;
+  --cat-hackathon-bg:       #351B31;
+  --cat-hackathon-fg:       #F472B6;
+  --cat-meeting-bg:         #102D2C;
+  --cat-meeting-fg:         #2DD4BF;
+  --cat-announcement-bg:    #24173F;
+  --cat-announcement-fg:    #C4B5FD;
+  --cat-research-bg:        #122D20;
+  --cat-research-fg:        #4ADE80;
+  --cat-finance-bg:         #332A12;
+  --cat-finance-fg:         #FBBF24;
+  --cat-personal-bg:        #14263D;
+  --cat-personal-fg:        #60A5FA;
+  --cat-promotional-bg:     #202734;
+  --cat-promotional-fg:     #94A3B8;
+  --cat-spam-bg:            #35191D;
+  --cat-spam-fg:            #F87171;
+  --cat-other-bg:           #202734;
+  --cat-other-fg:           #9AA6B2;
 
   /* --- Instrument cluster aliases (--v-*) --- */
   --v-ground:      var(--color-bg-app);
@@ -85,6 +115,8 @@
   --v-critical:    var(--color-danger);
   --v-critical-wash: var(--color-danger-soft);
 
+  --v-scrim: rgba(11, 15, 25, 0.55);
+
   /* --- Depth (dark UI) --- */
   --v-lift-1: 0 1px 2px rgba(0, 0, 0, 0.35);
   --v-lift-2: 0 4px 16px rgba(0, 0, 0, 0.45);
@@ -100,6 +132,126 @@
   --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --v-fast: 140ms var(--v-ease);
   --v-base: 240ms var(--v-ease);
+
+  --theme-color-meta: #0B0F19;
+}
+
+/* Complementary light mode — same hierarchy, inverted surfaces */
+[data-theme='light'] {
+  --color-bg-app:           #F4F6FA;
+  --color-bg-sidebar:       #EAEEF6;
+  --color-surface:          #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-surface-hover:    #E9EDF5;
+  --color-surface-active:   #DEE5F0;
+
+  --color-border-subtle:    #E4E9F2;
+  --color-border:           #D2D9E6;
+  --color-border-strong:    #B4BFD1;
+  --color-border-focus:     #7C3AED;
+
+  --color-text-primary:     #0F172A;
+  --color-text-secondary:   #334155;
+  --color-text-muted:       #64748B;
+  --color-text-disabled:    #94A3B8;
+  --color-text-inverse:     #F8FAFC;
+
+  --color-cortex:           #7C3AED;
+  --color-cortex-light:     #8B5CF6;
+  --color-cortex-dark:      #5B21B6;
+  --color-cortex-soft:      #F3EEFF;
+  --color-cortex-border:    #DDD6FE;
+
+  --color-indigo:           #4F46E5;
+  --color-indigo-soft:      #EEF2FF;
+
+  --color-success:          #0F766E;
+  --color-success-soft:     #CCFBF1;
+  --color-warning:          #B45309;
+  --color-warning-soft:     #FEF3C7;
+  --color-danger:           #DC2626;
+  --color-danger-soft:      #FEE2E2;
+  --color-info:             #2563EB;
+  --color-info-soft:        #DBEAFE;
+
+  --color-star:             #B45309;
+  --color-star-muted:       #94A3B8;
+
+  --cat-placement-bg:       #F3EEFF;
+  --cat-placement-fg:       #6D28D9;
+  --cat-internship-bg:      #EEF2FF;
+  --cat-internship-fg:      #4338CA;
+  --cat-assignment-bg:      #DBEAFE;
+  --cat-assignment-fg:      #1D4ED8;
+  --cat-attendance-bg:      #CCFBF1;
+  --cat-attendance-fg:      #0F766E;
+  --cat-hackathon-bg:       #FCE7F3;
+  --cat-hackathon-fg:       #BE185D;
+  --cat-meeting-bg:         #CCFBF1;
+  --cat-meeting-fg:         #0F766E;
+  --cat-announcement-bg:    #EDE9FE;
+  --cat-announcement-fg:    #5B21B6;
+  --cat-research-bg:        #DCFCE7;
+  --cat-research-fg:        #15803D;
+  --cat-finance-bg:         #FEF3C7;
+  --cat-finance-fg:         #B45309;
+  --cat-personal-bg:        #DBEAFE;
+  --cat-personal-fg:        #1D4ED8;
+  --cat-promotional-bg:     #EEF2F7;
+  --cat-promotional-fg:     #475569;
+  --cat-spam-bg:            #FEE2E2;
+  --cat-spam-fg:            #B91C1C;
+  --cat-other-bg:           #EEF2F7;
+  --cat-other-fg:           #64748B;
+
+  --v-ground:      var(--color-bg-app);
+  --v-ground-2:    #F0F3F9;
+  --v-panel:       var(--color-surface);
+  --v-panel-2:     #F7F9FC;
+  --v-hairline:    var(--color-border);
+  --v-hairline-2:  var(--color-border-strong);
+
+  --v-ink:         var(--color-text-primary);
+  --v-ink-2:       var(--color-text-secondary);
+  --v-ink-3:       var(--color-text-muted);
+  --v-ink-4:       var(--color-text-disabled);
+  --v-on-signal:   #FFFFFF;
+
+  --v-navy:        var(--color-bg-sidebar);
+  --v-navy-dim:    var(--color-border-subtle);
+  --v-navy-mid:    var(--color-cortex);
+  --v-navy-soft:   var(--v-panel-2);
+  --v-navy-mist:   var(--color-cortex-soft);
+  --v-navy-wash:   var(--color-surface-hover);
+
+  --v-signal:      var(--color-cortex);
+  --v-signal-dim:  #6D28D9;
+  --v-signal-wash: var(--color-cortex-soft);
+
+  --v-red:         var(--color-danger);
+  --v-red-wash:    var(--color-danger-soft);
+  --v-green:       var(--color-success);
+  --v-green-wash:  var(--color-success-soft);
+  --v-orange:      var(--color-warning);
+  --v-orange-wash: var(--color-warning-soft);
+  --v-info:        var(--color-info);
+  --v-info-wash:   var(--color-info-soft);
+
+  --v-ember:       var(--color-danger);
+  --v-ember-wash:  var(--color-danger-soft);
+  --v-pulse:       var(--color-success);
+  --v-pulse-wash:  var(--color-success-soft);
+  --v-critical:    var(--color-danger);
+  --v-critical-wash: var(--color-danger-soft);
+
+  --v-scrim: rgba(15, 23, 42, 0.42);
+
+  --v-lift-1: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --v-lift-2: 0 4px 18px rgba(15, 23, 42, 0.08);
+  --v-lift-3: 0 14px 36px rgba(15, 23, 42, 0.12);
+  --v-glow:   0 0 0 2px rgba(124, 58, 237, 0.16);
+
+  --theme-color-meta: #F4F6FA;
 }
 
 /* ==========================================================================
@@ -400,7 +552,7 @@
 
 .vbtn-ember {
   background: var(--v-ember);
-  color: #FFFFFF;
+  color: var(--v-on-signal);
 }
 .vbtn-ember:hover:not(:disabled) { filter: brightness(1.08); }
 
@@ -485,7 +637,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.rail-badge-hot { background: var(--v-ember); color: #FFFFFF; }
+.rail-badge-hot { background: var(--v-ember); color: var(--v-on-signal); }
 
 /* ==========================================================================
    BARS & METERS
@@ -655,7 +807,7 @@
 
 .app-sidebar .vbtn-signal {
   background: var(--color-cortex);
-  color: #FFFFFF;
+  color: var(--v-on-signal);
   box-shadow: var(--v-lift-1);
 }
 
@@ -720,8 +872,8 @@
 }
 .priority-low,
 .badge-priority-low {
-  background: #202734;
-  color: #94A3B8;
+  background: var(--cat-other-bg);
+  color: var(--cat-other-fg);
 }
 
 /* Cortex category badges */
@@ -739,19 +891,19 @@
   border: none;
 }
 
-.badge-placement    { background: #24173F; color: #A78BFA; }
-.badge-internship   { background: #1D1D45; color: #818CF8; }
-.badge-assignment   { background: #14263D; color: #60A5FA; }
-.badge-attendance   { background: #102D2C; color: #2DD4BF; }
-.badge-hackathon    { background: #351B31; color: #F472B6; }
-.badge-meeting      { background: #102D2C; color: #2DD4BF; }
-.badge-announcement { background: #24173F; color: #C4B5FD; }
-.badge-research     { background: #122D20; color: #4ADE80; }
-.badge-finance      { background: #332A12; color: #FBBF24; }
-.badge-personal     { background: #14263D; color: #60A5FA; }
-.badge-promotional  { background: #202734; color: #94A3B8; }
-.badge-spam         { background: #35191D; color: #F87171; }
-.badge-uncategorized { background: #202734; color: #9AA6B2; }
+.badge-placement    { background: var(--cat-placement-bg); color: var(--cat-placement-fg); }
+.badge-internship   { background: var(--cat-internship-bg); color: var(--cat-internship-fg); }
+.badge-assignment   { background: var(--cat-assignment-bg); color: var(--cat-assignment-fg); }
+.badge-attendance   { background: var(--cat-attendance-bg); color: var(--cat-attendance-fg); }
+.badge-hackathon    { background: var(--cat-hackathon-bg); color: var(--cat-hackathon-fg); }
+.badge-meeting      { background: var(--cat-meeting-bg); color: var(--cat-meeting-fg); }
+.badge-announcement { background: var(--cat-announcement-bg); color: var(--cat-announcement-fg); }
+.badge-research     { background: var(--cat-research-bg); color: var(--cat-research-fg); }
+.badge-finance      { background: var(--cat-finance-bg); color: var(--cat-finance-fg); }
+.badge-personal     { background: var(--cat-personal-bg); color: var(--cat-personal-fg); }
+.badge-promotional  { background: var(--cat-promotional-bg); color: var(--cat-promotional-fg); }
+.badge-spam         { background: var(--cat-spam-bg); color: var(--cat-spam-fg); }
+.badge-uncategorized { background: var(--cat-other-bg); color: var(--cat-other-fg); }
 
 /* AI / Cortex markers */
 .cortex-chip {

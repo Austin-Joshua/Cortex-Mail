@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, X, ArrowRight, ChevronDown, Lock, EyeOff, KeyRound,
-  Brain, Timer, Flame, Inbox,
+  Brain, Timer, Flame, Inbox, Moon, Sun,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 import { useReveal, useScrollProgress } from '../hooks/useReveal';
 import { Odometer } from '../components/landing/Odometer';
 import { Gauge } from '../components/bento/Gauge';
@@ -104,6 +105,7 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { handleGoogleLogin } = useAuth();
+  const { theme, toggleTheme } = useThemeStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('auth_error');
   const errorDescription = searchParams.get('error_description') ?? '';
@@ -170,14 +172,25 @@ export const LandingPage: React.FC = () => {
           textSize={14}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         />
-        <button
-          type="button"
-          className="lp-btn lp-btn-primary"
-          onClick={isAuthenticated ? enterApp : handleGoogleLogin}
-          style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}
-        >
-          {isAuthenticated ? 'Open Home' : 'Sign in'}
-        </button>
+        <div className="lp-nav-actions">
+          <button
+            type="button"
+            className="lp-theme-btn"
+            onClick={() => toggleTheme()}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <button
+            type="button"
+            className="lp-btn lp-btn-primary"
+            onClick={isAuthenticated ? enterApp : handleGoogleLogin}
+            style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}
+          >
+            {isAuthenticated ? 'Open Home' : 'Sign in'}
+          </button>
+        </div>
       </nav>
 
       {showError && (

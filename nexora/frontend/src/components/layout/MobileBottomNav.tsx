@@ -62,7 +62,7 @@ export const MobileBottomNav: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: 'var(--v-signal)',
-                  color: '#fff',
+                  color: 'var(--v-on-signal)',
                   boxShadow: on ? 'var(--v-glow)' : 'var(--v-lift-1)',
                   transition: 'box-shadow var(--v-fast)',
                 }}
@@ -124,7 +124,7 @@ export const MobileBottomNav: React.FC = () => {
                     padding: '0 4px',
                     borderRadius: 999,
                     background: 'var(--v-ember)',
-                    color: '#FFFFFF',
+                    color: 'var(--v-on-signal)',
                     fontSize: 9,
                     fontWeight: 800,
                     fontVariantNumeric: 'tabular-nums',

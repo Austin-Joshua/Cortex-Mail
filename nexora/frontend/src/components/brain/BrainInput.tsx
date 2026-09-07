@@ -82,7 +82,7 @@ export const BrainInput: React.FC<BrainInputProps> = ({ onSend, isLoading, initi
             borderRadius: '50%',
             background: canSend ? 'var(--accent)' : 'var(--border)',
             border: 'none',
-            color: '#ffffff',
+            color: 'var(--v-on-signal)',
             cursor: canSend ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',

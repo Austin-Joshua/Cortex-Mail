@@ -325,7 +325,7 @@
   padding: 0;
   border: none;
   background: var(--v-signal);
-  color: #fff;
+  color: var(--v-on-signal);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -396,7 +396,7 @@
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: var(--v-signal);
-  color: #fff;
+  color: var(--v-on-signal);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -459,6 +459,67 @@
   margin: 0;
   font-size: 13px;
   color: var(--v-signal);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--v-ground-2);
+  border: 1px solid var(--v-hairline);
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--v-ink-3);
+  font-size: 13px;
+  font-weight: 650;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--v-fast), color var(--v-fast), box-shadow var(--v-fast);
+}
+
+.theme-toggle-btn:hover {
+  color: var(--v-ink);
+}
+
+.theme-toggle-btn.is-active {
+  background: var(--v-panel);
+  color: var(--v-ink);
+  box-shadow: var(--v-lift-1);
+}
+
+.settings-field {
+  width: 100%;
+  margin-bottom: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--v-hairline);
+  background: var(--v-ground);
+  color: var(--v-ink);
+  font: inherit;
+}
+
+.settings-field:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--v-glow);
+}
+
+textarea.settings-field {
+  height: auto;
+  padding: 10px;
+  resize: vertical;
 }
 
 .settings-layout {

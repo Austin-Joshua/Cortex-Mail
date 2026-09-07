@@ -5,8 +5,8 @@
   "start_url": "/dashboard",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#EEF2FF",
-  "theme_color": "#1E3A8A",
+  "background_color": "#F4F6FA",
+  "theme_color": "#0B0F19",
   "icons": [
     { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }

@@ -91,7 +91,7 @@ export const AnalyticsPage: React.FC = () => {
       .map(([cat, count]) => ({
         name: CATEGORY_LABELS[cat] ?? cat,
         value: count as number,
-        color: CAT_COLORS[cat]?.text ?? '#9AA6B2',
+        color: CAT_COLORS[cat]?.text ?? 'var(--cat-other-fg)',
         raw: cat,
       }))
       .filter((row) => row.value > 0)

@@ -214,7 +214,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
               height: 40,
               borderRadius: '50%',
               background: 'var(--accent)',
-              color: '#ffffff',
+              color: 'var(--v-on-signal)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

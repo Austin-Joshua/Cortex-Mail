@@ -7,7 +7,11 @@ interface CategoryTagProps {
 
 /** Cortex category badge — compact, moderate saturation. */
 export const CategoryTag: React.FC<CategoryTagProps> = ({ category }) => {
-  const cfg = CAT_COLORS[category] ?? { label: category, bg: '#202734', text: '#9AA6B2' };
+  const cfg = CAT_COLORS[category] ?? {
+    label: category,
+    bg: 'var(--cat-other-bg)',
+    text: 'var(--cat-other-fg)',
+  };
   return (
     <span
       className="cat-badge"

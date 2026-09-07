@@ -191,12 +191,12 @@
 
 .lp-btn-primary {
   background: linear-gradient(135deg, var(--color-cortex) 0%, var(--color-cortex-dark) 100%);
-  color: #fff;
-  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25);
+  color: var(--v-on-signal);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-cortex) 28%, transparent);
 }
 .lp-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(139, 92, 246, 0.32);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-cortex) 36%, transparent);
 }
 .lp-btn-primary:active { transform: translateY(0); }
 
@@ -419,4 +419,51 @@
   .lp-atmos { animation: none; }
   .lp-rail { transition: none; }
   .reveal.in .lp-ledger-bar > i { transition: none; }
+}
+
+/* Light-mode landing atmosphere — softer washes on pale ground */
+html[data-theme='light'] .lp {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% -8%, rgba(124, 58, 237, 0.08), transparent 58%),
+    radial-gradient(ellipse 50% 35% at 92% 12%, rgba(79, 70, 229, 0.05), transparent 52%),
+    var(--color-bg-app);
+}
+
+html[data-theme='light'] .lp-atmos {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(124, 58, 237, 0.14), transparent 42%),
+    radial-gradient(circle at 12% 72%, rgba(37, 99, 235, 0.10), transparent 38%),
+    radial-gradient(circle at 48% 48%, rgba(255, 255, 255, 0.75), transparent 45%),
+    radial-gradient(circle at 88% 78%, rgba(234, 88, 12, 0.06), transparent 32%);
+  opacity: 0.85;
+}
+
+html[data-theme='light'] .lp-cta-finale::before {
+  background: radial-gradient(ellipse at 50% 40%, rgba(124, 58, 237, 0.10), transparent 65%);
+}
+
+.lp-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lp-theme-btn {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--v-fast), border-color var(--v-fast), color var(--v-fast);
+}
+
+.lp-theme-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
 }

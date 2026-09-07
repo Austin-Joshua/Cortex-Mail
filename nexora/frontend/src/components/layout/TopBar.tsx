@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Search, LogOut, X, Bell, RefreshCw,
-  Settings as SettingsIcon, ChevronDown,
+  Settings as SettingsIcon, ChevronDown, Moon, Sun,
 } from 'lucide-react';
 import { useEmailStore } from '../../store/emailStore';
 import { useAuthStore } from '../../store/authStore';
@@ -17,6 +17,7 @@ import { queryKeys } from '../../api/queryKeys';
 import { CAT_COLORS } from '../../utils/catColors';
 import { BrandLogo } from '../common/BrandLogo';
 import { useUIStore } from '../../store/uiStore';
+import { useThemeStore } from '../../store/themeStore';
 
 export const TopBar: React.FC = () => {
   const { setSearchQuery, searchQuery, setActiveCategory } = useEmailStore();
@@ -25,6 +26,7 @@ export const TopBar: React.FC = () => {
   const { sync, isSyncing, syncError, lastSyncMode } = useEmailSync();
   const { unreadCount, setUnreadCount, togglePanel, isPanelOpen } = useNotificationStore();
   const { pageTitle } = useUIStore();
+  const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
   const { isMobile } = useViewport();
 
@@ -305,7 +307,7 @@ export const TopBar: React.FC = () => {
                   padding: '0 4px',
                   borderRadius: 999,
                   background: 'var(--v-red)',
-                  color: '#fff',
+                  color: 'var(--v-on-signal)',
                   fontSize: 9,
                   fontWeight: 800,
                   display: 'flex',
@@ -320,6 +322,21 @@ export const TopBar: React.FC = () => {
           </button>
           <NotificationPanel />
         </div>
+
+        <button
+          type="button"
+          onClick={() => toggleTheme()}
+          className="vbtn vbtn-bare"
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          style={{ width: 36, height: 36, padding: 0, color: 'var(--v-ink-2)' }}
+        >
+          {theme === 'dark' ? (
+            <Sun size={18} style={{ display: 'block' }} />
+          ) : (
+            <Moon size={18} style={{ display: 'block' }} />
+          )}
+        </button>
 
         <button
           type="button"

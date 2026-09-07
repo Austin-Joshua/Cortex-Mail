@@ -3,11 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore, type ThemeMode } from '../store/themeStore';
 import { emailApi } from '../api/emailApi';
 import { settingsApi } from '../api/settingsApi';
 import { templatesApi } from '../api/templatesApi';
 import { queryKeys } from '../api/queryKeys';
-import { Calendar, Link2, LogOut, RefreshCw, Shield, Sparkles, User, FileText } from 'lucide-react';
+import { Calendar, Link2, LogOut, Moon, RefreshCw, Shield, Sparkles, Sun, User, FileText } from 'lucide-react';
 
 const SECURITY_POINTS = [
   'Mailbox changes (read, star, archive, trash) only run when you click them',
@@ -19,6 +20,7 @@ const SECURITY_POINTS = [
 export const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
   const { updateProfile, handleLogout, handleGoogleLogin } = useAuth();
+  const { theme, setTheme } = useThemeStore();
   const queryClient = useQueryClient();
   const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(user?.calendarSyncEnabled ?? true);
   const [reclassifying, setReclassifying] = useState(false);
@@ -52,6 +54,11 @@ export const SettingsPage: React.FC = () => {
       setCalendarSyncEnabled(!val);
       setStatus('Could not update calendar preference.');
     }
+  };
+
+  const handleThemeChange = (next: ThemeMode) => {
+    setTheme(next);
+    setStatus(next === 'light' ? 'Light mode on.' : 'Dark mode on.');
   };
 
   const handleReanalyze = async () => {
@@ -93,6 +100,36 @@ export const SettingsPage: React.FC = () => {
                 Classification is personalized from your mailbox — not a student, manager, or job-title profile.
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            {theme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
+            <h2>Appearance</h2>
+          </div>
+          <p className="settings-copy">
+            Switch between the dark command center and a complementary light workspace. Color hierarchy and features stay the same.
+          </p>
+          <div className="theme-toggle" role="group" aria-label="Color theme">
+            <button
+              type="button"
+              className={`theme-toggle-btn${theme === 'dark' ? ' is-active' : ''}`}
+              aria-pressed={theme === 'dark'}
+              onClick={() => handleThemeChange('dark')}
+            >
+              <Moon size={15} />
+              Dark
+            </button>
+            <button
+              type="button"
+              className={`theme-toggle-btn${theme === 'light' ? ' is-active' : ''}`}
+              aria-pressed={theme === 'light'}
+              onClick={() => handleThemeChange('light')}
+            >
+              <Sun size={15} />
+              Light
+            </button>
           </div>
         </section>
 
@@ -154,9 +191,9 @@ export const SettingsPage: React.FC = () => {
             <h2>Reply templates</h2>
           </div>
           <p className="settings-copy">Used from Drafts → New Cortex draft. Stored per account.</p>
-          <input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Template name" style={{ width: '100%', marginBottom: 8, height: 36, padding: '0 10px' }} />
-          <input value={tplSubject} onChange={(e) => setTplSubject(e.target.value)} placeholder="Subject" style={{ width: '100%', marginBottom: 8, height: 36, padding: '0 10px' }} />
-          <textarea value={tplBody} onChange={(e) => setTplBody(e.target.value)} placeholder="Body" rows={4} style={{ width: '100%', marginBottom: 8, padding: 10, fontFamily: 'inherit' }} />
+          <input className="settings-field" value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Template name" />
+          <input className="settings-field" value={tplSubject} onChange={(e) => setTplSubject(e.target.value)} placeholder="Subject" />
+          <textarea className="settings-field" value={tplBody} onChange={(e) => setTplBody(e.target.value)} placeholder="Body" rows={4} />
           <button
             type="button"
             className="vbtn vbtn-quiet"
