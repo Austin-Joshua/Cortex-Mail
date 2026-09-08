@@ -11,7 +11,7 @@ export function useAuth() {
 
   const isGoogleConfigured = (() => {
     const id = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-    return Boolean(id) && !id.includes('your_google_client_id') && id.includes('.apps.googleusercontent.com');
+    return Boolean(id) && !id.includes('your_google_client_id') && !id.includes('your-google-client-id') && id.includes('.apps.googleusercontent.com');
   })();
 
   const handleGoogleLogin = () => {
@@ -19,7 +19,13 @@ export function useAuth() {
       navigate('/?auth_error=oauth_not_configured', { replace: true });
       return;
     }
-    window.location.href = authApi.getGoogleAuthUrl();
+    void authApi.getGoogleAuthUrl()
+      .then((url) => {
+        window.location.href = url;
+      })
+      .catch(() => {
+        navigate('/?auth_error=oauth_state_failed', { replace: true });
+      });
   };
 
   const handleLogout = () => {
@@ -27,7 +33,8 @@ export function useAuth() {
     logout();
     queryClient.clear();
     navigate('/', { replace: true });
-    void authApi.revokeAccess(sessionToken).catch(() => {});
+    // Soft logout: invalidate JWTs but keep Gmail connection for next sign-in.
+    void authApi.logout(sessionToken).catch(() => {});
   };
 
   const updateProfile = async (params: { role?: UserRole; calendarSyncEnabled?: boolean }) => {

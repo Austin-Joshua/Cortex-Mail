@@ -17,7 +17,7 @@ import { CAT_COLORS, scoreToneFor } from '../utils/catColors';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-/** Flow zones are fixed bands across the working day. */
+/** Flow zones are suggested focus bands — they do not mute notifications. */
 const FLOW_ZONES = [
   { name: 'Deep Focus',    from: 9,  to: 12, tone: 'var(--v-ink)',      quiet: true },
   { name: 'Collaboration', from: 12, to: 15, tone: 'var(--v-orange)',   quiet: false },
@@ -313,7 +313,7 @@ export const DashboardPageNew: React.FC = () => {
           </p>
         </Tile>
 
-        <Tile span={4} rule="var(--v-red)" index={2} onClick={() => navigate('/priority')}>
+        <Tile span={4} rule="var(--v-red)" index={2} onClick={() => navigate('/scheduled')}>
           <TileHead label="Deadlines" icon={<Timer size={17} />} tone="var(--v-red)"
             right={overdue > 0 ? <span className="delta delta-down">{overdue} overdue</span> : undefined} />
           <div className="v-readout v-readout-lg">{deadlines.length}</div>
@@ -414,7 +414,17 @@ export const DashboardPageNew: React.FC = () => {
           ) : (
             <EmptyState
               loading={isLoading}
-              text={isLoading ? 'Reading your inbox…' : 'Inbox clear. Nothing waiting on you.'}
+              text={
+                isLoading
+                  ? 'Reading your inbox…'
+                  : isPipelineRunning
+                    ? 'Syncing Gmail — priority mail will appear here.'
+                    : !hasSyncedMail
+                      ? 'Sync Gmail from the title bar to see what needs you first.'
+                      : unread && unread > 0
+                        ? 'No high-priority unread right now — open Inbox for the rest.'
+                        : 'Nothing flagged as needing you first. Check Inbox if you expect mail.'
+              }
             />
           )}
         </Tile>
@@ -499,7 +509,7 @@ export const DashboardPageNew: React.FC = () => {
                       {fmtHour(z.from)} — {fmtHour(z.to)}
                     </div>
                     <div className="v-label" style={{ marginTop: 7 }}>
-                      {z.quiet ? 'Notifications muted' : 'Notifications live'}
+                      {z.quiet ? 'Suggested quiet block' : 'Suggested collaboration'}
                     </div>
                   </div>
                 );

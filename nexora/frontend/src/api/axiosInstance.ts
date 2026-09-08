@@ -15,6 +15,7 @@ const axiosInstance = axios.create({
   },
 });
 
+let handlingUnauthorized = false;
 
 // Request interceptor — attach JWT
 axiosInstance.interceptors.request.use(
@@ -28,15 +29,26 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor — handle 401
+// Response interceptor — handle 401 once (avoid thrash from parallel failures)
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url = String(error.config?.url ?? '');
+    const isPublicAuth =
+      url.includes('/api/auth/token')
+      || url.includes('/api/auth/oauth/state')
+      || url.includes('/api/auth/google');
+
+    if (status === 401 && !isPublicAuth && !handlingUnauthorized) {
+      handlingUnauthorized = true;
       useAuthStore.getState().logout();
       if (window.location.pathname !== '/') {
         window.location.replace('/');
       }
+      window.setTimeout(() => {
+        handlingUnauthorized = false;
+      }, 1500);
     }
     return Promise.reject(error);
   }

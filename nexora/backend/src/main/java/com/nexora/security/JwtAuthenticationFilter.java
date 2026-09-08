@@ -1,5 +1,6 @@
 package com.nexora.security;
 
+import com.nexora.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtRevocationRegistry revocationRegistry;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -31,8 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             try {
                 UserPrincipal principal = jwtTokenProvider.toPrincipal(token);
-                if (principal != null
-                        && !revocationRegistry.isRevoked(principal.getId(), principal.getTokenVersion())) {
+                if (principal != null && isSessionActive(principal)) {
                     var authority = new SimpleGrantedAuthority("ROLE_" + principal.getUserRole().name());
                     var authentication = new UsernamePasswordAuthenticationToken(
                             principal, null, List.of(authority));
@@ -44,6 +45,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Fast in-memory revoke gate plus durable DB {@code token_version} check so
+     * logout survives process restarts (and stays correct for single-instance deploys).
+     */
+    private boolean isSessionActive(UserPrincipal principal) {
+        int jwtVersion = principal.getTokenVersion();
+        if (revocationRegistry.isRevoked(principal.getId(), jwtVersion)) {
+            return false;
+        }
+        Integer dbVersion = userRepository.findTokenVersionById(principal.getId()).orElse(null);
+        if (dbVersion == null) {
+            return false;
+        }
+        revocationRegistry.revokeAtLeast(principal.getId(), dbVersion);
+        return jwtVersion >= dbVersion;
     }
 
     private String extractToken(HttpServletRequest request) {

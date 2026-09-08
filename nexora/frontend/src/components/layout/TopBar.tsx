@@ -234,7 +234,11 @@ export const TopBar: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   <button
                     className="chip chip-on"
-                    onClick={() => { setActiveCategory('ALL'); setShowFilters(false); }}
+                    onClick={() => {
+                      setActiveCategory('ALL');
+                      navigate('/inbox');
+                      setShowFilters(false);
+                    }}
                   >
                     All
                   </button>

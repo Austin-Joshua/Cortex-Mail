@@ -48,10 +48,11 @@ public class AuthService {
 
     /**
      * Exchange Google OAuth code for tokens, upsert user, return JWT.
+     * Always uses the configured {@code GOOGLE_REDIRECT_URI} (never Host-header derived).
      */
-    public AuthResponse handleGoogleCallback(String code, String dynamicRedirectUri) {
+    public AuthResponse handleGoogleCallback(String code) {
         // 1. Exchange code for tokens
-        JsonNode tokenResponse = exchangeCodeForTokens(code, dynamicRedirectUri);
+        JsonNode tokenResponse = exchangeCodeForTokens(code);
 
         String accessToken  = tokenResponse.get("access_token").asText();
         String refreshToken = tokenResponse.has("refresh_token")
@@ -166,6 +167,12 @@ public class AuthService {
                 .build();
     }
 
+    /** Invalidate app JWTs without disconnecting Gmail. */
+    public void logout(Long userId) {
+        bumpTokenVersion(userId);
+    }
+
+    /** Disconnect Gmail tokens and invalidate outstanding JWTs. */
     public void revokeAccess(Long userId) {
         User user = getCurrentUser(userId);
         user.setGmailAccessToken(null);
@@ -177,9 +184,17 @@ public class AuthService {
         jwtRevocationRegistry.revokeAtLeast(userId, next);
     }
 
+    private void bumpTokenVersion(Long userId) {
+        User user = getCurrentUser(userId);
+        int next = (user.getTokenVersion() != null ? user.getTokenVersion() : 0) + 1;
+        user.setTokenVersion(next);
+        userRepository.save(user);
+        jwtRevocationRegistry.revokeAtLeast(userId, next);
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
-    private JsonNode exchangeCodeForTokens(String code, String dynamicRedirectUri) {
+    private JsonNode exchangeCodeForTokens(String code) {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -188,15 +203,10 @@ public class AuthService {
         body.add("code", code);
         body.add("client_id", googleClientId);
         body.add("client_secret", googleClientSecret);
-        
-        String effectiveRedirectUri = redirectUri;
-        if (effectiveRedirectUri != null && effectiveRedirectUri.contains("localhost") 
-                && dynamicRedirectUri != null && !dynamicRedirectUri.contains("localhost")) {
-            effectiveRedirectUri = dynamicRedirectUri;
-        } else if (effectiveRedirectUri == null || effectiveRedirectUri.isEmpty()) {
-            effectiveRedirectUri = dynamicRedirectUri;
+        if (redirectUri == null || redirectUri.isBlank()) {
+            throw new NexoraException("GOOGLE_REDIRECT_URI is not configured", 500);
         }
-        body.add("redirect_uri", effectiveRedirectUri);
+        body.add("redirect_uri", redirectUri);
         body.add("grant_type", "authorization_code");
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);

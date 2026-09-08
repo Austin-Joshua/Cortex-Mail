@@ -3,6 +3,7 @@ package com.nexora.controller;
 import com.nexora.dto.request.ProfileUpdateRequest;
 import com.nexora.dto.response.AuthResponse;
 import com.nexora.security.AuthPrincipals;
+import com.nexora.security.OauthStateService;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.AuthService;
 import com.nexora.service.OauthExchangeService;
@@ -14,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -22,23 +25,29 @@ public class AuthController {
 
     private final AuthService authService;
     private final OauthExchangeService oauthExchangeService;
+    private final OauthStateService oauthStateService;
 
     @Value("${app.cors-allowed-origins}")
     private String corsAllowedOrigins;
 
     /**
-     * Frontend redirects user to:
-     * https://accounts.google.com/o/oauth2/v2/auth?client_id=...&redirect_uri=.../api/auth/google/callback&response_type=code&scope=...&access_type=offline&prompt=consent
-     *
-     * Google then redirects back here with ?code=...
+     * Issue a short-lived OAuth {@code state} for the SPA to attach to Google's authorize URL.
+     */
+    @GetMapping("/oauth/state")
+    public ResponseEntity<Map<String, String>> issueOauthState() {
+        return ResponseEntity.ok(Map.of("state", oauthStateService.issue()));
+    }
+
+    /**
+     * Frontend redirects user to Google with {@code state}; Google redirects here with ?code=&state=.
      * We exchange the code, register/load the user, and redirect back to the React app callback page.
      */
     @GetMapping("/google/callback")
     public void googleCallback(
             @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
             @RequestParam(required = false) String error,
             @RequestParam(name = "error_description", required = false) String errorDescription,
-            jakarta.servlet.http.HttpServletRequest request,
             jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
 
         String frontendBase = corsAllowedOrigins.split(",")[0].trim();
@@ -48,6 +57,15 @@ public class AuthController {
                     .fromHttpUrl(frontendBase + "/")
                     .queryParam("auth_error", error)
                     .queryParam("error_description", errorDescription != null ? errorDescription : "")
+                    .build().toUriString();
+            response.sendRedirect(redirectUrl);
+            return;
+        }
+
+        if (!oauthStateService.consume(state)) {
+            String redirectUrl = org.springframework.web.util.UriComponentsBuilder
+                    .fromHttpUrl(frontendBase + "/")
+                    .queryParam("auth_error", "invalid_state")
                     .build().toUriString();
             response.sendRedirect(redirectUrl);
             return;
@@ -63,29 +81,7 @@ public class AuthController {
         }
 
         try {
-            // Dynamically detect scheme, taking reverse proxies into account
-            String scheme = request.getHeader("X-Forwarded-Proto");
-            if (scheme != null && !scheme.isEmpty()) {
-                scheme = scheme.split(",")[0].trim();
-            } else {
-                scheme = request.getScheme();
-            }
-
-            // Dynamically detect host, taking reverse proxies into account
-            String host = request.getHeader("X-Forwarded-Host");
-            if (host != null && !host.isEmpty()) {
-                host = host.split(",")[0].trim();
-            } else {
-                host = request.getHeader("Host");
-            }
-            if (host == null || host.isEmpty()) {
-                int port = request.getServerPort();
-                host = request.getServerName() + (port == 80 || port == 443 ? "" : ":" + port);
-            }
-
-            String dynamicRedirectUri = scheme + "://" + host + request.getRequestURI();
-
-            AuthResponse authResponse = authService.handleGoogleCallback(code, dynamicRedirectUri);
+            AuthResponse authResponse = authService.handleGoogleCallback(code);
 
             String exchangeCode = oauthExchangeService.store(
                     authResponse.getUserId(), authResponse.isOnboardingComplete());
@@ -136,6 +132,14 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    /** Soft logout — invalidate JWTs; keep Gmail connection for next sign-in. */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal user) {
+        authService.logout(AuthPrincipals.requireId(user));
+        return ResponseEntity.ok().build();
+    }
+
+    /** Hard disconnect — wipe Gmail tokens and invalidate JWTs. */
     @PostMapping("/revoke")
     public ResponseEntity<Void> revokeAccess(@AuthenticationPrincipal UserPrincipal user) {
         authService.revokeAccess(AuthPrincipals.requireId(user));

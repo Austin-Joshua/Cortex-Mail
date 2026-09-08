@@ -5,9 +5,8 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * In-memory JWT revoke gate. On logout / revokeAccess we bump the user's
- * token_version and publish it here so outstanding JWTs fail without a DB hit
- * on every request. Survives for the life of the JVM (single-instance deploy).
+ * Fast in-memory JWT revoke gate. Durable enforcement compares JWT {@code tv}
+ * to {@code users.token_version} in {@link JwtAuthenticationFilter}.
  */
 @Component
 public class JwtRevocationRegistry {

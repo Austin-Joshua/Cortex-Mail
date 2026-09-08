@@ -66,6 +66,7 @@ export const InboxPage: React.FC = () => {
   const { searchQuery, selectedEmail, setSelectedEmail, setSearchQuery } = useEmailStore();
   const debouncedSearch = useDebouncedValue(searchQuery, 400);
   const userRole = useAuthStore((s) => s.user?.userRole);
+  const lastSyncedAt = useAuthStore((s) => s.user?.lastSyncedAt);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
 
@@ -110,6 +111,27 @@ export const InboxPage: React.FC = () => {
     queryFn: emailApi.getGmailLabelCounts,
     staleTime: 120_000,
   });
+
+  const { data: syncStatus } = useQuery({
+    queryKey: queryKeys.syncStatus,
+    queryFn: emailApi.getSyncStatus,
+    staleTime: 15_000,
+    refetchInterval: (q) => (q.state.data?.syncInProgress ? 3_000 : false),
+  });
+
+  const neverSynced = !lastSyncedAt && !syncStatus?.lastSyncedAt
+    && Number(syncStatus?.localCounts?.inboxTotal ?? 0) === 0;
+  const syncInProgress = syncStatus?.syncInProgress === true;
+  const emptyHeadline = syncInProgress
+    ? 'Syncing your Gmail…'
+    : neverSynced
+      ? 'Inbox not synced yet'
+      : 'Nothing in this view';
+  const emptyBody = syncInProgress
+    ? 'Mail will appear here as Cortex finishes pulling from Gmail.'
+    : neverSynced
+      ? 'Use Sync in the title bar (or open Home) to pull your mailbox.'
+      : 'Try another tab, clear search, or sync again if you expect mail here.';
 
   const visibleDivisions = useMemo(
     () => getVisibleInboxDivisions(userRole, categoryCounts, labelCounts),
@@ -352,6 +374,8 @@ export const InboxPage: React.FC = () => {
                       onMarkAllRead={() => void handleMarkAllRead()}
                       unreadCount={inboxUnread}
                       busy={busy}
+                      emptyHeadline={emptyHeadline}
+                      emptyBody={emptyBody}
                     />
                   )}
                 </div>

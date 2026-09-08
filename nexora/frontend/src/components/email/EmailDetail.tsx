@@ -8,6 +8,7 @@ import { CategoryTag } from '../common/CategoryTag';
 import { PriorityBars } from '../common/PriorityBars';
 import { formatDateTime } from '../../utils/formatDate';
 import { cleanEmailBody } from '../../utils/cleanEmailBody';
+import { sanitizeEmailHtml } from '../../utils/sanitizeEmailHtml';
 import {
   CheckSquare, X, Calendar, Sparkles, ChevronDown, RefreshCw, MessageSquare
 } from 'lucide-react';
@@ -287,7 +288,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
         {hasHtml ? (
           <div
             className="email-html-body"
-            dangerouslySetInnerHTML={{ __html: email.bodyHtml as string }}
+            dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(email.bodyHtml as string) }}
           />
         ) : (
           <div className="email-body-isolate" style={{ whiteSpace: 'pre-wrap', fontFamily: 'Roboto, sans-serif' }}>

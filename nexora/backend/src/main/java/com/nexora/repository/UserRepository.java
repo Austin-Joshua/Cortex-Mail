@@ -19,6 +19,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByGoogleId(String googleId);
     List<User> findAllByLastSyncedAtBeforeOrLastSyncedAtIsNull(LocalDateTime threshold);
 
+    @Query("SELECT u.tokenVersion FROM User u WHERE u.id = :id")
+    Optional<Integer> findTokenVersionById(@Param("id") Long id);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE User u SET u.gmailAccessToken = :token, u.tokenExpiry = :expiry WHERE u.id = :id")

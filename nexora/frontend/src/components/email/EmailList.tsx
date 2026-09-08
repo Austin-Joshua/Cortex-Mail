@@ -20,6 +20,8 @@ interface EmailListProps {
   onMarkAllRead?: () => void;
   unreadCount?: number;
   busy?: boolean;
+  emptyHeadline?: string;
+  emptyBody?: string;
 }
 
 export const EmailList: React.FC<EmailListProps> = ({
@@ -38,6 +40,8 @@ export const EmailList: React.FC<EmailListProps> = ({
   onMarkAllRead,
   unreadCount = 0,
   busy = false,
+  emptyHeadline = 'Nothing here',
+  emptyBody = 'Sync from the title bar if this view should have mail.',
 }) => {
   const { selectedEmail } = useEmailStore();
   const selectedCount = selectedIds?.size ?? 0;
@@ -99,10 +103,10 @@ export const EmailList: React.FC<EmailListProps> = ({
           <Inbox size={24} style={{ color: 'var(--text-3)' }} />
         </div>
         <p style={{ color: 'var(--text-1)', fontWeight: 700, fontSize: 14, margin: '0 0 4px', fontFamily: 'Google Sans, Roboto, sans-serif' }}>
-          Nothing here
+          {emptyHeadline}
         </p>
         <p style={{ color: 'var(--text-2)', fontSize: 13, margin: 0 }}>
-          Sync from the title bar if this view should have mail.
+          {emptyBody}
         </p>
       </div>
     );

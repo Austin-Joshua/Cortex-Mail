@@ -7,7 +7,8 @@ const BACKEND_ORIGIN = RAW_BASE.replace(/\/api\/?$/, '').replace(/\/$/, '');
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 export const authApi = {
-  getGoogleAuthUrl: (): string => {
+  getGoogleAuthUrl: async (): Promise<string> => {
+    const { data } = await axiosInstance.get<{ state: string }>('/api/auth/oauth/state');
     const params = new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID,
       redirect_uri: `${BACKEND_ORIGIN}/api/auth/google/callback`,
@@ -20,6 +21,7 @@ export const authApi = {
       ].join(' '),
       access_type: 'offline',
       prompt: 'consent',
+      state: data.state,
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   },
@@ -38,6 +40,18 @@ export const authApi = {
   updateProfile: async (params: { userRole?: UserRole; calendarSyncEnabled?: boolean }): Promise<AuthResponse> => {
     const { data } = await axiosInstance.put<AuthResponse>('/api/auth/profile', params);
     return data;
+  },
+
+  logout: async (token?: string | null): Promise<void> => {
+    const auth = token ?? undefined;
+    if (!auth) return;
+    await fetch(`${BACKEND_ORIGIN}/api/auth/logout`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
   },
 
   revokeAccess: async (token?: string | null): Promise<void> => {
