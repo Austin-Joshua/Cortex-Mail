@@ -68,7 +68,10 @@ public class EmailService {
         }
 
         Page<Email> emailPage;
-        if (mailboxView != null && categoryEnum == null) {
+        if (mailboxView != null && categoryEnum != null) {
+            throw new NexoraException("Pass either mailbox view or category, not both", 400);
+        }
+        if (mailboxView != null) {
             if (hasSearch) {
                 emailPage = findInboxByView(userId, mailboxView, search.trim(), pageable);
             } else {
@@ -328,16 +331,6 @@ public class EmailService {
         return new GmailSyncResponse(
                 "Gmail sync started — inbox will update shortly",
                 0, 0, 0, Map.of(), "STARTED");
-    }
-
-    /** Runs sync on the calling thread (scheduler). Post-sync classify still goes async. */
-    public GmailSyncResponse syncInboxBlocking(Long userId) {
-        GmailSyncResponse response = gmailSyncService.syncInbox(userId);
-        String mode = response.getSyncMode();
-        if (mode != null && !"SKIPPED".equals(mode)) {
-            postSyncProcessingService.process(userId, mode);
-        }
-        return response;
     }
 
     public Map<String, GmailLabelCountResponse> getGmailLabelCounts(Long userId) {

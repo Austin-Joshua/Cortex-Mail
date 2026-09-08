@@ -105,13 +105,12 @@ public class EmailDraftService {
         try {
             ensureFreshToken(user);
             Gmail gmail = buildGmail(user);
-            Message sent;
             Message message = new Message();
             message.setRaw(encodeMime(draft, user.getEmail()));
-            sent = gmail.users().messages().send("me", message).execute();
+            gmail.users().messages().send("me", message).execute();
             draft.setDraftStatus("SENT");
             draftRepository.save(draft);
-            return sent != null && sent.getId() != null ? sent.getId() : "sent";
+            return "Draft sent via Gmail";
         } catch (ResponseStatusException e) {
             throw e;
         } catch (NexoraException e) {

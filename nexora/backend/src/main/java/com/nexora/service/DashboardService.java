@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,10 +52,14 @@ public class DashboardService {
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime weekOut = now.plusDays(7);
-        List<Email> deadlines = emailRepository.findUpcomingDeadlines(userId, now, weekOut)
-                .stream()
-                .limit(8)
-                .collect(Collectors.toList());
+        LocalDateTime overdueSince = now.minusDays(14);
+        // Overdue first (last 14 days), then upcoming week — Deadlines page splits both from this list.
+        List<Email> overdue = emailRepository.findOverdueDeadlines(userId, now, overdueSince);
+        List<Email> upcoming = emailRepository.findUpcomingDeadlines(userId, now, weekOut);
+        List<Email> deadlines = new ArrayList<>(overdue.size() + upcoming.size());
+        deadlines.addAll(overdue.stream().limit(8).toList());
+        int remaining = Math.max(0, 12 - deadlines.size());
+        deadlines.addAll(upcoming.stream().limit(remaining).toList());
 
         List<EmailAction> pendingActions = actionRepository
                 .findOpenInboxFollowUps(userId, LocalDateTime.now(), PageRequest.of(0, 8));

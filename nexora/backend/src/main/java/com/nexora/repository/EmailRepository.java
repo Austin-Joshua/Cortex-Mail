@@ -246,6 +246,19 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
                                       @Param("end") LocalDateTime end);
 
     @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND (e.isTrash = false OR e.isTrash IS NULL)
+              AND (e.isSpam = false OR e.isSpam IS NULL)
+              AND (e.isDraft = false OR e.isDraft IS NULL)
+              AND e.category <> 'PROMOTIONAL' AND e.category <> 'SPAM'
+              AND e.deadlineDetected >= :since AND e.deadlineDetected < :now
+            ORDER BY e.deadlineDetected ASC
+            """)
+    List<Email> findOverdueDeadlines(@Param("userId") Long userId,
+                                     @Param("now") LocalDateTime now,
+                                     @Param("since") LocalDateTime since);
+
+    @Query("""
             SELECT COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
               AND (e.isTrash = false OR e.isTrash IS NULL)
               AND (e.isSpam = false OR e.isSpam IS NULL)
