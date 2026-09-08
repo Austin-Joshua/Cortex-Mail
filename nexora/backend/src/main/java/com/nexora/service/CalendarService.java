@@ -15,7 +15,6 @@ import com.nexora.security.TokenEncryptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -42,7 +41,7 @@ public class CalendarService {
     private static final String APPLICATION_NAME = "Cortex Mail";
     private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
-    @Async
+    /** Synchronous so job workers can mark the job done only after Calendar API work finishes. */
     public void createDeadlineEvent(User user, Email email) {
         if (email.getDeadlineDetected() == null) return;
         if (Boolean.TRUE.equals(email.getIsDeadlineAddedToCalendar())) return;

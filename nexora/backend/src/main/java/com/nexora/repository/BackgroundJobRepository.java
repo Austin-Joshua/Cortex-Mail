@@ -21,4 +21,17 @@ public interface BackgroundJobRepository extends JpaRepository<BackgroundJob, Lo
     List<BackgroundJob> findDueJobs(@Param("status") String status,
                                     @Param("now") LocalDateTime now,
                                     Pageable pageable);
+
+    /** Atomic claim — only one worker wins when status is still PENDING. */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE BackgroundJob j
+               SET j.status = :running, j.lockedAt = :now, j.attempts = COALESCE(j.attempts, 0) + 1
+             WHERE j.id = :id AND j.status = :pending
+            """)
+    int tryClaim(
+            @Param("id") Long id,
+            @Param("pending") String pending,
+            @Param("running") String running,
+            @Param("now") LocalDateTime now);
 }

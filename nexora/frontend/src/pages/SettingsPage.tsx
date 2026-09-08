@@ -25,9 +25,24 @@ export const SettingsPage: React.FC = () => {
   const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(user?.calendarSyncEnabled ?? true);
   const [reclassifying, setReclassifying] = useState(false);
   const [status, setStatus] = useState('');
+  const [quietStart, setQuietStart] = useState(user?.quietHoursStart != null ? String(user.quietHoursStart) : '');
+  const [quietEnd, setQuietEnd] = useState(user?.quietHoursEnd != null ? String(user.quietHoursEnd) : '');
+  const [digestHour, setDigestHour] = useState(String(user?.digestHour ?? 8));
+  const [mutedCategories, setMutedCategories] = useState(user?.mutedCategories ?? '');
   const [tplName, setTplName] = useState('');
   const [tplSubject, setTplSubject] = useState('');
   const [tplBody, setTplBody] = useState('');
+
+  const saveQuietHours = async (startRaw: string, endRaw: string) => {
+    const start = startRaw === '' ? -1 : Number(startRaw);
+    const end = endRaw === '' ? -1 : Number(endRaw);
+    try {
+      await updateProfile({ quietHoursStart: start, quietHoursEnd: end });
+      setStatus('Quiet hours updated.');
+    } catch {
+      setStatus('Could not update quiet hours.');
+    }
+  };
 
   const { data: gemini } = useQuery({
     queryKey: queryKeys.geminiStatus,
@@ -248,16 +263,9 @@ export const SettingsPage: React.FC = () => {
               type="number"
               min={0}
               max={23}
-              value={user?.quietHoursStart ?? ''}
-              onChange={async (e) => {
-                const v = e.target.value === '' ? -1 : Number(e.target.value);
-                try {
-                  await updateProfile({ quietHoursStart: v });
-                  setStatus('Quiet hours updated.');
-                } catch {
-                  setStatus('Could not update quiet hours.');
-                }
-              }}
+              value={quietStart}
+              onChange={(e) => setQuietStart(e.target.value)}
+              onBlur={() => void saveQuietHours(quietStart, quietEnd)}
             />
           </label>
           <label className="v-meta" style={{ display: 'block', marginBottom: 8 }}>
@@ -267,16 +275,27 @@ export const SettingsPage: React.FC = () => {
               type="number"
               min={0}
               max={23}
-              value={user?.quietHoursEnd ?? ''}
-              onChange={async (e) => {
-                const v = e.target.value === '' ? -1 : Number(e.target.value);
+              value={quietEnd}
+              onChange={(e) => setQuietEnd(e.target.value)}
+              onBlur={() => void saveQuietHours(quietStart, quietEnd)}
+            />
+          </label>
+          <label className="v-meta" style={{ display: 'block', marginBottom: 8 }}>
+            Muted categories (comma-separated, e.g. PROMOTIONAL,SOCIAL)
+            <input
+              className="settings-field"
+              type="text"
+              value={mutedCategories}
+              onChange={(e) => setMutedCategories(e.target.value)}
+              onBlur={async () => {
                 try {
-                  await updateProfile({ quietHoursEnd: v });
-                  setStatus('Quiet hours updated.');
+                  await updateProfile({ mutedCategories: mutedCategories.trim() || '' });
+                  setStatus('Muted categories updated.');
                 } catch {
-                  setStatus('Could not update quiet hours.');
+                  setStatus('Could not update muted categories.');
                 }
               }}
+              placeholder="Leave blank to mute none"
             />
           </label>
           <label className="settings-toggle-row" htmlFor="digest-toggle">
@@ -307,9 +326,10 @@ export const SettingsPage: React.FC = () => {
               type="number"
               min={0}
               max={23}
-              value={user?.digestHour ?? 8}
-              onChange={async (e) => {
-                const v = Number(e.target.value);
+              value={digestHour}
+              onChange={(e) => setDigestHour(e.target.value)}
+              onBlur={async () => {
+                const v = Number(digestHour);
                 try {
                   await updateProfile({ digestHour: Number.isFinite(v) ? v : 8 });
                   setStatus('Digest hour updated.');

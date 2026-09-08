@@ -83,12 +83,16 @@ public class EmailSyncScheduler {
         }
     }
 
-    @Scheduled(cron = "0 0 8 * * *")
+    /** Hourly tick — digest fires at each user's digestHour; deadline/important alerts dedupe per day. */
+    @Scheduled(cron = "0 5 * * * *")
     public void dailyNotifications() {
         List<User> allUsers = userRepository.findAll(PageRequest.of(0, 500)).getContent();
-        log.info("Enqueueing daily digests for {} users", allUsers.size());
+        log.info("Enqueueing notification jobs for {} users", allUsers.size());
         for (User user : allUsers) {
             try {
+                if (user.getGmailAccessToken() == null) {
+                    continue;
+                }
                 backgroundJobService.enqueue(user.getId(), BackgroundJob.Type.GENERATE_DIGEST, null);
             } catch (Exception e) {
                 log.error("Failed to enqueue digest for user {}: {}", user.getId(), e.getMessage());

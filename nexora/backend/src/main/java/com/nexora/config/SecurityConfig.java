@@ -60,6 +60,8 @@ public class SecurityConfig {
                         "/api/auth/oauth/state",
                         "/api/auth/token",
                         "/api/auth/refresh",
+                        "/api/auth/logout",
+                        "/api/auth/revoke",
                         "/api/gmail/push"
                 ).permitAll()
                 .requestMatchers("/actuator/health").permitAll()
@@ -93,8 +95,10 @@ public class SecurityConfig {
                 .toList();
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        config.setAllowedHeaders(Arrays.asList(
+                "Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
         config.setAllowCredentials(true);
+        config.setExposedHeaders(List.of("Authorization"));
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

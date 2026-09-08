@@ -104,6 +104,8 @@ const Reveal: React.FC<{
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionReady = useAuthStore((s) => s.sessionReady);
+  const showSignedIn = sessionReady && isAuthenticated;
   const { handleGoogleLogin } = useAuth();
   const { theme, toggleTheme } = useThemeStore();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -185,10 +187,10 @@ export const LandingPage: React.FC = () => {
           <button
             type="button"
             className="lp-btn lp-btn-primary"
-            onClick={isAuthenticated ? enterApp : handleGoogleLogin}
+            onClick={showSignedIn ? enterApp : handleGoogleLogin}
             style={{ height: 42, padding: '0 20px', fontSize: 13.5 }}
           >
-            {isAuthenticated ? 'Open Home' : 'Sign in'}
+            {showSignedIn ? 'Open Home' : 'Sign in'}
           </button>
         </div>
       </nav>
@@ -257,9 +259,9 @@ export const LandingPage: React.FC = () => {
               <button
                 type="button"
                 className="lp-btn lp-btn-primary"
-                onClick={isAuthenticated ? enterApp : handleGoogleLogin}
+                onClick={showSignedIn ? enterApp : handleGoogleLogin}
               >
-                {isAuthenticated ? 'Open Home' : 'Connect Gmail'} <ArrowRight size={17} />
+                {showSignedIn ? 'Open Home' : 'Connect Gmail'} <ArrowRight size={17} />
               </button>
               <button type="button" className="lp-btn lp-btn-ghost" onClick={scrollOn}>
                 See how it reads
@@ -597,9 +599,9 @@ export const LandingPage: React.FC = () => {
             <button
               type="button"
               className="lp-btn lp-btn-primary"
-              onClick={isAuthenticated ? enterApp : handleGoogleLogin}
+              onClick={showSignedIn ? enterApp : handleGoogleLogin}
             >
-              {isAuthenticated ? 'Open Home' : 'Connect Gmail'} <ArrowRight size={17} />
+              {showSignedIn ? 'Open Home' : 'Connect Gmail'} <ArrowRight size={17} />
             </button>
           </div>
         </Reveal>

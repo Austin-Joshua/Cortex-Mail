@@ -42,10 +42,14 @@ public class BackgroundJobService {
                 BackgroundJob.Status.PENDING, now, PageRequest.of(0, Math.max(1, limit)));
         List<BackgroundJob> claimed = new ArrayList<>();
         for (BackgroundJob job : due) {
-            job.setStatus(BackgroundJob.Status.RUNNING);
-            job.setLockedAt(now);
-            job.setAttempts((job.getAttempts() != null ? job.getAttempts() : 0) + 1);
-            claimed.add(jobRepository.save(job));
+            int updated = jobRepository.tryClaim(
+                    job.getId(),
+                    BackgroundJob.Status.PENDING,
+                    BackgroundJob.Status.RUNNING,
+                    now);
+            if (updated == 1) {
+                jobRepository.findById(job.getId()).ifPresent(claimed::add);
+            }
         }
         return claimed;
     }

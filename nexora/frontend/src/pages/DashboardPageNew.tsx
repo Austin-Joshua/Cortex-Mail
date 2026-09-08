@@ -499,11 +499,19 @@ export const DashboardPageNew: React.FC = () => {
                       {fmtHour(z.from)} — {fmtHour(z.to)}
                     </div>
                     <div className="v-label" style={{ marginTop: 7 }}>
-                      {user?.quietHoursStart != null && user?.quietHoursEnd != null
-                        && hour >= (user.quietHoursStart ?? 0)
-                        && hour < (user.quietHoursEnd ?? 0)
-                        ? (z.quiet ? 'In your quiet hours' : 'Outside quiet preference')
-                        : (z.quiet ? 'Suggested quiet block' : 'Suggested collaboration')}
+                      {(() => {
+                        const start = user?.quietHoursStart;
+                        const end = user?.quietHoursEnd;
+                        const inQuiet = start != null && end != null && start !== end && (
+                          start < end
+                            ? hour >= start && hour < end
+                            : hour >= start || hour < end
+                        );
+                        if (inQuiet) {
+                          return z.quiet ? 'In your quiet hours' : 'Outside quiet preference';
+                        }
+                        return z.quiet ? 'Suggested quiet block' : 'Suggested collaboration';
+                      })()}
                     </div>
                   </div>
                 );

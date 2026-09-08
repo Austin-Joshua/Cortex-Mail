@@ -4,6 +4,7 @@ import com.nexora.model.UserSyncLock;
 import com.nexora.repository.UserSyncLockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,19 +33,23 @@ public class UserSyncLockService {
         if (userId == null) {
             return null;
         }
+        ensureRow(userId);
         LocalDateTime now = LocalDateTime.now();
-        UserSyncLock existing = lockRepository.findById(userId).orElse(null);
-        if (existing != null
-                && existing.getLockedUntil() != null
-                && existing.getLockedUntil().isAfter(now)) {
-            return null;
-        }
         String owner = UUID.randomUUID().toString();
-        UserSyncLock lock = existing != null ? existing : UserSyncLock.builder().userId(userId).build();
-        lock.setLockOwner(owner);
-        lock.setLockedUntil(now.plusMinutes(Math.max(1, ttlMinutes)));
-        lockRepository.save(lock);
-        return owner;
+        LocalDateTime until = now.plusMinutes(Math.max(1, ttlMinutes));
+        int claimed = lockRepository.claimIfFree(userId, owner, until, now);
+        return claimed == 1 ? owner : null;
+    }
+
+    private void ensureRow(Long userId) {
+        if (lockRepository.existsById(userId)) {
+            return;
+        }
+        try {
+            lockRepository.saveAndFlush(UserSyncLock.builder().userId(userId).build());
+        } catch (DataIntegrityViolationException ignored) {
+            // Concurrent first-lock insert — row now exists for the claim UPDATE.
+        }
     }
 
     @Transactional

@@ -95,6 +95,11 @@ public class User {
     @Builder.Default
     private Integer digestHour = 8;
 
+    /** False until the user finishes (or skips) the welcome screen. */
+    @Column(name = "onboarding_complete")
+    @Builder.Default
+    private Boolean onboardingComplete = true;
+
     /** Emails are persisted via EmailRepository — never cascade from User.save(). */
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     @JsonIgnore

@@ -80,6 +80,7 @@ public class AuthService {
                     .name(name)
                     .profilePictureUrl(picture)
                     .userRole(UserRole.STUDENT)
+                    .onboardingComplete(false)
                     .gmailAccessToken(tokenEncryptor.encrypt(accessToken))
                     .gmailRefreshToken(refreshToken != null ? tokenEncryptor.encrypt(refreshToken) : null)
                     .tokenExpiry(expiry)
@@ -99,6 +100,7 @@ public class AuthService {
 
         // 4. Issue JWT
         String jwt = jwtTokenProvider.generateToken(user);
+        boolean onboardingDone = Boolean.TRUE.equals(user.getOnboardingComplete());
 
         return AuthResponse.builder()
                 .token(jwt)
@@ -108,10 +110,14 @@ public class AuthService {
                 .name(user.getName())
                 .profilePictureUrl(user.getProfilePictureUrl())
                 .userRole(user.getUserRole())
-                // Common app: no profession onboarding; welcome screen optional via updateProfile.
-                .onboardingComplete(!isNew)
+                .onboardingComplete(onboardingDone)
                 .calendarSyncEnabled(user.getCalendarSyncEnabled())
                 .lastSyncedAt(user.getLastSyncedAt())
+                .quietHoursStart(user.getQuietHoursStart())
+                .quietHoursEnd(user.getQuietHoursEnd())
+                .mutedCategories(user.getMutedCategories())
+                .digestEnabled(user.getDigestEnabled())
+                .digestHour(user.getDigestHour())
                 .build();
     }
 
@@ -129,8 +135,13 @@ public class AuthService {
     /** Issue a fresh JWT after opaque OAuth code exchange — JWT never touched the DB. */
     public AuthResponse issueSession(long userId, boolean onboardingComplete) {
         User user = getCurrentUser(userId);
+        // Prefer durable DB flag; fall back to exchange payload for older rows.
+        if (user.getOnboardingComplete() == null) {
+            user.setOnboardingComplete(onboardingComplete);
+            user = userRepository.save(user);
+        }
         String jwt = jwtTokenProvider.generateToken(user);
-        return toAuthResponse(user, jwt, onboardingComplete);
+        return toAuthResponse(user, jwt, Boolean.TRUE.equals(user.getOnboardingComplete()));
     }
 
     public String issueRefreshToken(Long userId) {
@@ -150,14 +161,19 @@ public class AuthService {
         if (principal.getTokenVersion() < dbVersion) {
             throw new NexoraException("Refresh token revoked", 401);
         }
+        // Bump version so the previous refresh JWT cannot be reused after rotation.
+        int next = dbVersion + 1;
+        user.setTokenVersion(next);
+        user = userRepository.save(user);
+        jwtRevocationRegistry.revokeAtLeast(user.getId(), next);
         String access = jwtTokenProvider.generateToken(user);
-        return toAuthResponse(user, access, true);
+        return toAuthResponse(user, access, Boolean.TRUE.equals(user.getOnboardingComplete()));
     }
 
     /** Read-only profile for /me — no DB write and no JWT rotation. */
     public AuthResponse getProfile(Long userId) {
         User user = getCurrentUser(userId);
-        return toAuthResponse(user, null, true);
+        return toAuthResponse(user, null, Boolean.TRUE.equals(user.getOnboardingComplete()));
     }
 
     public AuthResponse updateProfile(Long userId, com.nexora.dto.request.ProfileUpdateRequest request) {
@@ -185,6 +201,8 @@ public class AuthService {
         if (request.getDigestHour() != null) {
             user.setDigestHour(clampHour(request.getDigestHour()));
         }
+        // Any profile save from the SPA (including empty onboarding Continue) completes welcome.
+        user.setOnboardingComplete(true);
         user = userRepository.save(user);
         String jwt = jwtTokenProvider.generateToken(user);
         return toAuthResponse(user, jwt, true);
@@ -237,6 +255,8 @@ public class AuthService {
         user.setGmailAccessToken(null);
         user.setGmailRefreshToken(null);
         user.setTokenExpiry(null);
+        user.setWatchExpiration(null);
+        user.setWatchResourceId(null);
         int next = (user.getTokenVersion() != null ? user.getTokenVersion() : 0) + 1;
         user.setTokenVersion(next);
         userRepository.save(user);

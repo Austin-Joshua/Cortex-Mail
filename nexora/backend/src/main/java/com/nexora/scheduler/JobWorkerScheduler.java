@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -51,7 +52,16 @@ public class JobWorkerScheduler {
         switch (type) {
             case BackgroundJob.Type.INCREMENTAL_SYNC -> {
                 if (userId != null) {
-                    postSyncProcessingService.syncAndProcessBlocking(userId);
+                    String mode = postSyncProcessingService.syncAndProcessBlocking(userId);
+                    if ("SKIPPED".equals(mode)) {
+                        // Lock held — retry shortly instead of dropping the push-driven sync.
+                        backgroundJobService.enqueue(
+                                userId,
+                                BackgroundJob.Type.INCREMENTAL_SYNC,
+                                job.getPayload(),
+                                LocalDateTime.now().plusSeconds(45));
+                        log.info("Requeued INCREMENTAL_SYNC for user {} after SKIPPED", userId);
+                    }
                 }
             }
             case BackgroundJob.Type.CLASSIFY_BATCH -> {

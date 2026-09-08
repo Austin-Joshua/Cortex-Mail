@@ -1,37 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { authApi } from '../../api/authApi';
 import { useAuthStore } from '../../store/authStore';
-import type { AuthResponse } from '../../types/User';
+import { applyAuthResponse } from '../../utils/applyAuthResponse';
 import axios from 'axios';
-
-function applyAuthResponse(authResponse: AuthResponse) {
-  const { setUser, setToken } = useAuthStore.getState();
-  if (authResponse.token) {
-    setToken(authResponse.token);
-  }
-  setUser({
-    userId: authResponse.userId,
-    email: authResponse.email,
-    name: authResponse.name,
-    profilePictureUrl: authResponse.profilePictureUrl,
-    userRole: authResponse.userRole,
-    onboardingComplete: authResponse.onboardingComplete,
-    calendarSyncEnabled: authResponse.calendarSyncEnabled,
-    lastSyncedAt: authResponse.lastSyncedAt,
-    quietHoursStart: authResponse.quietHoursStart,
-    quietHoursEnd: authResponse.quietHoursEnd,
-    mutedCategories: authResponse.mutedCategories,
-    digestEnabled: authResponse.digestEnabled,
-    digestHour: authResponse.digestHour,
-  });
-}
 
 /**
  * Cookie-first session restore: after persist hydrate, try /me (ACCESS_TOKEN cookie
- * or in-memory JWT), then /refresh. Only clears the session on 401/403.
+ * or in-memory JWT), then /refresh. Gates the app via sessionReady until done.
  */
 export function SessionBootstrap() {
   const setHasHydrated = useAuthStore((s) => s.setHasHydrated);
+  const setSessionReady = useAuthStore((s) => s.setSessionReady);
   const logout = useAuthStore((s) => s.logout);
   const started = useRef(false);
 
@@ -49,7 +28,6 @@ export function SessionBootstrap() {
     started.current = true;
 
     const boot = async () => {
-      // Wait for zustand persist so isAuthenticated/user are available.
       if (!useAuthStore.persist.hasHydrated()) {
         await new Promise<void>((resolve) => {
           const unsub = useAuthStore.persist.onFinishHydration(() => {
@@ -63,11 +41,13 @@ export function SessionBootstrap() {
       try {
         const me = await authApi.getCurrentUser();
         applyAuthResponse(me);
+        setSessionReady(true);
         return;
       } catch (err: unknown) {
         const status = axios.isAxiosError(err) ? err.response?.status : undefined;
         if (status !== 401 && status !== 403) {
-          // Transient network error — keep persisted session hints.
+          // Transient network error — keep persist hints; allow UI through.
+          setSessionReady(true);
           return;
         }
       }
@@ -76,6 +56,7 @@ export function SessionBootstrap() {
         const refreshed = await authApi.refreshSession();
         if (refreshed?.token || refreshed?.userId) {
           applyAuthResponse(refreshed);
+          setSessionReady(true);
           return;
         }
       } catch {
@@ -84,11 +65,13 @@ export function SessionBootstrap() {
 
       if (state.isAuthenticated || state.token) {
         logout();
+      } else {
+        setSessionReady(true);
       }
     };
 
     void boot();
-  }, [logout]);
+  }, [logout, setSessionReady]);
 
   return null;
 }

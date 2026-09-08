@@ -6,12 +6,16 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  /** Persist rehydrate finished (localStorage). */
   hasHydrated: boolean;
+  /** Cookie/session bootstrap finished (/me or /refresh). */
+  sessionReady: boolean;
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   setUserRole: (role: UserRole) => void;
   setLastSyncedAt: (date: string) => void;
   setHasHydrated: (value: boolean) => void;
+  setSessionReady: (value: boolean) => void;
   logout: () => void;
 }
 
@@ -22,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       hasHydrated: false,
+      sessionReady: false,
 
       setUser: (user) => set({ user, isAuthenticated: true }),
 
@@ -39,8 +44,15 @@ export const useAuthStore = create<AuthState>()(
 
       setHasHydrated: (value) => set({ hasHydrated: value }),
 
+      setSessionReady: (value) => set({ sessionReady: value }),
+
       logout: () => {
-        set({ user: null, token: null, isAuthenticated: false });
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          sessionReady: true,
+        });
         try {
           localStorage.removeItem('cortex_auth');
         } catch {

@@ -17,6 +17,7 @@ type DeadlineRow = {
   dueDate?: string;
   deadline?: string;
   deadlineDetected?: string;
+  calendarHtmlLink?: string;
 };
 
 function dueMs(d: DeadlineRow): number {
@@ -68,6 +69,7 @@ export const ScheduledEmailsPage: React.FC = () => {
   if (!isLoading && deadlines.length === 0) {
     return (
       <AppShell title="Deadlines" subtitle="Dates extracted from your synced mail">
+        <ConnectedSyncPipelineBanner />
         <Placeholder
           icon={<Clock size={26} />}
           tone="var(--v-ember)"
@@ -83,7 +85,7 @@ export const ScheduledEmailsPage: React.FC = () => {
   const renderRow = (d: DeadlineRow, overdueRow: boolean) => {
     const due = d.dueDate ?? d.deadline ?? d.deadlineDetected;
     const emailId = d.emailId ?? d.id;
-    const calendarLink = (d as { calendarHtmlLink?: string }).calendarHtmlLink;
+    const calendarLink = d.calendarHtmlLink;
     return (
       <div
         key={`${emailId}-${due}-${overdueRow ? 'o' : 'u'}`}

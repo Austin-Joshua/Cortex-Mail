@@ -27,8 +27,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireOnboarding?: 
   children,
   requireOnboarding = true,
 }) => {
-  const { isAuthenticated, user, hasHydrated } = useAuthStore();
-  if (!hasHydrated) {
+  const { isAuthenticated, user, hasHydrated, sessionReady } = useAuthStore();
+  if (!hasHydrated || !sessionReady) {
     return <LoadingSpinner fullScreen label="Restoring session…" />;
   }
   if (!isAuthenticated) return <Navigate to="/" replace />;
@@ -40,8 +40,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireOnboarding?: 
 
 const UnknownRoute: React.FC = () => {
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const sessionReady = useAuthStore((s) => s.sessionReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  if (!hasHydrated) {
+  if (!hasHydrated || !sessionReady) {
     return <LoadingSpinner fullScreen label="Restoring session…" />;
   }
   return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />;

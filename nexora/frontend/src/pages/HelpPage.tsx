@@ -38,7 +38,7 @@ const CATEGORIES = [
       },
       {
         q: 'What are flow zones?',
-        a: 'Fixed bands across your working day. Deep Focus and Reflection mute notifications; Collaboration and Rapid Fire let them through.',
+        a: 'Suggested focus bands across the day. They do not mute alerts — set Quiet hours in Settings to mute notifications (including overnight ranges like 22→6).',
       },
       {
         q: 'How does grouping work?',

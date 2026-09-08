@@ -63,7 +63,9 @@ export function useAuth() {
       digestEnabled: params.digestEnabled,
       digestHour: params.digestHour,
     });
-    setToken(authResponse.token);
+    if (authResponse.token) {
+      setToken(authResponse.token);
+    }
     setUser({
       userId: authResponse.userId,
       email: authResponse.email,

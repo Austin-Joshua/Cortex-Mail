@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/authApi';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { applyAuthResponse } from '../utils/applyAuthResponse';
+import { useAuthStore } from '../store/authStore';
 
 /**
  * Handles the OAuth callback redirect from the backend.
@@ -12,11 +13,10 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 export const AuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setToken, setUser } = useAuthStore();
+  const setSessionReady = useAuthStore((s) => s.setSessionReady);
   const hasCalled = React.useRef(false);
 
   useEffect(() => {
-    // Handle Google OAuth errors (e.g., "access_denied", "no_access")
     const error = searchParams.get('error');
     if (error) {
       console.warn('Google OAuth error:', error, searchParams.get('error_description'));
@@ -27,7 +27,7 @@ export const AuthCallbackPage: React.FC = () => {
     const code = searchParams.get('code');
     if (code && !hasCalled.current) {
       hasCalled.current = true;
-      
+
       const timeout = setTimeout(() => {
         console.error('Authentication request timed out');
         navigate('/?auth_error=timeout', { replace: true });
@@ -36,17 +36,8 @@ export const AuthCallbackPage: React.FC = () => {
       authApi.exchangeCode(code)
         .then((authResponse) => {
           clearTimeout(timeout);
-          setToken(authResponse.token);
-          setUser({
-            userId: authResponse.userId,
-            email: authResponse.email,
-            name: authResponse.name,
-            profilePictureUrl: authResponse.profilePictureUrl ?? undefined,
-            userRole: authResponse.userRole,
-            onboardingComplete: authResponse.onboardingComplete,
-            calendarSyncEnabled: authResponse.calendarSyncEnabled ?? true,
-            lastSyncedAt: authResponse.lastSyncedAt,
-          });
+          applyAuthResponse(authResponse);
+          setSessionReady(true);
           navigate(authResponse.onboardingComplete ? '/dashboard' : '/onboarding', { replace: true });
         })
         .catch((err) => {
@@ -57,10 +48,9 @@ export const AuthCallbackPage: React.FC = () => {
 
       return () => clearTimeout(timeout);
     } else if (!hasCalled.current) {
-      // No code and no error — something unexpected, go home
       navigate('/', { replace: true });
     }
-  }, [searchParams, navigate, setToken, setUser]);
+  }, [searchParams, navigate, setSessionReady]);
 
   return <LoadingSpinner fullScreen label="Signing you in..." />;
 };

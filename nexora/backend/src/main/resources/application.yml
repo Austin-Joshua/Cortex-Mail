@@ -53,6 +53,7 @@ google:
   client-secret: ${GOOGLE_CLIENT_SECRET}
   redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/auth/google/callback}
   pubsub-topic: ${GOOGLE_PUBSUB_TOPIC:}
+  pubsub-verification-token: ${GOOGLE_PUBSUB_VERIFICATION_TOKEN:}
 
 gemini:
   api-key: ${GEMINI_API_KEY:}

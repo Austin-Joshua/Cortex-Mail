@@ -4,6 +4,8 @@ import com.nexora.dto.request.ProfileUpdateRequest;
 import com.nexora.dto.response.AuthResponse;
 import com.nexora.security.AuthCookieService;
 import com.nexora.security.AuthPrincipals;
+import com.nexora.security.CookieNames;
+import com.nexora.security.JwtTokenProvider;
 import com.nexora.security.OauthStateService;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.AuthService;
@@ -32,6 +34,7 @@ public class AuthController {
     private final OauthStateService oauthStateService;
     private final AuthCookieService authCookieService;
     private final GmailWatchService gmailWatchService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Value("${app.cors-allowed-origins}")
     private String corsAllowedOrigins;
@@ -180,7 +183,10 @@ public class AuthController {
             @AuthenticationPrincipal UserPrincipal user,
             HttpServletRequest request,
             HttpServletResponse response) {
-        authService.logout(AuthPrincipals.requireId(user));
+        Long userId = resolveSessionUserId(user, request);
+        if (userId != null) {
+            authService.logout(userId);
+        }
         authCookieService.clearAuthCookies(request, response);
         return ResponseEntity.ok().build();
     }
@@ -191,9 +197,34 @@ public class AuthController {
             @AuthenticationPrincipal UserPrincipal user,
             HttpServletRequest request,
             HttpServletResponse response) {
-        authService.revokeAccess(AuthPrincipals.requireId(user));
+        Long userId = resolveSessionUserId(user, request);
+        if (userId != null) {
+            authService.revokeAccess(userId);
+        }
         authCookieService.clearAuthCookies(request, response);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Prefer live access principal; fall back to refresh cookie so logout still works
+     * when the access token has expired.
+     */
+    private Long resolveSessionUserId(UserPrincipal user, HttpServletRequest request) {
+        if (user != null && user.getId() != null) {
+            return user.getId();
+        }
+        String refresh = authCookieService.readCookie(request, CookieNames.REFRESH_TOKEN);
+        if (refresh == null || refresh.isBlank()) {
+            return null;
+        }
+        try {
+            if (jwtTokenProvider.validateToken(refresh) && jwtTokenProvider.isRefreshToken(refresh)) {
+                return jwtTokenProvider.getUserIdFromToken(refresh);
+            }
+        } catch (Exception e) {
+            log.debug("Refresh cookie unusable for logout/revoke: {}", e.getMessage());
+        }
+        return null;
     }
 
     private void setSessionCookies(HttpServletRequest request, HttpServletResponse response, AuthResponse auth) {

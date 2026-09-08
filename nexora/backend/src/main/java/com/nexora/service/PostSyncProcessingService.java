@@ -31,8 +31,10 @@ public class PostSyncProcessingService {
     /**
      * Same pipeline as {@link #syncAndProcess} but runs on the caller thread
      * (job workers must wait for completion before marking the job done).
+     *
+     * @return sync mode from Gmail (including {@code SKIPPED} when a lock is held)
      */
-    public void syncAndProcessBlocking(Long userId) {
+    public String syncAndProcessBlocking(Long userId) {
         try {
             var response = gmailSyncService.syncInbox(userId);
             String mode = response.getSyncMode();
@@ -44,6 +46,7 @@ public class PostSyncProcessingService {
                     log.warn("Watch renew after sync failed for user {}: {}", userId, watchErr.getMessage());
                 }
             }
+            return mode;
         } catch (Exception e) {
             log.error("Background sync failed for user {}: {}", userId, e.getMessage());
             throw e instanceof RuntimeException re ? re : new RuntimeException(e);

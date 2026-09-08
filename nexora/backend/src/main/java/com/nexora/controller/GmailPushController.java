@@ -8,6 +8,7 @@ import com.nexora.repository.UserRepository;
 import com.nexora.service.BackgroundJobService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,11 +27,23 @@ public class GmailPushController {
     private final UserRepository userRepository;
     private final BackgroundJobService backgroundJobService;
 
+    @Value("${google.pubsub-verification-token:}")
+    private String pubsubVerificationToken;
+
     /**
-     * Pub/Sub push endpoint. Loosely verified — logs payload, parses historyId, enqueues incremental sync.
+     * Pub/Sub push endpoint. When {@code GOOGLE_PUBSUB_VERIFICATION_TOKEN} is set,
+     * requires matching {@code ?token=} or {@code X-Goog-Channel-Token} / {@code X-Cortex-Push-Token}.
      */
     @PostMapping("/push")
-    public ResponseEntity<Map<String, String>> push(@RequestBody(required = false) String body) {
+    public ResponseEntity<Map<String, String>> push(
+            @RequestBody(required = false) String body,
+            @RequestParam(value = "token", required = false) String queryToken,
+            @RequestHeader(value = "X-Cortex-Push-Token", required = false) String headerToken,
+            @RequestHeader(value = "X-Goog-Channel-Token", required = false) String googToken) {
+        if (!pushAuthorized(queryToken, headerToken, googToken)) {
+            log.warn("Gmail push rejected — verification token mismatch");
+            return ResponseEntity.status(401).body(Map.of("status", "unauthorized"));
+        }
         try {
             if (body == null || body.isBlank()) {
                 log.info("Gmail push received empty body");
@@ -77,6 +90,14 @@ public class GmailPushController {
             // Still 200 so Pub/Sub does not retry endlessly on malformed payloads
             return ResponseEntity.ok(Map.of("status", "error"));
         }
+    }
+
+    private boolean pushAuthorized(String queryToken, String headerToken, String googToken) {
+        if (pubsubVerificationToken == null || pubsubVerificationToken.isBlank()) {
+            return true;
+        }
+        String expected = pubsubVerificationToken.trim();
+        return expected.equals(queryToken) || expected.equals(headerToken) || expected.equals(googToken);
     }
 
     private static String textOrNull(JsonNode node, String field) {

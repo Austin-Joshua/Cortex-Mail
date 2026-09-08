@@ -119,7 +119,7 @@ export const DraftsPage: React.FC = () => {
       setSubject('');
       setBody('');
       setComposing(false);
-      setComposeStatus('Draft saved in Cortex. Copy it into Gmail to send — Cortex does not send mail.');
+      setComposeStatus('Draft saved in Cortex. Use Send on a draft row to deliver through Gmail, or copy into Gmail yourself.');
     } catch {
       setComposeStatus('Could not save draft.');
     } finally {
@@ -274,11 +274,11 @@ export const DraftsPage: React.FC = () => {
                     ? 'First inbox sync skips drafts so mail appears faster. This page pulls the Gmail Drafts folder on its own.'
                     : gmailDrafts > 0
                       ? 'Inbox sync stored your mail first. Tap Pull Gmail drafts to fetch the Drafts folder now.'
-                      : 'Gmail Drafts is empty. Use New Cortex draft to stash text here, then copy it into Gmail to send. Cortex does not send mail.'
+                      : 'Gmail Drafts is empty. Use New Cortex draft to compose here, then Send through Gmail or copy the text into Gmail.'
                 }
                 points={[
                   gmailDrafts > 0 ? `${gmailDrafts} on Gmail · ${localDrafts} stored here` : 'Gmail DRAFT label is empty',
-                  'Cortex drafts stay in this app',
+                  'Cortex drafts can be sent through Gmail from this page',
                   'Inbox sync does not wait on drafts',
                 ]}
                 action={
