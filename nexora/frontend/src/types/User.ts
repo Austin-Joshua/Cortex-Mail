@@ -9,6 +9,11 @@ export interface User {
   onboardingComplete: boolean;
   calendarSyncEnabled?: boolean;
   lastSyncedAt?: string;
+  quietHoursStart?: number | null;
+  quietHoursEnd?: number | null;
+  mutedCategories?: string | null;
+  digestEnabled?: boolean | null;
+  digestHour?: number | null;
 }
 
 export interface AuthResponse {
@@ -22,4 +27,9 @@ export interface AuthResponse {
   onboardingComplete: boolean;
   calendarSyncEnabled?: boolean;
   lastSyncedAt?: string;
+  quietHoursStart?: number | null;
+  quietHoursEnd?: number | null;
+  mutedCategories?: string | null;
+  digestEnabled?: boolean | null;
+  digestHour?: number | null;
 }

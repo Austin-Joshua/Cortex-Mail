@@ -58,7 +58,9 @@ public class SecurityConfig {
                         "/api/auth/google",
                         "/api/auth/google/callback",
                         "/api/auth/oauth/state",
-                        "/api/auth/token"
+                        "/api/auth/token",
+                        "/api/auth/refresh",
+                        "/api/gmail/push"
                 ).permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/actuator/**", "/h2-console/**").denyAll()

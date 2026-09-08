@@ -50,7 +50,10 @@ public class GmailSyncService {
     private final ObjectMapper objectMapper;
     private final EmailClassificationService classificationService;
     private final TransactionTemplate persistTransaction;
+    private final UserSyncLockService userSyncLockService;
     private final java.util.concurrent.ConcurrentHashMap<Long, Long> activeSyncs =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<Long, String> dbLockOwners =
             new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final long SYNC_LOCK_TTL_MS = 20 * 60 * 1000L;
@@ -61,13 +64,15 @@ public class GmailSyncService {
                             TokenEncryptor tokenEncryptor,
                             ObjectMapper objectMapper,
                             EmailClassificationService classificationService,
-                            PlatformTransactionManager transactionManager) {
+                            PlatformTransactionManager transactionManager,
+                            UserSyncLockService userSyncLockService) {
         this.gmailConfig = gmailConfig;
         this.userRepository = userRepository;
         this.emailRepository = emailRepository;
         this.tokenEncryptor = tokenEncryptor;
         this.objectMapper = objectMapper;
         this.classificationService = classificationService;
+        this.userSyncLockService = userSyncLockService;
         this.persistTransaction = new TransactionTemplate(transactionManager);
         this.persistTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -136,6 +141,9 @@ public class GmailSyncService {
     public boolean hasActiveSync(Long userId) {
         if (userId == null) {
             return false;
+        }
+        if (userSyncLockService.isLocked(userId)) {
+            return true;
         }
         Long started = activeSyncs.get(userId);
         if (started == null) {
@@ -1552,20 +1560,31 @@ public class GmailSyncService {
     }
 
     private boolean tryAcquireSyncLock(Long userId) {
+        String dbOwner = userSyncLockService.tryLock(userId);
+        if (dbOwner == null) {
+            return false;
+        }
         long now = System.currentTimeMillis();
         Long existing = activeSyncs.putIfAbsent(userId, now);
         if (existing == null) {
+            dbLockOwners.put(userId, dbOwner);
             return true;
         }
         if (now - existing >= SYNC_LOCK_TTL_MS) {
             log.warn("Stale Gmail sync lock for user {} — allowing new sync", userId);
-            return activeSyncs.replace(userId, existing, now);
+            if (activeSyncs.replace(userId, existing, now)) {
+                dbLockOwners.put(userId, dbOwner);
+                return true;
+            }
         }
+        userSyncLockService.unlock(userId, dbOwner);
         return false;
     }
 
     private void releaseSyncLock(Long userId) {
         activeSyncs.remove(userId);
+        String owner = dbLockOwners.remove(userId);
+        userSyncLockService.unlock(userId, owner);
     }
 
     private void touchSyncLock(Long userId) {

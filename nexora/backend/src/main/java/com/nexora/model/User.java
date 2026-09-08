@@ -72,6 +72,29 @@ public class User {
     @Builder.Default
     private Integer tokenVersion = 0;
 
+    @Column(name = "watch_expiration")
+    private LocalDateTime watchExpiration;
+
+    @Column(name = "watch_resource_id")
+    private String watchResourceId;
+
+    @Column(name = "quiet_hours_start")
+    private Integer quietHoursStart;
+
+    @Column(name = "quiet_hours_end")
+    private Integer quietHoursEnd;
+
+    @Column(name = "muted_categories", columnDefinition = "TEXT")
+    private String mutedCategories;
+
+    @Column(name = "digest_enabled")
+    @Builder.Default
+    private Boolean digestEnabled = true;
+
+    @Column(name = "digest_hour")
+    @Builder.Default
+    private Integer digestHour = 8;
+
     /** Emails are persisted via EmailRepository — never cascade from User.save(). */
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     @JsonIgnore

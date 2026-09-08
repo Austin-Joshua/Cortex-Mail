@@ -52,7 +52,6 @@ export const useAuthStore = create<AuthState>()(
       name: 'cortex_auth',
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {

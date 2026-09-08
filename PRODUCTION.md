@@ -105,6 +105,11 @@ GOOGLE_REDIRECT_URI=https://YOUR-RENDER-SERVICE.onrender.com/api/auth/google/cal
 JWT_SECRET=...                 # ≥ 32 chars
 ENCRYPTION_KEY=...             # exactly 16 chars
 CORS_ALLOWED_ORIGINS=https://YOUR-FRONTEND.vercel.app
+# Optional cookie session TTLs
+# JWT_EXPIRATION_MS=900000
+# JWT_REFRESH_EXPIRATION_MS=604800000
+# Optional Gmail Watch (Pub/Sub topic). Empty = poll/scheduler only.
+# GOOGLE_PUBSUB_TOPIC=projects/PROJECT/topics/gmail-push
 
 # Optional AI
 GEMINI_API_KEY=
@@ -113,7 +118,9 @@ GEMINI_API_KEY=
 5. Deploy → wait until **Live**. Copy the service URL into Vercel `VITE_API_BASE_URL` and redeploy frontend if needed.
 
 **Notes**
-- Flyway creates/validates schema on boot (`application-prod.yml`).
+- Flyway creates/validates schema on boot (`application-prod.yml`). Migrations include **V6** (jobs, sync locks, watch fields, prefs, snooze, calendar links).
+- Prefer **one** backend instance. Sync locks and background jobs are Postgres-backed and survive restarts; in-memory JWT revoke cache is still warmed from DB `token_version`.
+- HttpOnly cookies are set on login/refresh; SPA also keeps a short Bearer token during migration (`withCredentials: true` required).
 - Do not put DB credentials on Vercel.
 - RLS: app tables have RLS enabled; `anon`/`authenticated` are revoked. Spring connects as the DB role.
 
@@ -158,7 +165,21 @@ Default without DB vars: H2 in-memory (`application.yml`). With `SPRING_PROFILES
 
 ## Out of scope (not required for this deploy)
 
-- Gmail Pub/Sub Watch (polling/scheduler only today)
-- Full Gmail search parity
+- Full Gmail search parity (`users.messages.list` q=)
 - Brain RAG / embeddings
 - Package rename `com.nexora` → Cortex
+- Multi-instance Redis (Postgres jobs/locks cover single-instance durability)
+
+## Feature checklist (final product)
+
+- [ ] OAuth `state` + soft logout / hard revoke
+- [ ] Shared Sync chip on Home / Inbox / Priority / Drafts / Deadlines / Triage
+- [ ] Typed next-action CTAs on Home
+- [ ] Triage queue + snooze
+- [ ] Cookie + refresh session (`/api/auth/refresh`)
+- [ ] Background jobs + user sync locks (V6)
+- [ ] Gmail Watch when `GOOGLE_PUBSUB_TOPIC` set; else scheduler fallback
+- [ ] Draft Send from Cortex drafts
+- [ ] Calendar deep link on mail with exported deadlines
+- [ ] Quiet hours + daily digest prefs in Settings
+- [ ] Ranked inbox search (priority / unread / deadline)

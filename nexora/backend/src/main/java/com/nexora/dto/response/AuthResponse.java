@@ -19,4 +19,9 @@ public class AuthResponse {
     private boolean onboardingComplete;
     private Boolean calendarSyncEnabled;
     private LocalDateTime lastSyncedAt;
+    private Integer quietHoursStart;
+    private Integer quietHoursEnd;
+    private String mutedCategories;
+    private Boolean digestEnabled;
+    private Integer digestHour;
 }

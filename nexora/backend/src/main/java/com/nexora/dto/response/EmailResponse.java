@@ -39,6 +39,7 @@ public class EmailResponse {
     private String aiActionItems;
     private LocalDateTime deadlineDetected;
     private Boolean isDeadlineAddedToCalendar;
+    private String calendarHtmlLink;
     private List<ActionItemDto> actions;
     private List<AttachmentDto> attachments;
     private LocalDateTime createdAt;
@@ -228,6 +229,14 @@ public class EmailResponse {
 
     public void setIsDeadlineAddedToCalendar(Boolean isDeadlineAddedToCalendar) {
         this.isDeadlineAddedToCalendar = isDeadlineAddedToCalendar;
+    }
+
+    public String getCalendarHtmlLink() {
+        return calendarHtmlLink;
+    }
+
+    public void setCalendarHtmlLink(String calendarHtmlLink) {
+        this.calendarHtmlLink = calendarHtmlLink;
     }
 
     public List<ActionItemDto> getActions() {
@@ -441,6 +450,7 @@ public class EmailResponse {
         private String aiActionItems;
         private LocalDateTime deadlineDetected;
         private Boolean isDeadlineAddedToCalendar;
+        private String calendarHtmlLink;
         private List<ActionItemDto> actions;
         private List<AttachmentDto> attachments;
         private LocalDateTime createdAt;
@@ -597,6 +607,11 @@ public class EmailResponse {
             return this;
         }
 
+        public EmailResponseBuilder calendarHtmlLink(String calendarHtmlLink) {
+            this.calendarHtmlLink = calendarHtmlLink;
+            return this;
+        }
+
         public EmailResponseBuilder actions(List<ActionItemDto> actions) {
             this.actions = actions;
             return this;
@@ -644,6 +659,7 @@ public class EmailResponse {
             r.aiActionItems = this.aiActionItems;
             r.deadlineDetected = this.deadlineDetected;
             r.isDeadlineAddedToCalendar = this.isDeadlineAddedToCalendar;
+            r.calendarHtmlLink = this.calendarHtmlLink;
             r.actions = this.actions;
             r.attachments = this.attachments;
             r.createdAt = this.createdAt;

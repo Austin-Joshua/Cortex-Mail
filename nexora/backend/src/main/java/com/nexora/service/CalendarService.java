@@ -109,9 +109,13 @@ public class CalendarService {
                 event.setReminders(reminders);
             }
 
-            calendar.events().insert("primary", event).execute();
+            Event created = calendar.events().insert("primary", event).execute();
 
             email.setIsDeadlineAddedToCalendar(true);
+            if (created != null) {
+                email.setCalendarHtmlLink(created.getHtmlLink());
+                email.setGoogleEventId(created.getId());
+            }
             emailRepository.save(email);
 
             log.info("Successfully added email {} deadline to user {} calendar", email.getId(), user.getId());

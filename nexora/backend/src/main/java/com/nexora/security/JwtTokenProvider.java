@@ -16,11 +16,17 @@ import java.util.Date;
 @Slf4j
 public class JwtTokenProvider {
 
+    public static final String TYP_ACCESS = "access";
+    public static final String TYP_REFRESH = "refresh";
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${jwt.expiration-ms}")
     private long jwtExpirationMs;
+
+    @Value("${jwt.refresh-expiration-ms:604800000}")
+    private long jwtRefreshExpirationMs;
 
     @PostConstruct
     void validateSecret() {
@@ -44,6 +50,22 @@ public class JwtTokenProvider {
                 .claim("name", user.getName())
                 .claim("role", user.getUserRole().name())
                 .claim("tv", user.getTokenVersion() != null ? user.getTokenVersion() : 0)
+                .claim("typ", TYP_ACCESS)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public String generateRefreshToken(User user) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtRefreshExpirationMs);
+
+        return Jwts.builder()
+                .subject(user.getId().toString())
+                .claim("email", user.getEmail())
+                .claim("tv", user.getTokenVersion() != null ? user.getTokenVersion() : 0)
+                .claim("typ", TYP_REFRESH)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
@@ -53,6 +75,25 @@ public class JwtTokenProvider {
     public Long getUserIdFromToken(String token) {
         Claims claims = parseClaims(token);
         return Long.parseLong(claims.getSubject());
+    }
+
+    public boolean isRefreshToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            return TYP_REFRESH.equals(claims.get("typ", String.class));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isAccessToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            String typ = claims.get("typ", String.class);
+            return typ == null || TYP_ACCESS.equals(typ);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** Build a DB-free principal from JWT claims. */

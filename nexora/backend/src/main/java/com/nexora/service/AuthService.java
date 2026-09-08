@@ -10,6 +10,7 @@ import com.nexora.repository.UserRepository;
 import com.nexora.security.JwtRevocationRegistry;
 import com.nexora.security.JwtTokenProvider;
 import com.nexora.security.TokenEncryptor;
+import com.nexora.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -132,24 +133,77 @@ public class AuthService {
         return toAuthResponse(user, jwt, onboardingComplete);
     }
 
+    public String issueRefreshToken(Long userId) {
+        User user = getCurrentUser(userId);
+        return jwtTokenProvider.generateRefreshToken(user);
+    }
+
+    /** Rotate access + refresh from a valid refresh JWT (typ=refresh, token_version bound). */
+    public AuthResponse refreshSession(String refreshToken) {
+        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)
+                || !jwtTokenProvider.isRefreshToken(refreshToken)) {
+            throw new NexoraException("Invalid refresh token", 401);
+        }
+        UserPrincipal principal = jwtTokenProvider.toPrincipal(refreshToken);
+        User user = getCurrentUser(principal.getId());
+        int dbVersion = user.getTokenVersion() != null ? user.getTokenVersion() : 0;
+        if (principal.getTokenVersion() < dbVersion) {
+            throw new NexoraException("Refresh token revoked", 401);
+        }
+        String access = jwtTokenProvider.generateToken(user);
+        return toAuthResponse(user, access, true);
+    }
+
     /** Read-only profile for /me — no DB write and no JWT rotation. */
     public AuthResponse getProfile(Long userId) {
         User user = getCurrentUser(userId);
         return toAuthResponse(user, null, true);
     }
 
-    public AuthResponse updateProfile(Long userId, UserRole role, Boolean calendarSyncEnabled) {
+    public AuthResponse updateProfile(Long userId, com.nexora.dto.request.ProfileUpdateRequest request) {
         User user = getCurrentUser(userId);
-        if (role != null) {
+        if (request.getUserRole() != null) {
             // Stored for JWT compatibility only — classification is mailbox-personalized, not role-driven.
-            user.setUserRole(role);
+            user.setUserRole(request.getUserRole());
         }
-        if (calendarSyncEnabled != null) {
-            user.setCalendarSyncEnabled(calendarSyncEnabled);
+        if (request.getCalendarSyncEnabled() != null) {
+            user.setCalendarSyncEnabled(request.getCalendarSyncEnabled());
+        }
+        if (request.getQuietHoursStart() != null) {
+            // Negative sentinel clears quiet-hours start (SPA sends -1 for blank).
+            user.setQuietHoursStart(request.getQuietHoursStart() < 0 ? null : clampHour(request.getQuietHoursStart()));
+        }
+        if (request.getQuietHoursEnd() != null) {
+            user.setQuietHoursEnd(request.getQuietHoursEnd() < 0 ? null : clampHour(request.getQuietHoursEnd()));
+        }
+        if (request.getMutedCategories() != null) {
+            user.setMutedCategories(request.getMutedCategories().isBlank() ? null : request.getMutedCategories().trim());
+        }
+        if (request.getDigestEnabled() != null) {
+            user.setDigestEnabled(request.getDigestEnabled());
+        }
+        if (request.getDigestHour() != null) {
+            user.setDigestHour(clampHour(request.getDigestHour()));
         }
         user = userRepository.save(user);
         String jwt = jwtTokenProvider.generateToken(user);
         return toAuthResponse(user, jwt, true);
+    }
+
+    /** @deprecated Prefer {@link #updateProfile(Long, com.nexora.dto.request.ProfileUpdateRequest)}. */
+    @Deprecated
+    public AuthResponse updateProfile(Long userId, UserRole role, Boolean calendarSyncEnabled) {
+        com.nexora.dto.request.ProfileUpdateRequest request = new com.nexora.dto.request.ProfileUpdateRequest();
+        request.setUserRole(role);
+        request.setCalendarSyncEnabled(calendarSyncEnabled);
+        return updateProfile(userId, request);
+    }
+
+    private static Integer clampHour(Integer hour) {
+        if (hour == null) {
+            return null;
+        }
+        return Math.max(0, Math.min(23, hour));
     }
 
     private AuthResponse toAuthResponse(User user, String token, boolean onboardingComplete) {
@@ -164,6 +218,11 @@ public class AuthService {
                 .onboardingComplete(onboardingComplete)
                 .calendarSyncEnabled(user.getCalendarSyncEnabled())
                 .lastSyncedAt(user.getLastSyncedAt())
+                .quietHoursStart(user.getQuietHoursStart())
+                .quietHoursEnd(user.getQuietHoursEnd())
+                .mutedCategories(user.getMutedCategories())
+                .digestEnabled(user.getDigestEnabled())
+                .digestHour(user.getDigestHour())
                 .build();
     }
 

@@ -78,6 +78,7 @@ export interface Email {
   aiActionItems?: string;
   deadlineDetected?: string;
   isDeadlineAddedToCalendar: boolean;
+  calendarHtmlLink?: string;
   actions?: ActionItem[];
   createdAt?: string;
 }

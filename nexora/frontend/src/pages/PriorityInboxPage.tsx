@@ -5,6 +5,7 @@ import { Flame, Inbox } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
 import { Tile, TileHead } from '../components/bento/Tile';
 import { Placeholder } from '../components/bento/Placeholder';
+import { ConnectedSyncPipelineBanner } from '../components/common/SyncPipelineBanner';
 import { priorityApi } from '../api/priorityApi';
 import { queryKeys } from '../api/queryKeys';
 import { CAT_COLORS } from '../utils/catColors';
@@ -85,6 +86,7 @@ export const PriorityInboxPage: React.FC = () => {
         </button>
       }
     >
+      <ConnectedSyncPipelineBanner />
       <div className="bento">
         {banded.map((band, i) => (
           <Tile key={band.key} span={4} rule={band.tone} index={i}>

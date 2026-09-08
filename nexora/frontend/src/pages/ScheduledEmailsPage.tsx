@@ -5,6 +5,7 @@ import { Clock, CalendarClock } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
 import { Placeholder } from '../components/bento/Placeholder';
 import { Tile, TileHead } from '../components/bento/Tile';
+import { ConnectedSyncPipelineBanner } from '../components/common/SyncPipelineBanner';
 import { dashboardApi } from '../api/dashboardApi';
 import { queryKeys } from '../api/queryKeys';
 
@@ -82,18 +83,22 @@ export const ScheduledEmailsPage: React.FC = () => {
   const renderRow = (d: DeadlineRow, overdueRow: boolean) => {
     const due = d.dueDate ?? d.deadline ?? d.deadlineDetected;
     const emailId = d.emailId ?? d.id;
+    const calendarLink = (d as { calendarHtmlLink?: string }).calendarHtmlLink;
     return (
       <div
         key={`${emailId}-${due}-${overdueRow ? 'o' : 'u'}`}
         className="stream-row"
-        onClick={() => emailId && navigate(`/emails/${emailId}`)}
         style={{ cursor: emailId ? 'pointer' : 'default' }}
       >
         <span
           className="dot"
           style={{ ['--dot']: overdueRow ? 'var(--v-critical)' : 'var(--v-ember)' } as React.CSSProperties}
+          onClick={() => emailId && navigate(`/emails/${emailId}`)}
         />
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{ minWidth: 0, flex: 1 }}
+          onClick={() => emailId && navigate(`/emails/${emailId}`)}
+        >
           <div className="truncate" style={{ fontSize: 13, fontWeight: 700, color: 'var(--v-ink)' }}>
             {d.subject ?? d.title ?? 'Deadline'}
           </div>
@@ -102,6 +107,18 @@ export const ScheduledEmailsPage: React.FC = () => {
             {due ? new Date(due).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
           </div>
         </div>
+        {calendarLink && (
+          <a
+            href={calendarLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="vbtn vbtn-quiet"
+            style={{ height: 32, textDecoration: 'none', flexShrink: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Calendar
+          </a>
+        )}
       </div>
     );
   };
@@ -115,6 +132,7 @@ export const ScheduledEmailsPage: React.FC = () => {
           : `${overdue.length} overdue · ${upcoming.length} upcoming`
       }
     >
+      <ConnectedSyncPipelineBanner />
       {overdue.length > 0 && (
         <Tile span={12} index={0}>
           <TileHead

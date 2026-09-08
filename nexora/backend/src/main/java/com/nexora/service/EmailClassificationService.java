@@ -3,6 +3,7 @@ package com.nexora.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexora.config.GeminiConfig;
+import com.nexora.model.BackgroundJob;
 import com.nexora.model.Email;
 import com.nexora.model.Email.EmailCategory;
 import com.nexora.model.Email.Priority;
@@ -59,7 +60,7 @@ public class EmailClassificationService {
     private final UserRepository userRepository;
     private final EmailActionRepository actionRepository;
     private final ObjectMapper objectMapper;
-    private final CalendarService calendarService;
+    private final BackgroundJobService backgroundJobService;
     private final RestTemplate restTemplate;
     private final TransactionTemplate persistTransaction;
     private final java.util.concurrent.Semaphore geminiSemaphore;
@@ -84,14 +85,14 @@ public class EmailClassificationService {
                                       UserRepository userRepository,
                                       EmailActionRepository actionRepository,
                                       ObjectMapper objectMapper,
-                                      CalendarService calendarService,
+                                      BackgroundJobService backgroundJobService,
                                       PlatformTransactionManager transactionManager) {
         this.geminiConfig = geminiConfig;
         this.emailRepository = emailRepository;
         this.userRepository = userRepository;
         this.actionRepository = actionRepository;
         this.objectMapper = objectMapper;
-        this.calendarService = calendarService;
+        this.backgroundJobService = backgroundJobService;
         // Gemini HTTP runs outside transactions, but each persist still needs a connection.
         // Cap in-flight Gemini work so we do not exhaust a small Supabase/Hikari pool.
         int maxGeminiInFlight = Math.max(1, Math.min(geminiConfig.getMaxConcurrent(), 2));
@@ -678,11 +679,13 @@ Body:
         }
     }
 
-    /** Run calendar insert after the classify TX commits so the deadline flag/save is durable first. */
+    /** Enqueue calendar insert after the classify TX commits so the deadline flag/save is durable first. */
     private void scheduleDeadlineCalendarEvent(User user, Email email) {
         Long emailId = email.getId();
-        if (emailId == null) return;
-        Runnable enqueue = () -> calendarService.createDeadlineEvent(user, email);
+        Long userId = user != null ? user.getId() : null;
+        if (emailId == null || userId == null) return;
+        Runnable enqueue = () -> backgroundJobService.enqueue(
+                userId, BackgroundJob.Type.CREATE_CALENDAR_EVENT, String.valueOf(emailId));
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

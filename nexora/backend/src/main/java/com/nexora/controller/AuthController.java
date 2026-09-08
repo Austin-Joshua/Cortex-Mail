@@ -2,11 +2,15 @@ package com.nexora.controller;
 
 import com.nexora.dto.request.ProfileUpdateRequest;
 import com.nexora.dto.response.AuthResponse;
+import com.nexora.security.AuthCookieService;
 import com.nexora.security.AuthPrincipals;
 import com.nexora.security.OauthStateService;
 import com.nexora.security.UserPrincipal;
 import com.nexora.service.AuthService;
+import com.nexora.service.GmailWatchService;
 import com.nexora.service.OauthExchangeService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +30,8 @@ public class AuthController {
     private final AuthService authService;
     private final OauthExchangeService oauthExchangeService;
     private final OauthStateService oauthStateService;
+    private final AuthCookieService authCookieService;
+    private final GmailWatchService gmailWatchService;
 
     @Value("${app.cors-allowed-origins}")
     private String corsAllowedOrigins;
@@ -112,11 +118,42 @@ public class AuthController {
     }
 
     @GetMapping("/token")
-    public ResponseEntity<AuthResponse> exchangeCode(@RequestParam String code) {
+    public ResponseEntity<AuthResponse> exchangeCode(
+            @RequestParam String code,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         return oauthExchangeService.consume(code)
-                .map(payload -> ResponseEntity.ok(
-                        authService.issueSession(payload.userId(), payload.onboardingComplete())))
+                .map(payload -> {
+                    AuthResponse auth = authService.issueSession(
+                            payload.userId(), payload.onboardingComplete());
+                    setSessionCookies(request, response, auth);
+                    try {
+                        gmailWatchService.setupWatch(auth.getUserId());
+                    } catch (Exception e) {
+                        log.warn("Watch setup after login failed for user {}: {}",
+                                auth.getUserId(), e.getMessage());
+                    }
+                    return ResponseEntity.ok(auth);
+                })
                 .orElseGet(() -> ResponseEntity.status(401).build());
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        String refresh = authCookieService.readCookie(request, com.nexora.security.CookieNames.REFRESH_TOKEN);
+        if (refresh == null || refresh.isBlank()) {
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            AuthResponse auth = authService.refreshSession(refresh);
+            setSessionCookies(request, response, auth);
+            return ResponseEntity.ok(auth);
+        } catch (Exception e) {
+            authCookieService.clearAuthCookies(request, response);
+            return ResponseEntity.status(401).build();
+        }
     }
 
     @GetMapping("/me")
@@ -127,22 +164,43 @@ public class AuthController {
     @PutMapping("/profile")
     public ResponseEntity<AuthResponse> updateProfile(
             @AuthenticationPrincipal UserPrincipal user,
-            @Valid @RequestBody ProfileUpdateRequest request) {
-        AuthResponse response = authService.updateProfile(AuthPrincipals.requireId(user), request.getUserRole(), request.getCalendarSyncEnabled());
+            @Valid @RequestBody ProfileUpdateRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        AuthResponse response = authService.updateProfile(AuthPrincipals.requireId(user), request);
+        if (response.getToken() != null) {
+            setSessionCookies(httpRequest, httpResponse, response);
+        }
         return ResponseEntity.ok(response);
     }
 
     /** Soft logout — invalidate JWTs; keep Gmail connection for next sign-in. */
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal user) {
+    public ResponseEntity<Void> logout(
+            @AuthenticationPrincipal UserPrincipal user,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         authService.logout(AuthPrincipals.requireId(user));
+        authCookieService.clearAuthCookies(request, response);
         return ResponseEntity.ok().build();
     }
 
     /** Hard disconnect — wipe Gmail tokens and invalidate JWTs. */
     @PostMapping("/revoke")
-    public ResponseEntity<Void> revokeAccess(@AuthenticationPrincipal UserPrincipal user) {
+    public ResponseEntity<Void> revokeAccess(
+            @AuthenticationPrincipal UserPrincipal user,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         authService.revokeAccess(AuthPrincipals.requireId(user));
+        authCookieService.clearAuthCookies(request, response);
         return ResponseEntity.ok().build();
+    }
+
+    private void setSessionCookies(HttpServletRequest request, HttpServletResponse response, AuthResponse auth) {
+        if (auth == null || auth.getToken() == null) {
+            return;
+        }
+        String refresh = authService.issueRefreshToken(auth.getUserId());
+        authCookieService.setAuthCookies(request, response, auth.getToken(), refresh);
     }
 }

@@ -32,39 +32,56 @@ export const authApi = {
     return data;
   },
 
+  refreshSession: async (): Promise<AuthResponse> => {
+    const { data } = await axiosInstance.post<AuthResponse>('/api/auth/refresh', {});
+    return data;
+  },
+
   exchangeCode: async (code: string): Promise<AuthResponse> => {
     const { data } = await axiosInstance.get<AuthResponse>('/api/auth/token', { params: { code } });
     return data;
   },
 
-  updateProfile: async (params: { userRole?: UserRole; calendarSyncEnabled?: boolean }): Promise<AuthResponse> => {
+  updateProfile: async (params: {
+    userRole?: UserRole;
+    calendarSyncEnabled?: boolean;
+    quietHoursStart?: number | null;
+    quietHoursEnd?: number | null;
+    mutedCategories?: string | null;
+    digestEnabled?: boolean | null;
+    digestHour?: number | null;
+  }): Promise<AuthResponse> => {
     const { data } = await axiosInstance.put<AuthResponse>('/api/auth/profile', params);
     return data;
   },
 
   logout: async (token?: string | null): Promise<void> => {
-    const auth = token ?? undefined;
-    if (!auth) return;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
     await fetch(`${BACKEND_ORIGIN}/api/auth/logout`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth}`,
-        'Content-Type': 'application/json',
-      },
+      credentials: 'include',
+      headers,
     });
   },
 
   revokeAccess: async (token?: string | null): Promise<void> => {
-    const auth = token ?? undefined;
-    if (!auth) return;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
     // Raw fetch so a 401 here cannot trip the axios interceptor and bounce
     // the user back into a persisted session mid-logout.
     await fetch(`${BACKEND_ORIGIN}/api/auth/revoke`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth}`,
-        'Content-Type': 'application/json',
-      },
+      credentials: 'include',
+      headers,
     });
   },
 };

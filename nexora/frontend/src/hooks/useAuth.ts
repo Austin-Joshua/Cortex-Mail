@@ -37,10 +37,31 @@ export function useAuth() {
     void authApi.logout(sessionToken).catch(() => {});
   };
 
-  const updateProfile = async (params: { role?: UserRole; calendarSyncEnabled?: boolean }) => {
+  const handleDisconnect = () => {
+    const sessionToken = useAuthStore.getState().token;
+    logout();
+    queryClient.clear();
+    navigate('/', { replace: true });
+    void authApi.revokeAccess(sessionToken).catch(() => {});
+  };
+
+  const updateProfile = async (params: {
+    role?: UserRole;
+    calendarSyncEnabled?: boolean;
+    quietHoursStart?: number | null;
+    quietHoursEnd?: number | null;
+    mutedCategories?: string | null;
+    digestEnabled?: boolean | null;
+    digestHour?: number | null;
+  }) => {
     const authResponse = await authApi.updateProfile({
       userRole: params.role,
       calendarSyncEnabled: params.calendarSyncEnabled,
+      quietHoursStart: params.quietHoursStart,
+      quietHoursEnd: params.quietHoursEnd,
+      mutedCategories: params.mutedCategories,
+      digestEnabled: params.digestEnabled,
+      digestHour: params.digestHour,
     });
     setToken(authResponse.token);
     setUser({
@@ -52,6 +73,11 @@ export function useAuth() {
       onboardingComplete: authResponse.onboardingComplete,
       calendarSyncEnabled: authResponse.calendarSyncEnabled,
       lastSyncedAt: authResponse.lastSyncedAt,
+      quietHoursStart: authResponse.quietHoursStart,
+      quietHoursEnd: authResponse.quietHoursEnd,
+      mutedCategories: authResponse.mutedCategories,
+      digestEnabled: authResponse.digestEnabled,
+      digestHour: authResponse.digestHour,
     });
   };
 
@@ -59,5 +85,5 @@ export function useAuth() {
     await updateProfile({ role });
   };
 
-  return { user, token, isAuthenticated, handleGoogleLogin, isGoogleConfigured, handleLogout, updateRole, updateProfile };
+  return { user, token, isAuthenticated, handleGoogleLogin, isGoogleConfigured, handleLogout, handleDisconnect, updateRole, updateProfile };
 }

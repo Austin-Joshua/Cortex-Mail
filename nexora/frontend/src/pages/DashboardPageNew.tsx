@@ -11,6 +11,7 @@ import { queryKeys } from '../api/queryKeys';
 import { AppShell } from '../components/layout/AppShell';
 import { useAuthStore } from '../store/authStore';
 import { useInboxPipeline } from '../hooks/useInboxPipeline';
+import { SyncPipelineBanner } from '../components/common/SyncPipelineBanner';
 import { Tile, TileHead } from '../components/bento/Tile';
 import { Gauge } from '../components/bento/Gauge';
 import { CAT_COLORS, scoreToneFor } from '../utils/catColors';
@@ -107,16 +108,6 @@ export const DashboardPageNew: React.FC = () => {
           ? 'Sync Gmail to score'
           : (cortex?.band ?? 'Pending');
 
-  const lastSyncedLabel = (() => {
-    const raw = syncStatus?.lastSyncedAt || user?.lastSyncedAt;
-    if (!raw) return null;
-    try {
-      return new Date(raw).toLocaleString();
-    } catch {
-      return String(raw);
-    }
-  })();
-
   const [showWhyScore, setShowWhyScore] = React.useState(false);
 
   const scoreSource = useMemo(() => {
@@ -186,55 +177,15 @@ export const DashboardPageNew: React.FC = () => {
 
   return (
     <AppShell title="Home" subtitle={`${greeting}, ${firstName} · ${pageSubtitle}`}>
-      <div
-        className="sync-toolbar"
-      >
-        <span>
-          Sync:{' '}
-          <strong style={{
-            color: syncChip === 'error' ? 'var(--color-danger)'
-              : syncChip === 'syncing' || syncChip === 'classifying' || syncChip === 'enriching' || syncChip === 'busy' ? 'var(--color-cortex)'
-              : syncChip === 'synced' ? 'var(--color-success)'
-                : 'var(--color-text-primary)',
-          }}>
-            {syncChip}
-          </strong>
-          {lastSyncedLabel ? ` · last synced ${lastSyncedLabel}` : ''}
-        </span>
-        <button type="button" className="vbtn vbtn-bare" style={{ height: 28 }} onClick={() => runPipeline(true)}>
-          Sync now
-        </button>
-      </div>
-
-      {(status && (isBackgroundBusy || phase === 'error' || phase === 'grouped' || phase === 'busy')) && (
-        <div
-          className="status-banner"
-          style={{
-            background: phase === 'error'
-              ? 'var(--color-danger-soft)'
-              : syncChip === 'classifying' || syncChip === 'enriching' || syncChip === 'busy' || syncChip === 'syncing'
-                ? 'var(--color-cortex-soft)'
-                : 'var(--color-surface-elevated)',
-            color: phase === 'error'
-              ? 'var(--color-danger)'
-              : syncChip === 'classifying' || syncChip === 'enriching' || syncChip === 'busy' || syncChip === 'syncing'
-                ? 'var(--color-cortex-light)'
-                : 'var(--color-text-secondary)',
-          }}
-        >
-          <span>{status}</span>
-          {phase === 'error' && (
-            <button type="button" className="vbtn vbtn-quiet" onClick={() => runPipeline(true)}>
-              Retry
-            </button>
-          )}
-          {(syncChip === 'synced' || phase === 'grouped') && !isBackgroundBusy && (
-            <button type="button" className="vbtn vbtn-bare" onClick={() => navigate('/inbox')}>
-              Open inbox
-            </button>
-          )}
-        </div>
-      )}
+      <SyncPipelineBanner
+        syncChip={syncChip}
+        phase={phase}
+        status={status}
+        lastSyncedAt={syncStatus?.lastSyncedAt || user?.lastSyncedAt}
+        isBackgroundBusy={isBackgroundBusy}
+        onSync={() => void runPipeline(true)}
+        showOpenInbox
+      />
 
       <div className="bento">
 
@@ -290,7 +241,25 @@ export const DashboardPageNew: React.FC = () => {
                 { k: 'Actions', v: actions.length, tone: 'var(--v-red)' },
                 { k: 'Overdue', v: overdue, tone: overdue ? 'var(--v-critical)' : 'var(--v-ink-4)' },
               ].map((s) => (
-                <div key={s.k} className="kpi-mini-cell">
+                <div
+                  key={s.k}
+                  className="kpi-mini-cell"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (s.k === 'Actions') navigate('/triage');
+                    else if (s.k === 'Overdue') navigate('/scheduled');
+                    else navigate('/inbox');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (s.k === 'Actions') navigate('/triage');
+                      else if (s.k === 'Overdue') navigate('/scheduled');
+                      else navigate('/inbox');
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="v-readout" style={{ fontSize: 20, color: s.tone }}>
                     {s.v}
                   </div>
@@ -298,6 +267,26 @@ export const DashboardPageNew: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {scoreReady && (cortex?.nextActions?.length ?? 0) > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%', marginTop: 4 }}>
+                {(cortex?.nextActions ?? []).slice(0, 3).map((cta) => (
+                  <button
+                    key={`${cta.type}-${cta.route}`}
+                    type="button"
+                    className="vbtn vbtn-quiet"
+                    style={{ height: 32 }}
+                    onClick={() => {
+                      if (cta.emailId) navigate(`/emails/${cta.emailId}`);
+                      else navigate(cta.route || '/dashboard');
+                    }}
+                  >
+                    {cta.label}
+                    {cta.count != null && cta.count > 0 ? ` (${cta.count})` : ''}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </Tile>
 
@@ -324,10 +313,11 @@ export const DashboardPageNew: React.FC = () => {
           </p>
         </Tile>
 
-        <Tile span={3} rule="var(--v-green)" index={3}>
-          <TileHead label="Actions" icon={<ListChecks size={17} />} tone="var(--v-green)" />
+        <Tile span={3} rule="var(--v-green)" index={3} onClick={() => navigate('/triage')}>
+          <TileHead label="Actions" icon={<ListChecks size={17} />} tone="var(--v-green)"
+            right={<ArrowUpRight size={15} style={{ color: 'var(--v-ink-4)' }} />} />
           <div className="v-readout v-readout-lg">{actions.length}</div>
-          <p className="v-meta">extracted from your mail</p>
+          <p className="v-meta">open triage queue</p>
         </Tile>
 
         <Tile span={4} index={4} onClick={() => navigate('/analytics')}>
@@ -509,7 +499,11 @@ export const DashboardPageNew: React.FC = () => {
                       {fmtHour(z.from)} — {fmtHour(z.to)}
                     </div>
                     <div className="v-label" style={{ marginTop: 7 }}>
-                      {z.quiet ? 'Suggested quiet block' : 'Suggested collaboration'}
+                      {user?.quietHoursStart != null && user?.quietHoursEnd != null
+                        && hour >= (user.quietHoursStart ?? 0)
+                        && hour < (user.quietHoursEnd ?? 0)
+                        ? (z.quiet ? 'In your quiet hours' : 'Outside quiet preference')
+                        : (z.quiet ? 'Suggested quiet block' : 'Suggested collaboration')}
                     </div>
                   </div>
                 );

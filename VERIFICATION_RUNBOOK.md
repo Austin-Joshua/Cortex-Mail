@@ -1,72 +1,62 @@
-# Cortex Mail — Verification & Deploy Runbook (post Tranches 1–2)
+# Cortex Mail — Verification Runbook (Final Product)
 
-**Stage:** verification / deployment hardening — **not** Pub/Sub, search parity, or Brain RAG.  
-**Code HEAD:** `1d8d696` on `master` / `main` (Tranches 1–2 landed in `76770e8`; polish + navy branding followed).
+**Scope:** full connected product after Phases 0–5 (auth hardening, shared pipeline, triage, cookies/jobs, Watch, drafts send, focus/digest, ranked search).  
+**Deferred:** full Gmail search parity, Brain RAG, multi-instance Redis.
 
 ---
 
-## 1. Commit / push — DONE
+## 1. Build gates
 
-- Secrets (`.env`) never committed.
-- Latest: navy logo + landing branding (`1d8d696`).
-- Untracked only: large production prompt MD (optional; leave out of git unless you want it).
+```bash
+cd nexora/backend && ./mvnw -DskipTests compile
+cd nexora/frontend && npx tsc -b && npm test
+```
 
-## 2. Local E2E checklist (you in the browser)
+No secrets in git. Confirm Flyway `V6__jobs_locks_watch_prefs.sql` is present.
 
-Servers: backend http://127.0.0.1:8080 · frontend http://127.0.0.1:5173
+## 2. Local E2E checklist
 
-| Step | How to verify |
-|------|----------------|
-| Google sign-in | Landing → Connect Gmail → land on dashboard |
-| Initial sync | Dashboard sync / pipeline chip completes |
-| Supabase rows | Table `emails` grows; `email_attachments` if MIME has files |
-| Second sync → `history.list` | After first sync, `users.gmail_history_id` set; next sync logs incremental |
-| HTML rendering | Open a message with HTML body in Email Detail |
-| Attachments | Detail shows attachment metadata |
-| Read / unread | Toggle; Gmail + DB `is_read` |
-| Star / unstar | Toggle; Gmail + DB `is_starred` |
-| Archive / inbox | Toggle; Gmail labels + DB flags |
-| Trash / restore | Toggle; Gmail + DB |
-| Cortex Score breakdown | Dashboard “Why this score” / factors |
+Servers: backend `:8080` · frontend `:5173`
 
-### Supabase snapshot (automated, this session)
+| Step | Verify |
+|------|--------|
+| Google sign-in with OAuth `state` | Landing → Connect → `/auth/callback` → Home |
+| Soft logout | Settings → Log out (keep Gmail) → sign-in works without full consent when possible |
+| Hard revoke | Settings → Revoke access → must reconnect Gmail |
+| Session refresh | Wait past access TTL or force 401 → `/api/auth/refresh` restores session |
+| Shared sync chip | Visible on Home, Inbox, Priority, Drafts, Deadlines, Triage |
+| Initial + incremental sync | Home Sync now; second sync uses history when `gmail_history_id` set |
+| Typed next actions | Home score CTA buttons navigate to Triage / Deadlines / Inbox |
+| Triage | `/triage` lists follow-ups; Done + Snooze 24h work |
+| Deadlines | Overdue + upcoming; open mail |
+| Draft send | Cortex draft → Send succeeds (or clear error if Gmail rejects) |
+| Calendar link | After deadline export, Email Detail shows Open in Calendar |
+| Quiet hours / digest | Settings prefs persist via `/api/auth/profile` |
+| Ranked search | Inbox search returns high-priority / unread first when applicable |
+| HTML body | DOMPurify-rendered; no script execution |
+| Health | `GET /actuator/health` → UP |
 
-Project `cortex-mail` (`svnqngplmzqfgtqmnbkn`) ACTIVE:
+## 3. Watch (optional)
 
-| Metric | Value |
-|--------|--------|
-| `users` | ≥ 1 |
-| `emails` | growing (was ~12–23 during checks) |
-| `with body_html` | all sampled rows had HTML |
-| `email_attachments` | 4+ (PDF/PNG present) |
-| RLS | enabled on app tables |
-| Flyway | V1 + V2 recorded |
+If `GOOGLE_PUBSUB_TOPIC` is set:
 
-Re-check `users.gmail_history_id` and `last_synced_at` after a successful Dashboard sync in the browser.
+1. Enable Pub/Sub + push subscription → `https://YOUR-API/api/gmail/push`
+2. Confirm watch renew in logs / `users.watch_expiration`
+3. Send yourself mail → incremental job enqueued without waiting for 5‑min scheduler
 
-## 3. AI / security
+If unset: scheduler + client sync remain the path (supported).
 
-- **AI key:** optional. Leave empty for rules-only classify/Brain. Add `GEMINI_API_KEY` to `nexora/backend/.env` only if you need better AI quality — **do not commit**.
-- **DB password:** if the Supabase password was ever pasted into chat or a screenshot, rotate it now:
-  1. Supabase → Project Settings → Database → reset password
-  2. Update local `nexora/backend/.env` `DB_PASSWORD` / JDBC URL
-  3. Update the same secret on Render when you deploy  
-  This agent will **not** write a new password into `.env` for you.
+## 4. Deploy smoke
 
-## 4–5. Deploy (dashboard — no CLI on this machine)
+Follow [PRODUCTION.md](./PRODUCTION.md). After Render+Vercel:
 
-Follow **[PRODUCTION.md](./PRODUCTION.md)**:
+1. Sign in from production origin  
+2. Sync → Supabase `emails` grows; `background_jobs` may show rows  
+3. Triage + Score CTAs  
+4. Cookie `Secure` on HTTPS  
 
-1. **Render** — Web Service from `Austin-Joshua/Cortex-Mail`, root `nexora/backend`, env from `render.yaml` + secrets (`DB_*`, OAuth, JWT, CORS, `SPRING_PROFILES_ACTIVE=prod`).
-2. **Vercel** — Import same repo, root `nexora/frontend`, set `VITE_API_BASE_URL` to Render URL + `VITE_GOOGLE_CLIENT_ID`.
-3. Google Cloud — production redirect URI + JS origin.
+## 5. Explicitly deferred
 
-## 6. Docs / privacy
-
-Fixed / aligned:
-
-- Root README, `PRODUCTION.md`, privacy HTML, and Help/Settings/PrivacyPolicy pages
-
-## 7. Explicitly deferred
-
-Pub/Sub Watch · Gmail search parity · Brain RAG — **after** E2E green + Render/Vercel live.
+- Gmail `messages.list` q= search parity  
+- Brain RAG / vectors  
+- Horizontal multi-instance Redis cluster  

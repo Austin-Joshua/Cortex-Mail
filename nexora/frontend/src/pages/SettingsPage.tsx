@@ -8,7 +8,7 @@ import { emailApi } from '../api/emailApi';
 import { settingsApi } from '../api/settingsApi';
 import { templatesApi } from '../api/templatesApi';
 import { queryKeys } from '../api/queryKeys';
-import { Calendar, Link2, LogOut, Moon, RefreshCw, Shield, Sparkles, Sun, User, FileText } from 'lucide-react';
+import { Calendar, Link2, LogOut, Moon, RefreshCw, Shield, Sparkles, Sun, User, FileText, Clock } from 'lucide-react';
 
 const SECURITY_POINTS = [
   'Mailbox changes (read, star, archive, trash) only run when you click them',
@@ -19,7 +19,7 @@ const SECURITY_POINTS = [
 
 export const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
-  const { updateProfile, handleLogout, handleGoogleLogin } = useAuth();
+  const { updateProfile, handleLogout, handleDisconnect, handleGoogleLogin } = useAuth();
   const { theme, setTheme } = useThemeStore();
   const queryClient = useQueryClient();
   const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(user?.calendarSyncEnabled ?? true);
@@ -235,6 +235,94 @@ export const SettingsPage: React.FC = () => {
 
         <section className="settings-card">
           <div className="settings-card-head">
+            <Clock size={16} />
+            <h2>Focus &amp; digest</h2>
+          </div>
+          <p className="settings-copy">
+            Quiet hours mute new in-app alerts. Morning digest summarizes overdue mail, high-priority unread, and open follow-ups.
+          </p>
+          <label className="v-meta" style={{ display: 'block', marginBottom: 8 }}>
+            Quiet hours start (0–23, blank = off)
+            <input
+              className="settings-field"
+              type="number"
+              min={0}
+              max={23}
+              value={user?.quietHoursStart ?? ''}
+              onChange={async (e) => {
+                const v = e.target.value === '' ? -1 : Number(e.target.value);
+                try {
+                  await updateProfile({ quietHoursStart: v });
+                  setStatus('Quiet hours updated.');
+                } catch {
+                  setStatus('Could not update quiet hours.');
+                }
+              }}
+            />
+          </label>
+          <label className="v-meta" style={{ display: 'block', marginBottom: 8 }}>
+            Quiet hours end (0–23)
+            <input
+              className="settings-field"
+              type="number"
+              min={0}
+              max={23}
+              value={user?.quietHoursEnd ?? ''}
+              onChange={async (e) => {
+                const v = e.target.value === '' ? -1 : Number(e.target.value);
+                try {
+                  await updateProfile({ quietHoursEnd: v });
+                  setStatus('Quiet hours updated.');
+                } catch {
+                  setStatus('Could not update quiet hours.');
+                }
+              }}
+            />
+          </label>
+          <label className="settings-toggle-row" htmlFor="digest-toggle">
+            <div>
+              <div className="settings-toggle-title">Daily digest notification</div>
+              <p className="settings-copy" style={{ margin: '4px 0 0' }}>
+                Summarize what needs you each morning.
+              </p>
+            </div>
+            <input
+              id="digest-toggle"
+              type="checkbox"
+              checked={user?.digestEnabled !== false}
+              onChange={async (e) => {
+                try {
+                  await updateProfile({ digestEnabled: e.target.checked });
+                  setStatus(e.target.checked ? 'Daily digest on.' : 'Daily digest off.');
+                } catch {
+                  setStatus('Could not update digest preference.');
+                }
+              }}
+            />
+          </label>
+          <label className="v-meta" style={{ display: 'block', marginTop: 8 }}>
+            Digest hour (0–23)
+            <input
+              className="settings-field"
+              type="number"
+              min={0}
+              max={23}
+              value={user?.digestHour ?? 8}
+              onChange={async (e) => {
+                const v = Number(e.target.value);
+                try {
+                  await updateProfile({ digestHour: Number.isFinite(v) ? v : 8 });
+                  setStatus('Digest hour updated.');
+                } catch {
+                  setStatus('Could not update digest hour.');
+                }
+              }}
+            />
+          </label>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
             <Calendar size={16} />
             <h2>Calendar</h2>
           </div>
@@ -266,11 +354,19 @@ export const SettingsPage: React.FC = () => {
           </ul>
           <button
             type="button"
-            onClick={() => void handleLogout()}
+            onClick={() => void handleDisconnect()}
             className="vbtn vbtn-quiet"
             style={{ color: 'var(--v-critical)', marginTop: 8 }}
           >
             <LogOut size={14} /> Revoke access &amp; log out
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="vbtn vbtn-bare"
+            style={{ marginTop: 8 }}
+          >
+            Log out (keep Gmail connected)
           </button>
         </section>
 

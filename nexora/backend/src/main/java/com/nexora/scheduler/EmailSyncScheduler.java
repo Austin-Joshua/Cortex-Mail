@@ -1,10 +1,12 @@
 package com.nexora.scheduler;
 
+import com.nexora.model.BackgroundJob;
 import com.nexora.model.User;
 import com.nexora.repository.BrainConversationRepository;
 import com.nexora.repository.UserRepository;
+import com.nexora.service.BackgroundJobService;
 import com.nexora.service.GmailSyncService;
-import com.nexora.service.NotificationService;
+import com.nexora.service.GmailWatchService;
 import com.nexora.service.PostSyncProcessingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +29,12 @@ public class EmailSyncScheduler {
 
     private static final int MAX_USERS_PER_TICK = 5;
 
-    private final NotificationService notificationService;
     private final BrainConversationRepository brainConversationRepository;
     private final UserRepository userRepository;
     private final GmailSyncService gmailSyncService;
     private final PostSyncProcessingService postSyncProcessingService;
+    private final GmailWatchService gmailWatchService;
+    private final BackgroundJobService backgroundJobService;
 
     /**
      * Sync inbox every 5 minutes for stale users — kick async so the scheduler
@@ -64,15 +67,31 @@ public class EmailSyncScheduler {
         }
     }
 
+    /** Renew Gmail watches daily; fallback polling remains in {@link #syncAllUsers}. */
+    @Scheduled(cron = "0 30 3 * * *")
+    public void renewGmailWatches() {
+        List<User> users = userRepository.findAll(PageRequest.of(0, 500)).getContent();
+        for (User user : users) {
+            if (user.getGmailAccessToken() == null) {
+                continue;
+            }
+            try {
+                gmailWatchService.renewWatchIfNeeded(user.getId());
+            } catch (Exception e) {
+                log.warn("Watch renew failed for user {}: {}", user.getId(), e.getMessage());
+            }
+        }
+    }
+
     @Scheduled(cron = "0 0 8 * * *")
     public void dailyNotifications() {
         List<User> allUsers = userRepository.findAll(PageRequest.of(0, 500)).getContent();
-        log.info("Generating daily notifications for {} users", allUsers.size());
+        log.info("Enqueueing daily digests for {} users", allUsers.size());
         for (User user : allUsers) {
             try {
-                notificationService.generateDailyNotifications(user.getId());
+                backgroundJobService.enqueue(user.getId(), BackgroundJob.Type.GENERATE_DIGEST, null);
             } catch (Exception e) {
-                log.error("Daily notification failed for user {}: {}", user.getId(), e.getMessage());
+                log.error("Failed to enqueue digest for user {}: {}", user.getId(), e.getMessage());
             }
         }
     }

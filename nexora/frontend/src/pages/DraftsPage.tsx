@@ -12,6 +12,7 @@ import { queryKeys } from '../api/queryKeys';
 import { useEmailStore } from '../store/emailStore';
 import { useViewport } from '../hooks/useViewport';
 import { Placeholder } from '../components/bento/Placeholder';
+import { ConnectedSyncPipelineBanner } from '../components/common/SyncPipelineBanner';
 
 export const DraftsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -152,6 +153,7 @@ export const DraftsPage: React.FC = () => {
         </div>
       }
     >
+      <ConnectedSyncPipelineBanner />
       {composing && (
         <div className="settings-card" style={{ margin: '12px 16px 0' }}>
           <p className="settings-copy">Saved here only. Gmail stays the place you send from.</p>
@@ -190,6 +192,22 @@ export const DraftsPage: React.FC = () => {
                 <div className="truncate" style={{ fontSize: 13, fontWeight: 700 }}>{d.subject || '(no subject)'}</div>
                 <div className="v-meta truncate">{d.to || 'No recipient'}</div>
               </div>
+              <button
+                type="button"
+                className="vbtn vbtn-quiet"
+                style={{ height: 32 }}
+                onClick={async () => {
+                  try {
+                    const msg = await draftsApi.send(d.id);
+                    setComposeStatus(msg || 'Draft sent via Gmail.');
+                    await queryClient.invalidateQueries({ queryKey: queryKeys.cortexDrafts });
+                  } catch {
+                    setComposeStatus('Send failed. Check Gmail connection and recipients.');
+                  }
+                }}
+              >
+                Send
+              </button>
               <button
                 type="button"
                 className="vbtn vbtn-bare"

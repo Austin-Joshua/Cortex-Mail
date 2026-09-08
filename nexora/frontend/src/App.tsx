@@ -17,6 +17,7 @@ const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage').then((m) => ({ 
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })));
 const PriorityInboxPage = lazy(() => import('./pages/PriorityInboxPage').then((m) => ({ default: m.PriorityInboxPage })));
 const DraftsPage = lazy(() => import('./pages/DraftsPage').then((m) => ({ default: m.DraftsPage })));
+const TriagePage = lazy(() => import('./pages/TriagePage').then((m) => ({ default: m.TriagePage })));
 const ScheduledEmailsPage = lazy(() => import('./pages/ScheduledEmailsPage').then((m) => ({ default: m.ScheduledEmailsPage })));
 const ArchivePage = lazy(() => import('./pages/ArchivePage').then((m) => ({ default: m.ArchivePage })));
 const SharedPage = lazy(() => import('./pages/SharedPage').then((m) => ({ default: m.SharedPage })));
@@ -63,6 +64,7 @@ function App() {
         <Route path="/dashboard"       element={<ProtectedRoute><DashboardPageNew /></ProtectedRoute>} />
         <Route path="/inbox"           element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
         <Route path="/priority"        element={<ProtectedRoute><PriorityInboxPage /></ProtectedRoute>} />
+        <Route path="/triage"          element={<ProtectedRoute><TriagePage /></ProtectedRoute>} />
         <Route path="/scheduled"       element={<ProtectedRoute><ScheduledEmailsPage /></ProtectedRoute>} />
 
         {/* Features */}

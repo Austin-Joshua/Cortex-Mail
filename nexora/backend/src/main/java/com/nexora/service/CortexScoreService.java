@@ -61,7 +61,7 @@ public class CortexScoreService {
         }
         long importantUnread = unreadOf(labels.get("IMPORTANT"));
         long starredUnread = unreadOf(labels.get("STARRED"));
-        long pendingActions = actionRepository.countOpenInboxFollowUps(userId);
+        long pendingActions = actionRepository.countOpenInboxFollowUps(userId, LocalDateTime.now());
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime overdueSince = now.minusDays(OVERDUE_LOOKBACK_DAYS);
@@ -92,7 +92,11 @@ public class CortexScoreService {
             factorSum += factors.get(i).getPoints();
         }
         int score = Math.max(0, Math.min(100, 100 + factorSum));
-        String next = nextAction(unread, importantUnread, starredUnread, pendingActions, overdue, meetingsToday);
+        List<CortexScoreResponse.NextActionItem> nextActions = buildNextActions(
+                unread, importantUnread, starredUnread, pendingActions, overdue, meetingsToday);
+        String next = nextActions.isEmpty()
+                ? "Inbox looks clear. Sync if new mail should be here."
+                : nextActions.get(0).getLabel();
 
         CortexScoreResponse response = new CortexScoreResponse();
         response.setReady(true);
@@ -100,6 +104,7 @@ public class CortexScoreService {
         response.setBand(bandFor(score));
         response.setFactors(factors);
         response.setNextAction(next);
+        response.setNextActions(nextActions);
         response.setStatusMessage(next);
         response.setInboxUnread(unread);
         response.setOverdueCount(overdue);
@@ -154,36 +159,61 @@ public class CortexScoreService {
         return item;
     }
 
-    private static String nextAction(long unread, long importantUnread, long starredUnread,
-                                     long pendingActions, long overdue, long meetingsToday) {
-        if (overdue == 1) {
-            return "Open the overdue message on Home and handle the date first";
-        }
-        if (overdue > 1) {
-            return "Clear " + overdue + " overdue dates on Home before the rest of the inbox";
+    private static List<CortexScoreResponse.NextActionItem> buildNextActions(
+            long unread, long importantUnread, long starredUnread,
+            long pendingActions, long overdue, long meetingsToday) {
+        List<CortexScoreResponse.NextActionItem> items = new ArrayList<>();
+        if (overdue > 0) {
+            items.add(nextItem("OVERDUE",
+                    overdue == 1
+                            ? "Open Deadlines and handle the overdue date first"
+                            : "Clear " + overdue + " overdue dates on Deadlines before the rest of the inbox",
+                    "/scheduled", overdue));
         }
         if (importantUnread > 0) {
-            return "Open Inbox Flagged and work the " + importantUnread + " unread marked important";
+            items.add(nextItem("FLAGGED",
+                    "Open Inbox Flagged and work the " + importantUnread + " unread marked important",
+                    "/inbox?view=IMPORTANT", importantUnread));
         }
         if (starredUnread > 0) {
-            return "Open Inbox Starred and read the " + starredUnread + " you starred";
+            items.add(nextItem("STARRED",
+                    "Open Inbox Starred and read the " + starredUnread + " you starred",
+                    "/inbox?view=STARRED", starredUnread));
         }
         if (meetingsToday > 0) {
-            return "Check todays meeting mail on Home before the day fills up";
+            items.add(nextItem("MEETINGS",
+                    "Review today's meeting mail on Deadlines before the day fills up",
+                    "/scheduled", meetingsToday));
         }
-        if (pendingActions == 1) {
-            return "Finish the open follow-up listed on Home";
+        if (pendingActions > 0) {
+            items.add(nextItem("FOLLOW_UPS",
+                    pendingActions == 1
+                            ? "Finish the open follow-up in Triage"
+                            : "Finish " + pendingActions + " open follow-ups in Triage",
+                    "/triage", pendingActions));
         }
-        if (pendingActions > 1) {
-            return "Finish " + pendingActions + " open follow-ups on Home";
+        if (unread > 0) {
+            items.add(nextItem("UNREAD",
+                    unread == 1
+                            ? "One unread left. Open Primary or tap Mark all as read"
+                            : unread + " unread. Start in Primary, or Mark all as read when you are caught up",
+                    "/inbox", unread));
         }
-        if (unread == 1) {
-            return "One unread left. Open Primary or tap Mark all as read";
+        if (items.isEmpty()) {
+            items.add(nextItem("CLEAR",
+                    "Inbox looks clear. Sync if new mail should be here.",
+                    "/inbox", 0L));
         }
-        if (unread > 1) {
-            return unread + " unread. Start in Primary, or Mark all as read when you are caught up";
-        }
-        return "Inbox looks clear. Sync if new mail should be here.";
+        return items;
+    }
+
+    private static CortexScoreResponse.NextActionItem nextItem(String type, String label, String route, long count) {
+        CortexScoreResponse.NextActionItem item = new CortexScoreResponse.NextActionItem();
+        item.setType(type);
+        item.setLabel(label);
+        item.setRoute(route);
+        item.setCount(count);
+        return item;
     }
 
     private static String bandFor(int score) {

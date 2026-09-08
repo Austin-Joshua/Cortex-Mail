@@ -23,6 +23,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Notification.NotificationType notificationType,
             LocalDateTime createdAt);
 
+    boolean existsByUserIdAndNotificationTypeAndCreatedAtAfter(
+            Long userId,
+            Notification.NotificationType notificationType,
+            LocalDateTime createdAt);
+
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.userId = :userId")
     void markAllReadByUserId(@Param("userId") Long userId);

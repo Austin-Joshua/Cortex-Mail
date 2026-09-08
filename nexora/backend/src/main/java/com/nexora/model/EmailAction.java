@@ -39,6 +39,9 @@ public class EmailAction {
     @Builder.Default
     private Boolean isCompleted = false;
 
+    @Column(name = "snoozed_until")
+    private LocalDateTime snoozedUntil;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

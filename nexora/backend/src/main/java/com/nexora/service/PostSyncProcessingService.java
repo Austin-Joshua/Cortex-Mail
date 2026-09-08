@@ -18,20 +18,35 @@ public class PostSyncProcessingService {
 
     private final GmailSyncService gmailSyncService;
     private final EmailClassificationService classificationService;
+    private final GmailWatchService gmailWatchService;
 
     /**
      * Full sync pipeline off the HTTP thread: Gmail sync, then classify / secondary / refine.
      */
     @Async("syncExecutor")
     public void syncAndProcess(Long userId) {
+        syncAndProcessBlocking(userId);
+    }
+
+    /**
+     * Same pipeline as {@link #syncAndProcess} but runs on the caller thread
+     * (job workers must wait for completion before marking the job done).
+     */
+    public void syncAndProcessBlocking(Long userId) {
         try {
             var response = gmailSyncService.syncInbox(userId);
             String mode = response.getSyncMode();
             if (mode != null && !"SKIPPED".equals(mode)) {
                 processInline(userId, mode);
+                try {
+                    gmailWatchService.renewWatchIfNeeded(userId);
+                } catch (Exception watchErr) {
+                    log.warn("Watch renew after sync failed for user {}: {}", userId, watchErr.getMessage());
+                }
             }
         } catch (Exception e) {
             log.error("Background sync failed for user {}: {}", userId, e.getMessage());
+            throw e instanceof RuntimeException re ? re : new RuntimeException(e);
         }
     }
 
@@ -44,17 +59,22 @@ public class PostSyncProcessingService {
     @Async("taskExecutor")
     public void classifyAndRefine(Long userId, boolean force) {
         try {
-            if (force) {
-                // Quiet re-analyze: no category wipe — keeps UI stable while groups refresh.
-                classificationService.classifyInboxBySourceAndContent(userId);
-                classificationService.reclassifyRecentInboxInPlace(userId, 400);
-            } else {
-                classificationService.classifyInboxBySourceAndContent(userId);
-            }
-            classificationService.refineInboxWithGemini(userId);
+            classifyAndRefineBlocking(userId, force);
         } catch (Exception e) {
             log.error("Background classify failed for user {}: {}", userId, e.getMessage());
         }
+    }
+
+    /** Blocking classify + refine for job workers (must finish before marking the job done). */
+    public void classifyAndRefineBlocking(Long userId, boolean force) {
+        if (force) {
+            // Quiet re-analyze: no category wipe — keeps UI stable while groups refresh.
+            classificationService.classifyInboxBySourceAndContent(userId);
+            classificationService.reclassifyRecentInboxInPlace(userId, 400);
+        } else {
+            classificationService.classifyInboxBySourceAndContent(userId);
+        }
+        classificationService.refineInboxWithGemini(userId);
     }
 
     private void processInline(Long userId, String syncMode) {

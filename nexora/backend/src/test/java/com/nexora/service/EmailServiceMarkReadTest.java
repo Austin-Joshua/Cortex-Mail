@@ -27,6 +27,7 @@ class EmailServiceMarkReadTest {
     @Mock GmailSyncService gmailSyncService;
     @Mock EmailClassificationService classificationService;
     @Mock PostSyncProcessingService postSyncProcessingService;
+    @Mock BackgroundJobService backgroundJobService;
 
     @InjectMocks EmailService emailService;
 

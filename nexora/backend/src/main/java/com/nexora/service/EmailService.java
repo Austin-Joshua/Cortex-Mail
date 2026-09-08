@@ -6,6 +6,7 @@ import com.nexora.dto.response.GmailSyncResponse;
 import com.nexora.dto.response.SenderSummaryResponse;
 import com.nexora.dto.response.SyncIntegrityResponse;
 import com.nexora.exception.NexoraException;
+import com.nexora.model.BackgroundJob;
 import com.nexora.model.Email;
 import com.nexora.model.Email.EmailCategory;
 import com.nexora.model.Email.Priority;
@@ -13,8 +14,6 @@ import com.nexora.model.Email.Reaction;
 import com.nexora.model.User;
 import com.nexora.repository.EmailRepository;
 import com.nexora.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +26,6 @@ import java.util.stream.Collectors;
  * Heavy Gmail I/O and classify run via {@link GmailSyncService} / {@link PostSyncProcessingService}.
  */
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class EmailService {
 
     private static final int MAX_PAGE_SIZE = 100;
@@ -38,19 +35,45 @@ public class EmailService {
     private final GmailSyncService gmailSyncService;
     private final EmailClassificationService classificationService;
     private final PostSyncProcessingService postSyncProcessingService;
+    private final BackgroundJobService backgroundJobService;
+
+    public EmailService(EmailRepository emailRepository,
+                        UserRepository userRepository,
+                        GmailSyncService gmailSyncService,
+                        EmailClassificationService classificationService,
+                        PostSyncProcessingService postSyncProcessingService,
+                        BackgroundJobService backgroundJobService) {
+        this.emailRepository = emailRepository;
+        this.userRepository = userRepository;
+        this.gmailSyncService = gmailSyncService;
+        this.classificationService = classificationService;
+        this.postSyncProcessingService = postSyncProcessingService;
+        this.backgroundJobService = backgroundJobService;
+    }
 
     public Page<EmailResponse> getEmails(Long userId, String category, String priority,
                                           String search, String view, int page, int size) {
-        Pageable pageable = PageRequest.of(page, clampSize(size), Sort.by("receivedAt").descending());
-
         boolean hasSearch = search != null && !search.isBlank();
         EmailCategory categoryEnum = parseCategoryParam(category);
         Priority priorityEnum = parsePriorityParam(priority);
         String mailboxView = parseMailboxView(view);
 
+        // Ranked / view queries already define ORDER BY - do not also pass Pageable Sort.
+        boolean queryDefinesOrder = hasSearch || mailboxView != null;
+        Pageable pageable;
+        if (queryDefinesOrder) {
+            pageable = PageRequest.of(page, clampSize(size));
+        } else {
+            pageable = PageRequest.of(page, clampSize(size), Sort.by("receivedAt").descending());
+        }
+
         Page<Email> emailPage;
         if (mailboxView != null && categoryEnum == null) {
-            emailPage = findInboxByView(userId, mailboxView, pageable);
+            if (hasSearch) {
+                emailPage = findInboxByView(userId, mailboxView, search.trim(), pageable);
+            } else {
+                emailPage = findInboxByView(userId, mailboxView, pageable);
+            }
         } else if (hasSearch && categoryEnum != null) {
             emailPage = emailRepository.searchInboxByUserIdAndCategory(
                     userId, search, categoryEnum, pageable);
@@ -321,18 +344,23 @@ public class EmailService {
         return gmailSyncService.getLabelCounts(userId);
     }
 
-    /** Queue classify + Gemini refine off the HTTP thread; return current group counts. */
+    /** Enqueue durable classify + Gemini refine; return current group counts. */
     public Map<String, Object> classifyInbox(Long userId, boolean force) {
-        postSyncProcessingService.classifyAndRefine(userId, force);
-        return Map.of(
-                "message", force
-                        ? "Re-analysis started — groups refresh without clearing existing labels"
-                        : "Classification started — groups update as mail is analyzed",
-                "classified", 0,
-                "groups", getCategoryCounts(userId),
-                "forced", force,
-                "started", true
-        );
+        backgroundJobService.enqueue(
+                userId, BackgroundJob.Type.CLASSIFY_BATCH, force ? "force" : "normal");
+        String message;
+        if (force) {
+            message = "Re-analysis queued - groups refresh without clearing existing labels";
+        } else {
+            message = "Classification queued - groups update as mail is analyzed";
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("message", message);
+        result.put("classified", 0);
+        result.put("groups", getCategoryCounts(userId));
+        result.put("forced", force);
+        result.put("started", true);
+        return result;
     }
 
     public SyncIntegrityResponse getSyncIntegrity(Long userId) {
@@ -437,9 +465,21 @@ public class EmailService {
         out.setDraftsAligned(draftsAligned);
         out.setSecondaryComplete(secondaryComplete);
         out.setSyncInProgress(syncInProgress);
+        out.setSyncModeHint(resolveSyncModeHint(user));
         out.setNotes(notes);
         out.setSampleInbox(sample);
         return out;
+    }
+
+    private static String resolveSyncModeHint(User user) {
+        if (user.getWatchExpiration() != null
+                && user.getWatchExpiration().isAfter(java.time.LocalDateTime.now())) {
+            return "WATCH";
+        }
+        if (user.getGmailHistoryId() != null && !user.getGmailHistoryId().isBlank()) {
+            return "INCREMENTAL";
+        }
+        return "FULL";
     }
 
     public void classifyEmail(Long userId, Long emailId) {
@@ -540,6 +580,7 @@ public class EmailService {
                 .aiActionItems(email.getAiActionItems())
                 .deadlineDetected(email.getDeadlineDetected())
                 .isDeadlineAddedToCalendar(email.getIsDeadlineAddedToCalendar())
+                .calendarHtmlLink(email.getCalendarHtmlLink())
                 .actions(actions)
                 .attachments(attachments)
                 .createdAt(email.getCreatedAt())
@@ -690,17 +731,63 @@ public class EmailService {
     }
 
     private Page<Email> findInboxByView(Long userId, String view, Pageable pageable) {
-        return switch (view) {
-            case "UNREAD" -> emailRepository.findByUserIdAndInInboxTrueAndIsReadFalseOrderByReceivedAtDesc(userId, pageable);
-            case "STARRED" -> emailRepository.findByUserIdAndInInboxTrueAndIsStarredTrueOrderByReceivedAtDesc(userId, pageable);
-            case "IMPORTANT" -> emailRepository.findByUserIdAndInInboxTrueAndIsImportantTrueOrderByReceivedAtDesc(userId, pageable);
-            case "PRIMARY" -> emailRepository.findInboxPrimary(userId, pageable);
-            case "PROMOTIONS" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_PROMOTIONS", pageable);
-            case "SOCIAL" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_SOCIAL", pageable);
-            case "UPDATES" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_UPDATES", pageable);
-            case "FORUMS" -> emailRepository.findInboxByGmailLabel(userId, "CATEGORY_FORUMS", pageable);
-            default -> emailRepository.findByUserIdAndInInboxTrueOrderByReceivedAtDesc(userId, pageable);
-        };
+        return findInboxByView(userId, view, null, pageable);
+    }
+
+    private Page<Email> findInboxByView(Long userId, String view, String search, Pageable pageable) {
+        boolean hasSearch = search != null && !search.isBlank();
+        if ("UNREAD".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchUnreadInbox(userId, search, pageable);
+            }
+            return emailRepository.findByUserIdAndInInboxTrueAndIsReadFalseOrderByReceivedAtDesc(userId, pageable);
+        }
+        if ("STARRED".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchStarredInbox(userId, search, pageable);
+            }
+            return emailRepository.findByUserIdAndInInboxTrueAndIsStarredTrueOrderByReceivedAtDesc(userId, pageable);
+        }
+        if ("IMPORTANT".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchImportantInbox(userId, search, pageable);
+            }
+            return emailRepository.findByUserIdAndInInboxTrueAndIsImportantTrueOrderByReceivedAtDesc(userId, pageable);
+        }
+        if ("PRIMARY".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchInboxPrimary(userId, search, pageable);
+            }
+            return emailRepository.findInboxPrimary(userId, pageable);
+        }
+        if ("PROMOTIONS".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchInboxByGmailLabel(userId, "CATEGORY_PROMOTIONS", search, pageable);
+            }
+            return emailRepository.findInboxByGmailLabel(userId, "CATEGORY_PROMOTIONS", pageable);
+        }
+        if ("SOCIAL".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchInboxByGmailLabel(userId, "CATEGORY_SOCIAL", search, pageable);
+            }
+            return emailRepository.findInboxByGmailLabel(userId, "CATEGORY_SOCIAL", pageable);
+        }
+        if ("UPDATES".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchInboxByGmailLabel(userId, "CATEGORY_UPDATES", search, pageable);
+            }
+            return emailRepository.findInboxByGmailLabel(userId, "CATEGORY_UPDATES", pageable);
+        }
+        if ("FORUMS".equals(view)) {
+            if (hasSearch) {
+                return emailRepository.searchInboxByGmailLabel(userId, "CATEGORY_FORUMS", search, pageable);
+            }
+            return emailRepository.findInboxByGmailLabel(userId, "CATEGORY_FORUMS", pageable);
+        }
+        if (hasSearch) {
+            return emailRepository.searchInboxByUserId(userId, search, pageable);
+        }
+        return emailRepository.findByUserIdAndInInboxTrueOrderByReceivedAtDesc(userId, pageable);
     }
 
     private static String parseMailboxView(String view) {
@@ -708,11 +795,17 @@ public class EmailService {
             return null;
         }
         String normalized = view.trim().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "UNREAD", "STARRED", "IMPORTANT", "PRIMARY",
-                 "PROMOTIONS", "SOCIAL", "UPDATES", "FORUMS" -> normalized;
-            default -> throw new NexoraException("Invalid mailbox view: " + view, 400);
-        };
+        if ("UNREAD".equals(normalized)
+                || "STARRED".equals(normalized)
+                || "IMPORTANT".equals(normalized)
+                || "PRIMARY".equals(normalized)
+                || "PROMOTIONS".equals(normalized)
+                || "SOCIAL".equals(normalized)
+                || "UPDATES".equals(normalized)
+                || "FORUMS".equals(normalized)) {
+            return normalized;
+        }
+        throw new NexoraException("Invalid mailbox view: " + view, 400);
     }
 
     private EmailCategory parseCategoryParam(String category) {

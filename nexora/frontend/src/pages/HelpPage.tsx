@@ -11,7 +11,7 @@ const CATEGORIES = [
     items: [
       {
         q: 'How do I connect Gmail?',
-        a: 'Sign in with Google. Cortex Mail syncs your mail and can apply mailbox actions you start in the app (read, star, archive, trash). It does not send mail for you.',
+        a: 'Sign in with Google. Cortex Mail syncs your mail, applies mailbox actions you start (read, star, archive, trash), and can send Cortex drafts through Gmail when you click Send.',
       },
       {
         q: 'Where is my data stored?',

@@ -17,6 +17,7 @@ public class SyncIntegrityResponse {
     private boolean draftsAligned;
     private boolean secondaryComplete;
     private boolean syncInProgress;
+    private String syncModeHint; // FULL|INCREMENTAL|WATCH
     private List<String> notes;
     private List<Map<String, Object>> sampleInbox;
 
@@ -52,6 +53,9 @@ public class SyncIntegrityResponse {
 
     public boolean isSyncInProgress() { return syncInProgress; }
     public void setSyncInProgress(boolean syncInProgress) { this.syncInProgress = syncInProgress; }
+
+    public String getSyncModeHint() { return syncModeHint; }
+    public void setSyncModeHint(String syncModeHint) { this.syncModeHint = syncModeHint; }
 
     public List<String> getNotes() { return notes; }
     public void setNotes(List<String> notes) { this.notes = notes; }

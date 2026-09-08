@@ -70,7 +70,7 @@ class CortexScoreServiceTest {
         when(emailRepository.countByUserIdAndInInboxTrue(1L)).thenReturn(8L);
         when(gmailSyncService.getLabelCounts(1L)).thenReturn(Map.of());
         when(emailRepository.countInboxUnreadByUserId(1L)).thenReturn(3L);
-        when(actionRepository.countOpenInboxFollowUps(1L)).thenReturn(0L);
+        when(actionRepository.countOpenInboxFollowUps(eq(1L), any())).thenReturn(0L);
         when(emailRepository.countOverdueDeadlines(eq(1L), any(), any())).thenReturn(0L);
         when(emailRepository.countTodaysMeetings(eq(1L), any(), any())).thenReturn(0L);
 
@@ -112,7 +112,7 @@ class CortexScoreServiceTest {
                 "INBOX", new GmailLabelCountResponse("INBOX", "INBOX", "system", 5L, 0L, 5L, 0L)
         ));
         when(gmailSyncService.getInboxUnreadCount(1L)).thenReturn(0L);
-        when(actionRepository.countOpenInboxFollowUps(1L)).thenReturn(0L);
+        when(actionRepository.countOpenInboxFollowUps(eq(1L), any())).thenReturn(0L);
         when(emailRepository.countOverdueDeadlines(eq(1L), any(), any())).thenReturn(1L);
         when(emailRepository.countTodaysMeetings(eq(1L), any(), any())).thenReturn(0L);
 
@@ -132,7 +132,7 @@ class CortexScoreServiceTest {
                 "INBOX", new GmailLabelCountResponse("INBOX", "INBOX", "system", 4L, 0L, 4L, 0L)
         ));
         when(gmailSyncService.getInboxUnreadCount(1L)).thenReturn(0L);
-        when(actionRepository.countOpenInboxFollowUps(1L)).thenReturn(2L);
+        when(actionRepository.countOpenInboxFollowUps(eq(1L), any())).thenReturn(2L);
         when(emailRepository.countOverdueDeadlines(eq(1L), any(), any())).thenReturn(0L);
         when(emailRepository.countTodaysMeetings(eq(1L), any(), any())).thenReturn(0L);
 
@@ -182,7 +182,7 @@ class CortexScoreServiceTest {
         when(emailRepository.countByUserIdAndInInboxTrue(1L)).thenReturn(Math.max(1L, Math.min(stored, 20L)));
         when(gmailSyncService.getLabelCounts(1L)).thenReturn(labels);
         when(gmailSyncService.getInboxUnreadCount(1L)).thenReturn(unread);
-        when(actionRepository.countOpenInboxFollowUps(1L)).thenReturn(0L);
+        when(actionRepository.countOpenInboxFollowUps(eq(1L), any())).thenReturn(0L);
         when(emailRepository.countOverdueDeadlines(eq(1L), any(), any())).thenReturn(0L);
         when(emailRepository.countTodaysMeetings(eq(1L), any(), any())).thenReturn(0L);
     }

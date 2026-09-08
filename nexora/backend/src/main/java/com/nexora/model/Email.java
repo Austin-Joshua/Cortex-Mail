@@ -154,6 +154,12 @@ public class Email {
     @Builder.Default
     private Boolean isDeadlineAddedToCalendar = false;
 
+    @Column(name = "calendar_html_link")
+    private String calendarHtmlLink;
+
+    @Column(name = "google_event_id")
+    private String googleEventId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

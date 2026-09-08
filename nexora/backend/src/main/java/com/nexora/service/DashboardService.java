@@ -57,7 +57,7 @@ public class DashboardService {
                 .collect(Collectors.toList());
 
         List<EmailAction> pendingActions = actionRepository
-                .findOpenInboxFollowUps(userId, PageRequest.of(0, 8));
+                .findOpenInboxFollowUps(userId, LocalDateTime.now(), PageRequest.of(0, 8));
 
         Map<String, GmailLabelCountResponse> gmailLabelCounts = labelCountsOrEmpty(userId);
         long unreadCount = unreadCountOrLocal(userId, gmailLabelCounts);

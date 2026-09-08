@@ -33,8 +33,9 @@ public interface EmailActionRepository extends JpaRepository<EmailAction, Long> 
               AND (a.email.isTrash = false OR a.email.isTrash IS NULL)
               AND (a.email.isSpam = false OR a.email.isSpam IS NULL)
               AND (a.email.isDraft = false OR a.email.isDraft IS NULL)
+              AND (a.snoozedUntil IS NULL OR a.snoozedUntil <= :now)
             """)
-    long countOpenInboxFollowUps(@Param("userId") Long userId);
+    long countOpenInboxFollowUps(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 
     @EntityGraph(attributePaths = "email")
     List<EmailAction> findTop8ByUserIdAndIsCompletedFalseOrderByDeadlineAsc(Long userId);
@@ -47,7 +48,19 @@ public interface EmailActionRepository extends JpaRepository<EmailAction, Long> 
               AND (a.email.isTrash = false OR a.email.isTrash IS NULL)
               AND (a.email.isSpam = false OR a.email.isSpam IS NULL)
               AND (a.email.isDraft = false OR a.email.isDraft IS NULL)
+              AND (a.snoozedUntil IS NULL OR a.snoozedUntil <= :now)
             ORDER BY a.deadline ASC
             """)
-    List<EmailAction> findOpenInboxFollowUps(@Param("userId") Long userId, Pageable pageable);
+    List<EmailAction> findOpenInboxFollowUps(@Param("userId") Long userId,
+                                               @Param("now") LocalDateTime now,
+                                               Pageable pageable);
+
+    @EntityGraph(attributePaths = "email")
+    @Query("""
+            SELECT a FROM EmailAction a
+            WHERE a.userId = :userId AND a.isCompleted = false
+              AND (a.snoozedUntil IS NULL OR a.snoozedUntil <= :now)
+            ORDER BY a.deadline ASC NULLS LAST, a.createdAt DESC
+            """)
+    List<EmailAction> findPendingOpenActions(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 }

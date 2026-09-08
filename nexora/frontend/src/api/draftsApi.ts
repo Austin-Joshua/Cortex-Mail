@@ -34,4 +34,12 @@ export const draftsApi = {
   remove: async (id: number): Promise<void> => {
     await axiosInstance.delete(`/api/drafts/${id}`);
   },
+
+  send: async (id: number): Promise<string> => {
+    const { data } = await axiosInstance.post<{ data?: string; message?: string } | string>(
+      `/api/drafts/${id}/send`,
+    );
+    if (typeof data === 'string') return data;
+    return data?.data ?? data?.message ?? 'Sent';
+  },
 };

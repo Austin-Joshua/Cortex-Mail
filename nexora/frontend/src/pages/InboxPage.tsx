@@ -6,6 +6,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { EmailList } from '../components/email/EmailList';
 import { EmailDetail } from '../components/email/EmailDetail';
 import { SenderView } from '../components/email/SenderView';
+import { ConnectedSyncPipelineBanner } from '../components/common/SyncPipelineBanner';
 import { useEmailStore } from '../store/emailStore';
 import { useAuthStore } from '../store/authStore';
 import { emailApi } from '../api/emailApi';
@@ -257,6 +258,7 @@ export const InboxPage: React.FC = () => {
         ) : undefined
       }
     >
+      <ConnectedSyncPipelineBanner />
       <div
         className="mail-workspace"
         style={{

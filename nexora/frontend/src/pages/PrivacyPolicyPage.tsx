@@ -50,7 +50,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               Cortex Mail requests Google OAuth access to sync and analyze your Gmail for classification,
               Cortex Score, deadlines, and Brain Q&amp;A. When you use in-app controls, we may also apply
               Gmail mailbox actions you initiate (mark read/unread, star, archive, trash/restore).
-              We do not send email on your behalf unless a future feature explicitly asks you to confirm a send.
+              When you click Send on a Cortex draft, we send that message through your Gmail account with your confirmation in the app.
             </p>
           </section>
 

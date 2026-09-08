@@ -15,6 +15,13 @@ interface CortexScore {
   ready?: boolean;
   statusMessage?: string;
   nextAction?: string;
+  nextActions?: Array<{
+    type: string;
+    label: string;
+    route: string;
+    count?: number | null;
+    emailId?: number | null;
+  }>;
   inboxUnread?: number | null;
   overdueCount?: number | null;
   storedCount?: number | null;

@@ -206,6 +206,17 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({ emailId, onClose }) =>
               <Calendar size={13} /> {formatDateTime(email.deadlineDetected)}
             </span>
           )}
+          {email.calendarHtmlLink && (
+            <a
+              href={email.calendarHtmlLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="vbtn vbtn-quiet"
+              style={{ height: 28, textDecoration: 'none' }}
+            >
+              Open in Calendar
+            </a>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>

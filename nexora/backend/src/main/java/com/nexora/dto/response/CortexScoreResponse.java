@@ -19,6 +19,8 @@ public class CortexScoreResponse {
     /** One concrete next step for the signed-in mailbox — never generic filler. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String nextAction;
+    /** Ordered priority list of typed next actions (non-zero items). */
+    private List<NextActionItem> nextActions = new ArrayList<>();
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Long inboxUnread;
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -61,6 +63,11 @@ public class CortexScoreResponse {
     public String getNextAction() { return nextAction; }
     public void setNextAction(String nextAction) { this.nextAction = nextAction; }
 
+    public List<NextActionItem> getNextActions() { return nextActions; }
+    public void setNextActions(List<NextActionItem> nextActions) {
+        this.nextActions = nextActions != null ? nextActions : new ArrayList<>();
+    }
+
     public Long getInboxUnread() { return inboxUnread; }
     public void setInboxUnread(Long inboxUnread) { this.inboxUnread = inboxUnread; }
 
@@ -69,6 +76,27 @@ public class CortexScoreResponse {
 
     public Long getStoredCount() { return storedCount; }
     public void setStoredCount(Long storedCount) { this.storedCount = storedCount; }
+
+    public static class NextActionItem {
+        private String type; // OVERDUE|FLAGGED|STARRED|MEETINGS|FOLLOW_UPS|UNREAD|CLEAR
+        private String label;
+        private String route; // e.g. /scheduled, /triage, /inbox?view=STARRED
+        private Long count;
+        private Long emailId; // optional
+
+        public NextActionItem() {}
+
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
+        public String getRoute() { return route; }
+        public void setRoute(String route) { this.route = route; }
+        public Long getCount() { return count; }
+        public void setCount(Long count) { this.count = count; }
+        public Long getEmailId() { return emailId; }
+        public void setEmailId(Long emailId) { this.emailId = emailId; }
+    }
 
     public static class Factor {
         private String key;

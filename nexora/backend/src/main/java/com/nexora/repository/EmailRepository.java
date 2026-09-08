@@ -100,18 +100,86 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND " +
            "(LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END, " +
+           "e.isRead ASC, e.deadlineDetected ASC, e.receivedAt DESC")
     Page<Email> searchInboxByUserId(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
 
     @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.category = :category AND " +
            "(LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END, " +
+           "e.isRead ASC, e.deadlineDetected ASC, e.receivedAt DESC")
     Page<Email> searchInboxByUserIdAndCategory(
             @Param("userId") Long userId,
             @Param("search") String search,
             @Param("category") EmailCategory category,
             Pageable pageable);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.isRead = false AND
+              (LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))
+            ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END,
+                     e.deadlineDetected ASC, e.receivedAt DESC
+            """)
+    Page<Email> searchUnreadInbox(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.isStarred = true AND
+              (LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))
+            ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END,
+                     e.isRead ASC, e.deadlineDetected ASC, e.receivedAt DESC
+            """)
+    Page<Email> searchStarredInbox(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true AND e.isImportant = true AND
+              (LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR
+               LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))
+            ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END,
+                     e.isRead ASC, e.deadlineDetected ASC, e.receivedAt DESC
+            """)
+    Page<Email> searchImportantInbox(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND UPPER(COALESCE(e.gmailLabelIds, '')) LIKE CONCAT('%', :label, '%')
+              AND (LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR
+                   LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR
+                   LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))
+            ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END,
+                     e.isRead ASC, e.deadlineDetected ASC, e.receivedAt DESC
+            """)
+    Page<Email> searchInboxByGmailLabel(
+            @Param("userId") Long userId,
+            @Param("label") String label,
+            @Param("search") String search,
+            Pageable pageable);
+
+    @Query("""
+            SELECT e FROM Email e WHERE e.user.id = :userId AND e.inInbox = true
+              AND (
+                UPPER(COALESCE(e.gmailLabelIds, '')) LIKE '%CATEGORY_PERSONAL%'
+                OR (
+                  UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_PROMOTIONS%'
+                  AND UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_SOCIAL%'
+                  AND UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_UPDATES%'
+                  AND UPPER(COALESCE(e.gmailLabelIds, '')) NOT LIKE '%CATEGORY_FORUMS%'
+                )
+              )
+              AND (LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR
+                   LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR
+                   LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))
+            ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END,
+                     e.isRead ASC, e.deadlineDetected ASC, e.receivedAt DESC
+            """)
+    Page<Email> searchInboxPrimary(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
 
     Page<Email> findByUserIdAndInInboxTrueAndCategoryOrderByReceivedAtDesc(
             Long userId, EmailCategory category, Pageable pageable);
@@ -149,7 +217,9 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     @Query("SELECT e FROM Email e WHERE e.user.id = :userId AND " +
            "(LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(e.senderName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "LOWER(e.senderEmail) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY CASE e.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END, " +
+           "e.isRead ASC, e.deadlineDetected ASC, e.receivedAt DESC")
     Page<Email> searchByUserId(@Param("userId") Long userId, @Param("search") String search, Pageable pageable);
 
     @Query("SELECT e.category, COUNT(e) FROM Email e WHERE e.user.id = :userId AND e.inInbox = true GROUP BY e.category")
