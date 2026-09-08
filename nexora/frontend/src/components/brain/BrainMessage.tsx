@@ -1,4 +1,6 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { BrainMessage } from '../../types/Brain';
 import { Brain, User as UserIcon, ExternalLink } from 'lucide-react';
 import { formatRelative } from '../../utils/formatDate';
@@ -30,13 +32,21 @@ export const BrainMessageComponent: React.FC<Props> = ({ message, onEmailClick }
         {isUser ? <UserIcon size={16} /> : <Brain size={16} />}
       </div>
 
-      <div style={{ maxWidth: '80%', display: 'flex', flexDirection: 'column', gap: 6, alignItems: isUser ? 'flex-end' : 'flex-start' }}>
+      <div style={{ maxWidth: 'min(720px, 88%)', display: 'flex', flexDirection: 'column', gap: 6, alignItems: isUser ? 'flex-end' : 'flex-start' }}>
         <span className="section-label" style={{ fontSize: 10 }}>
           {isUser ? 'You' : 'Brain'}
         </span>
 
         <div className={isUser ? 'brain-user-bubble' : 'brain-ai-bubble'}>
-          {message.content}
+          {isUser ? (
+            message.content
+          ) : (
+            <div className="brain-md">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {normalizeBrainMarkdown(message.content)}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
 
         {!isUser && message.referencedEmails && message.referencedEmails.length > 0 && (
@@ -70,3 +80,16 @@ export const BrainMessageComponent: React.FC<Props> = ({ message, onEmailClick }
     </div>
   );
 };
+
+/** Fix common model quirks so markdown renders cleanly. */
+function normalizeBrainMarkdown(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .replace(/\r\n/g, '\n')
+    // Ensure headings and lists start on their own line when the model jammed them inline
+    .replace(/([^\n])\s*(###?\s)/g, '$1\n\n$2')
+    .replace(/([^\n])\s+(-\s)/g, '$1\n$2')
+    .replace(/([^\n])\s+(\*\s)/g, '$1\n$2')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

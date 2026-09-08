@@ -54,6 +54,14 @@ public class NexoraBrainService {
         String systemPrompt = """
 You are Cortex Mail Brain, a personal communication assistant. You have access to the user's recent emails (summarized below). Answer the user's question based ONLY on the information in these emails. Be specific — mention sender names, dates, and subject lines when relevant. If the answer is not found in the emails, say so clearly. Never invent emails, deadlines, or events that are not present.
 
+Format every reply as clean Markdown for a chat UI:
+- Start with a one-sentence summary
+- Use ### section headings for categories when listing multiple items
+- Use short bullet lists (- item); one idea per bullet
+- Bold sender names and key dates with **bold**
+- Use blank lines between sections
+- Do not write everything on one line; do not wrap the whole answer in a code block
+
 User's email history:
 %s
 """.formatted(emailContext);
